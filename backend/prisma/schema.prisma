@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum BusType {
+  AC
+  NON_AC
+  SLEEPER
+}
+
+enum BusStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum TripStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum BookingSeatStatus {
+  LOCKED
+  RESERVED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BKASH
+  NAGAD
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+//////////////////////////////////////////////////////
+// USER
+//////////////////////////////////////////////////////
+
+model User {
+  id                String   @id @default(cuid())
+  fullName          String
+  email             String   @unique
+  passwordHash      String
+  phoneNumber       String?
+  role              UserRole @default(USER)
+  refreshTokenHash  String?
+
+  bookings          Booking[]
+  payments          Payment[]
+  refunds           Refund[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+//////////////////////////////////////////////////////
+// BUS
+//////////////////////////////////////////////////////
+
+model Bus {
+  id                 String   @id @default(cuid())
+  name               String
+  operatorName       String
+  registrationNumber String   @unique
+  seatCapacity       Int
+  busType            BusType
+  status             BusStatus @default(ACTIVE)
+
+  seats              Seat[]
+  trips              Trip[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+//////////////////////////////////////////////////////
+// ROUTE
+//////////////////////////////////////////////////////
+
+model Route {
+  id          String   @id @default(cuid())
+  origin      String
+  destination String
+
+  trips       Trip[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([origin, destination])
+}
+
+//////////////////////////////////////////////////////
+// TRIP
+//////////////////////////////////////////////////////
+
+model Trip {
+  id             String      @id @default(cuid())
+  busId          String
+  routeId        String
+
+  departureTime  DateTime
+  arrivalTime    DateTime
+  price          Decimal     @db.Decimal(10, 2)
+
+  status         TripStatus  @default(SCHEDULED)
+  cancelledAt    DateTime?
+  cancelReason   String?
+  cancelledBy    String?
+
+  bus            Bus         @relation(fields: [busId], references: [id], onDelete: Restrict)
+  route          Route       @relation(fields: [routeId], references: [id], onDelete: Restrict)
+
+  bookings       Booking[]
+  bookingSeats   BookingSeat[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([busId])
+  @@index([routeId])
+  @@index([departureTime])
+}
+
+//////////////////////////////////////////////////////
+// SEAT
+//////////////////////////////////////////////////////
+
+model Seat {
+  id           String   @id @default(cuid())
+  busId        String
+  seatNumber   String
+
+  rowNumber    Int?
+  columnNumber Int?
+
+  bus          Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+  bookingSeats BookingSeat[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([busId, seatNumber])
+}
+
+//////////////////////////////////////////////////////
+// BOOKING
+//////////////////////////////////////////////////////
+
+model Booking {
+  id               String         @id @default(cuid())
+  bookingReference String         @unique
+
+  userId           String
+  tripId           String
+
+  passengerName    String
+  passengerPhone   String
+
+  totalAmount      Decimal        @db.Decimal(10, 2)
+
+  status           BookingStatus  @default(PENDING)
+  cancelledAt      DateTime?
+  cancelReason     String?
+  cancelledBy      String?
+
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip             Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  bookingSeats     BookingSeat[]
+  payments         Payment[]
+  refunds          Refund[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+//////////////////////////////////////////////////////
+// BOOKING SEAT (CRITICAL)
+//////////////////////////////////////////////////////
+
+model BookingSeat {
+  id            String            @id @default(cuid())
+
+  bookingId     String?
+  tripId        String
+  seatId        String
+
+  price         Decimal           @db.Decimal(10, 2)
+  status        BookingSeatStatus @default(LOCKED)
+  lockExpiresAt DateTime?
+
+  booking       Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  trip          Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  seat          Seat              @relation(fields: [seatId], references: [id], onDelete: Restrict)
+
+  createdAt     DateTime          @default(now())
+
+  @@unique([tripId, seatId]) // 🔥 prevents double booking
+}
+
+//////////////////////////////////////////////////////
+// PAYMENT
+//////////////////////////////////////////////////////
+
+model Payment {
+  id            String        @id @default(cuid())
+
+  bookingId     String
+  userId        String
+
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+
+  transactionId String?       @unique
+
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refunds       Refund[]
+
+  createdAt     DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// REFUND
+//////////////////////////////////////////////////////
+
+model Refund {
+  id          String       @id @default(cuid())
+
+  bookingId   String
+  paymentId   String?
+  userId      String
+
+  reason      String
+  amount      Decimal      @db.Decimal(10, 2)
+  status      RefundStatus @default(PENDING)
+  processedAt DateTime?
+  processedBy String?
+  adminNote   String?
+
+  booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  payment     Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+}
