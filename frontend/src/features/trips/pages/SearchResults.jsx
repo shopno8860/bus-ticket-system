@@ -1,14 +1,22 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { tripApi } from '../services/tripApi';
 import TripCard from '../components/TripCard';
 import FilterSidebar from '../components/FilterSidebar';
 
 function SearchResults() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const from = searchParams.get('from') || '';
   const to = searchParams.get('to') || '';
   const date = searchParams.get('date') || '';
+
+  // Search Form State (For editing)
+  const [searchData, setSearchData] = useState({
+    from: from,
+    to: to,
+    date: date
+  });
 
   const [allTrips, setAllTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,47 +116,71 @@ function SearchResults() {
     }
   }, [date]);
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (searchData.from) params.set('from', searchData.from);
+    if (searchData.to) params.set('to', searchData.to);
+    if (searchData.date) params.set('date', searchData.date);
+    navigate(`/trips?${params.toString()}`);
+  };
+
   return (
     <div className="min-h-screen bg-[#f9fafb] py-10 px-4 md:px-8">
       <div className="max-w-[1400px] mx-auto space-y-8">
         
-        {/* Modern Header Section */}
-        <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-sm border border-[#e5e7eb] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#16a34a]/5 rounded-full -mr-48 -mt-48 blur-3xl"></div>
-          
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
-              <div className="bg-[#dcfce7] w-20 h-20 rounded-3xl flex items-center justify-center border border-[#16a34a]/10">
-                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10 text-[#16a34a]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                </svg>
-              </div>
-              <div>
-                 <p className="text-xs font-bold text-[#16a34a] uppercase tracking-[0.2em] mb-2">Available Routes</p>
-                 <h1 className="text-4xl font-bold text-[#111827] flex items-center gap-4 flex-wrap justify-center md:justify-start">
-                  <span>{from || 'Origin'}</span>
-                  <div className="w-8 h-px bg-[#e5e7eb]"></div>
-                  <span>{to || 'Destination'}</span>
-                </h1>
-              </div>
+        {/* Modern Search Bar at Top */}
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#e5e7eb]">
+          <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row items-end gap-6">
+            <div className="w-full">
+              <label className="label py-1">
+                <span className="label-text text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">From</span>
+              </label>
+              <input 
+                type="text" 
+                placeholder="From City" 
+                className="input input-bordered w-full rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a]"
+                value={searchData.from}
+                onChange={(e) => setSearchData(prev => ({ ...prev, from: e.target.value }))}
+                required
+              />
             </div>
-
-            <div className="flex flex-col items-center md:items-end gap-3">
-               <div className="bg-[#f9fafb] px-6 py-4 rounded-2xl border border-[#e5e7eb] flex items-center gap-4">
-                  <div className="flex flex-col items-start">
-                    <span className="text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">Journey Date</span>
-                    <span className="text-lg font-bold text-[#111827]">{displayDate}</span>
-                  </div>
-                  <div className="w-px h-8 bg-[#e5e7eb] mx-2"></div>
-                  <button className="btn btn-ghost btn-circle btn-sm text-[#16a34a] hover:bg-[#16a34a]/10">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
-                  </button>
-               </div>
+            <div className="w-full">
+              <label className="label py-1">
+                <span className="label-text text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">To</span>
+              </label>
+              <input 
+                type="text" 
+                placeholder="To City" 
+                className="input input-bordered w-full rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a]"
+                value={searchData.to}
+                onChange={(e) => setSearchData(prev => ({ ...prev, to: e.target.value }))}
+                required
+              />
             </div>
-          </div>
+            <div className="w-full">
+              <label className="label py-1">
+                <span className="label-text text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">Journey Date</span>
+              </label>
+              <input 
+                type="date" 
+                className="input input-bordered w-full rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a]"
+                value={searchData.date}
+                onChange={(e) => setSearchData(prev => ({ ...prev, date: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="w-full lg:w-auto">
+              <button 
+                type="submit" 
+                className="btn bg-[#16a34a] hover:bg-[#15803d] text-white w-full lg:w-auto px-10 h-[3rem] rounded-xl border-none font-bold tracking-wide shadow-lg shadow-[#16a34a]/20"
+              >
+                MODIFY SEARCH
+              </button>
+            </div>
+          </form>
         </div>
+
 
         {/* 2-Column Main Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
@@ -188,13 +220,13 @@ function SearchResults() {
                     onClick={() => setSortBy('cheapest')}
                     className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${sortBy === 'cheapest' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
                   >
-                    Cheapest
+                    Low to High
                   </button>
                   <button 
                     onClick={() => setSortBy('expensive')}
                     className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${sortBy === 'expensive' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
                   >
-                    Expensive
+                    High to low
                   </button>
                </div>
             </div>
