@@ -2,6 +2,7 @@ import Hero from "../components/Hero";
 import SearchForm from "../components/SearchForm";
 import Destinations from "../components/Destinations";
 import Operators from "../components/Operators";
+import Features from "../components/Features";
 
 const Home = () => {
   return (
@@ -10,6 +11,7 @@ const Home = () => {
       <SearchForm />
       <Destinations />
       <Operators />
+      <Features/>
     </div>
   );
 };

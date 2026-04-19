@@ -27,8 +27,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/trips/results" element={<SearchResults />} />
-        <Route path="/seats" element={<SeatSelection />} />
+        <Route path="/trips" element={<SearchResults />} />
+        <Route path="/seats/:tripId" element={<SeatSelection />} />
         <Route path="/booking/summary" element={<BookingSummary />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/refund" element={<Refund />} />
