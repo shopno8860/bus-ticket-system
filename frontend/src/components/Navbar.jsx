@@ -5,54 +5,76 @@ const Navbar = () => {
   const isLoggedIn = false;
 
   return (
-    <div className="navbar bg-white shadow-sm sticky top-0 z-50 px-4 md:px-8 h-[60px]">
-      <div className="navbar-start flex-1">
-        <Link
-          to="/"
-          className="btn btn-ghost text-2xl font-bold px-2 hover:bg-transparent"
-        >
-          <span className="text-base-content text-3xl">Easy</span>
-          <span className="text-green-500 text-3xl">Trip</span>
-        </Link>
-      </div>
-
-      <div className="navbar-end flex-none gap-2">
-        {isLoggedIn ? (
-          <div className="dropdown dropdown-end">
-            <div
-              tabIndex={0}
-              role="button"
-              className="btn btn-ghost btn-circle avatar"
+    <nav className="bg-white shadow-md sticky top-0 z-50 h-16 md:h-20 flex items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="flex justify-between items-center h-full">
+          
+          {/* Logo Section */}
+          <div className="flex-shrink-0 flex items-center">
+            <Link
+              to="/"
+              className="flex items-center gap-0.5 group transition-transform duration-300 active:scale-95"
             >
-              <div className="w-10 rounded-full border border-base-300">
-                <img
-                  alt="User profile"
-                  src="https://ui-avatars.com/api/?name=Mock+User&background=random"
-                />
-              </div>
-            </div>
-            <ul
-              tabIndex={0}
-              className="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52"
-            >
-              <li>
-                <Link to="/profile">Profile</Link>
-              </li>
-              <li>
-                <button>Logout</button>
-              </li>
-            </ul>
+              <span className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Easy</span>
+              <span className="text-2xl md:text-3xl font-black text-[#16a34a] tracking-tight">Trip</span>
+            </Link>
           </div>
-        ) : (
-          <Link
-            to="/auth/login"
-            className="btn btn-success text-white rounded-full px-6 transition-transform duration-300 hover:scale-105 text-white"
-          >
-            Login
-          </Link>
-        )}
+
+          {/* Navigation/Action Section */}
+          <div className="flex items-center space-x-6">
+            <div className="hidden lg:flex items-center space-x-8 mr-8">
+              <Link to="/" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">Home</Link>
+              <Link to="/trips" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">Bus Tickets</Link>
+              <Link to="/#contact" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">Contact</Link>
+            </div>
+
+            {isLoggedIn ? (
+              <div className="dropdown dropdown-end">
+                <div
+                  tabIndex={0}
+                  role="button"
+                  className="btn btn-ghost btn-circle avatar border-2 border-slate-100 hover:border-[#16a34a]/20 transition-all p-0"
+                >
+                  <div className="w-10 rounded-full">
+                    <img
+                      alt="User profile"
+                      src="https://ui-avatars.com/api/?name=Mock+User&background=16a34a&color=fff"
+                    />
+                  </div>
+                </div>
+                <ul
+                  tabIndex={0}
+                  className="mt-3 z-[1] p-2 shadow-xl menu menu-sm dropdown-content bg-base-100 rounded-xl w-52 border border-slate-100"
+                >
+                  <li className="menu-title text-[10px] uppercase tracking-widest text-slate-400">Account</li>
+                  <li>
+                    <Link to="/profile" className="py-3 font-bold text-slate-700">Profile</Link>
+                  </li>
+                  <li>
+                    <button className="py-3 font-bold text-red-500">Logout</button>
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/auth/login"
+                  className="px-8 py-2 md:py-2.5 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-full font-bold text-sm md:text-base shadow-lg shadow-[#16a34a]/20 transition-all hover:scale-105 active:scale-95 hidden sm:block"
+                >
+                  Login
+                </Link>
+                {/* Mobile Menu Icon (Placeholder for now) */}
+                <button className="lg:hidden text-slate-600 p-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </nav>
   );
 };
 
