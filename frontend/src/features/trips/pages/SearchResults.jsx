@@ -134,11 +134,11 @@ function SearchResults() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] py-10 px-4 md:px-8">
-      <div className="max-w-[1400px] mx-auto space-y-8">
+    <div className="min-h-screen bg-[#f9fafb] py-16 px-4 md:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Modern Search Bar at Top */}
-        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row items-end gap-x-4 gap-y-6">
             
             {/* From Input Group */}
@@ -250,11 +250,11 @@ function SearchResults() {
           <div className="lg:col-span-9 space-y-6">
             
             {/* Sorting & Stats Top Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-[#e5e7eb] shadow-sm gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm gap-4">
                <div className="flex items-center gap-4">
                   <button 
                     onClick={() => setShowMobileFilters(true)}
-                    className="lg:hidden btn btn-ghost btn-sm text-[#6b7280] gap-2 border-[#e5e7eb]"
+                    className="lg:hidden btn btn-ghost btn-sm text-[#6b7280] gap-2 border-gray-100"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0m-9.75 0h9.75" />
@@ -266,16 +266,16 @@ function SearchResults() {
                   </p>
                </div>
                
-               <div className="flex bg-[#f9fafb] p-1.5 rounded-2xl gap-2">
+               <div className="flex bg-[#f9fafb] p-1.5 rounded-xl gap-2">
                   <button 
                     onClick={() => setSortBy('cheapest')}
-                    className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${sortBy === 'cheapest' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
+                    className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 ${sortBy === 'cheapest' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
                   >
                     Low to High
                   </button>
                   <button 
                     onClick={() => setSortBy('expensive')}
-                    className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${sortBy === 'expensive' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
+                    className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 ${sortBy === 'expensive' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
                   >
                     High to low
                   </button>

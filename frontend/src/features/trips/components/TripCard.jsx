@@ -29,7 +29,7 @@ function TripCard({ trip }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 group">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
       <div className="p-5 md:p-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           

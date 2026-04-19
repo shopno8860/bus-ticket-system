@@ -38,7 +38,7 @@ const featuresData = [
 
 const Features = () => {
   return (
-    <section className="bg-gray-50 py-16 md:py-24">
+    <section className="bg-gray-50 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16 px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
@@ -53,10 +53,10 @@ const Features = () => {
           {featuresData.map((feature) => (
             <div
               key={feature.id}
-              className="bg-white rounded-2xl p-8 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-xl flex flex-col items-center text-center transition-all duration-300 transform hover:-translate-y-2 group cursor-pointer"
+              className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-lg flex flex-col items-center text-center transition-all duration-300 transform hover:-translate-y-1 group cursor-pointer"
             >
               <div
-                className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 transition-transform duration-300 ${feature.bgColor} group-hover:scale-110`}
+                className={`w-20 h-20 rounded-xl flex items-center justify-center mb-6 transition-transform duration-300 ${feature.bgColor} group-hover:scale-110`}
               >
                 <div className={`text-4xl ${feature.color}`}>
                   {feature.icon}

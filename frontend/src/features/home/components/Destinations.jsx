@@ -51,7 +51,7 @@ const Destinations = () => {
   };
 
   return (
-    <section className="py-12 md:py-16 px-4 max-w-7xl mx-auto">
+    <section className="py-16 px-4 max-w-7xl mx-auto">
       <div className="text-center mb-10">
         <h2 className="text-3xl md:text-4xl font-bold mb-3 text-gray-800">
           Discover Trending Destinations
@@ -66,7 +66,7 @@ const Destinations = () => {
           <div
             key={dest.id}
             onClick={() => handleCardClick(dest.name)}
-            className={`group cursor-pointer rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 relative h-[350px] bg-gray-200 ${
+            className={`group cursor-pointer rounded-xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-lg transition-all duration-300 relative h-[350px] bg-gray-200 ${
               index < 2 ? "lg:col-span-3" : "lg:col-span-2"
             }`}
           >

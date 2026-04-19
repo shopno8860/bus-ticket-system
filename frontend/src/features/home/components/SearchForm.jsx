@@ -17,7 +17,7 @@ const SearchForm = () => {
   };
 
   return (
-    <div className="bg-white p-5 rounded-xl shadow-lg w-full md:max-w-7xl mx-auto mt-6">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 w-full md:max-w-7xl mx-auto mt-[-40px] relative z-20">
       <form
         onSubmit={handleSubmit}
         className="flex flex-col md:flex-row items-end gap-4 w-full"
@@ -72,7 +72,7 @@ const SearchForm = () => {
         <div className="w-full md:w-auto">
           <button
             type="submit"
-            className="btn btn-success text-white w-full md:w-auto px-8 text-white rounded-lg"
+            className="btn bg-[#16a34a] hover:bg-[#15803d] text-white w-full md:w-auto px-10 rounded-lg border-none font-bold transition-all duration-300"
           >
             Search Bus
           </button>

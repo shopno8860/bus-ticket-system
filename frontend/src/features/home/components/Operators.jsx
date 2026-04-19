@@ -18,7 +18,7 @@ const Operators = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-12 md:py-16 bg-white w-full max-w-7xl mx-auto px-4 overflow-hidden">
+    <section className="py-16 bg-white w-full max-w-7xl mx-auto px-4 overflow-hidden text-center md:text-left">
       {/* Title block with Book Now button */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div className="text-left">
@@ -33,7 +33,7 @@ const Operators = () => {
           <button
             type="button"
             onClick={() => navigate("/trips")}
-            className="btn btn-success px-8 rounded-full transition-transform hover:scale-105 text-white shadow-md font-semibold"
+            className="btn bg-[#16a34a] hover:bg-[#15803d] px-8 rounded-lg transition-all duration-300 hover:scale-[1.02] text-white border-none shadow-sm font-semibold"
           >
             Book your ticket now &rarr;
           </button>
@@ -46,7 +46,7 @@ const Operators = () => {
           {loopedOperators.map((operator, index) => (
             <div
               key={index}
-              className="flex-shrink-0 w-48 h-24 bg-white border border-gray-100 shadow-md rounded-2xl flex items-center justify-center p-4 hover:scale-105 hover:shadow-lg transition-all duration-300 cursor-pointer text-center"
+              className="flex-shrink-0 w-48 h-24 bg-white border border-gray-100 shadow-sm rounded-xl flex items-center justify-center p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer text-center"
             >
               <span className="font-bold text-gray-600 truncate">
                 {operator.name}
