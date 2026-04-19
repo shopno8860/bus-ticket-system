@@ -5,7 +5,7 @@ function TripCard({ trip }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(null);
 
-  const handleViewSeats = () => {
+  const handleBookTicket = () => {
     navigate(`/seats/${trip.id}`);
   };
 
@@ -29,73 +29,60 @@ function TripCard({ trip }) {
   };
 
   return (
-    <div className="bg-white rounded-[2rem] shadow-sm border border-[#e5e7eb] overflow-hidden hover:shadow-xl hover:shadow-[#16a34a]/5 transition-all duration-300 group">
-      <div className="p-8">
-        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 items-center">
+    <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 group">
+      <div className="p-5 md:p-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           
-          {/* 1. Operator Info (col-span-4) */}
-          <div className="lg:col-span-4 w-full space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-[#f9fafb] rounded-2xl flex items-center justify-center border border-[#e5e7eb] group-hover:border-[#16a34a]/20 transition-colors">
-                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-[#16a34a]/40 group-hover:text-[#16a34a] transition-colors">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a4.125 4.125 0 100-8.25 4.125 4.125 0 000 8.25zM6.75 12h.008v.008H6.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 7.5a3.375 3.375 0 100-6.75 3.375 3.375 0 000 6.75zM9.75 15.75h.008v.008H9.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM14.25 18a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5zM12.75 15.75h.008v.008H12.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM18 17.25a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.5 15.75h.008v.008H16.5v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM22.5 16.5a.75.75 0 100-1.5.75.75 0 000 1.5zM21 15.75h.008v.008H21v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-[#111827] leading-tight">
-                  {trip.bus?.operatorName || trip.bus?.name || 'Super Express'}
-                </h3>
-                <p className="text-xs font-bold text-[#6b7280] uppercase tracking-widest">{trip.bus?.busType === 'AC' ? 'Luxury AC Coach' : 'Economy Non-AC'}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <span className="bg-[#f9fafb] text-xs font-bold px-3 py-1.5 text-[#6b7280] rounded-lg border border-[#e5e7eb]">{trip.route?.origin} ➔ {trip.route?.destination}</span>
-            </div>
+          {/* LEFT SECTION: Bus Info */}
+          <div className="flex-1 w-full text-center md:text-left space-y-1">
+            <h3 className="text-lg font-bold text-gray-900 leading-tight">
+              {trip.bus?.operatorName || trip.bus?.name || 'Super Express'}
+            </h3>
+            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              {trip.bus?.busType === 'AC' ? 'Luxury AC Coach' : 'Economy Non-AC'}
+            </p>
+            <p className="text-xs text-gray-400 font-medium">
+              {trip.route?.origin} ➔ {trip.route?.destination}
+            </p>
           </div>
 
-          {/* 2. Timeline (col-span-5) */}
-          <div className="lg:col-span-5 w-full">
-            <div className="flex justify-between items-center relative gap-4 px-4">
-              <div className="text-center z-10 flex flex-col items-start">
-                <p className="text-[10px] font-bold text-[#6b7280] uppercase tracking-widest mb-1">Departure</p>
-                <div className="text-2xl font-bold text-[#111827]">{formatTime(trip.departureTime)}</div>
-                <div className="text-xs font-bold text-[#6b7280] mt-1">{trip.route?.origin}</div>
+          {/* MIDDLE SECTION: Timeline */}
+          <div className="flex-[1.5] w-full py-4 md:py-0 border-y md:border-y-0 border-gray-50">
+            <div className="flex justify-between items-center gap-4 px-2">
+              <div className="text-center">
+                <div className="text-xl font-bold text-gray-800">{formatTime(trip.departureTime)}</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{trip.route?.origin}</div>
               </div>
 
-              <div className="flex-1 flex flex-col items-center justify-center py-2 px-2 relative min-w-[80px]">
-                <div className="text-[10px] font-bold text-[#16a34a] bg-[#dcfce7] px-3 py-1 rounded-full mb-3 whitespace-nowrap">
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full mb-1">
                   {calculateDuration(trip.departureTime, trip.arrivalTime)}
                 </div>
-                <div className="w-full h-px bg-[#e5e7eb] relative">
-                  <div className="absolute top-1/2 left-0 -translate-y-1/2 w-4 h-4 bg-white border border-[#e5e7eb] rounded-full flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 bg-[#e5e7eb] rounded-full"></div>
-                  </div>
-                  <div className="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-4 bg-white border border-[#e5e7eb] rounded-full flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 bg-[#16a34a] rounded-full animate-pulse"></div>
-                  </div>
+                <div className="w-full flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full border border-gray-300"></div>
+                  <div className="flex-1 h-px bg-gray-200"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                 </div>
               </div>
 
-              <div className="text-center z-10 flex flex-col items-end">
-                <p className="text-[10px] font-bold text-[#6b7280] uppercase tracking-widest mb-1">Arrival</p>
-                <div className="text-2xl font-bold text-[#111827]">{formatTime(trip.arrivalTime)}</div>
-                <div className="text-xs font-bold text-[#6b7280] mt-1">{trip.route?.destination}</div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-gray-800">{formatTime(trip.arrivalTime)}</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{trip.route?.destination}</div>
               </div>
             </div>
           </div>
 
-          {/* 3. Price & Checkout (col-span-3) */}
-          <div className="lg:col-span-3 w-full lg:pl-10 lg:border-l border-[#e5e7eb] space-y-4">
-            <div className="text-center lg:text-right">
-              <p className="text-[10px] font-bold text-[#6b7280] uppercase tracking-widest mb-1">Fare (per seat)</p>
-              <div className="text-4xl font-bold text-[#111827]">৳{trip.price}</div>
-              <p className="text-xs font-bold text-[#6b7280] mt-2">
-                <span className="text-[#16a34a]">{trip.availableSeats || 20}</span> Seats Available
+          {/* RIGHT SECTION: Price & Action */}
+          <div className="flex-1 w-full text-center md:text-right space-y-3">
+            <div>
+              <div className="text-2xl font-bold text-gray-900">৳{trip.price}</div>
+              <p className="text-xs font-semibold text-gray-500 italic">
+                {trip.availableSeats || 20} Seats Available
               </p>
             </div>
             <button 
-              onClick={handleViewSeats}
-              className="btn bg-[#16a34a] hover:bg-[#15803d] w-full h-[3.5rem] rounded-2xl shadow-xl shadow-[#16a34a]/20 text-white font-bold tracking-wide border-none transition-all hover:scale-[1.02]"
+              onClick={handleBookTicket}
+              className="btn bg-[#16a34a] hover:bg-[#15803d] text-white w-full h-12 rounded-lg border-none font-bold tracking-wide shadow-sm transition-all active:scale-95"
             >
               BOOK TICKET
             </button>
@@ -103,56 +90,28 @@ function TripCard({ trip }) {
         </div>
       </div>
 
-      {/* 4. Secondary Action Bar */}
-      <div className="bg-[#f9fafb] border-t border-[#e5e7eb] px-8 py-3 flex flex-wrap gap-4">
-        {[
-          { id: 'policy', label: 'Cancellation Policy' },
-          { id: 'boarding', label: 'Boarding Point' },
-          { id: 'dropping', label: 'Dropping Point' },
-          { id: 'amenities', label: 'Amenities' },
-        ].map(tab => (
+      {/* Extra Links (Cancellation, Policy, etc.) - Scaled down for cleanliness */}
+      <div className="bg-gray-50/50 border-t border-gray-100 px-6 py-2.5 flex flex-wrap gap-x-6 gap-y-2">
+        {['Cancellation Policy', 'Boarding Point', 'Dropping Point', 'Amenities'].map(label => (
           <button 
-            key={tab.id}
-            onClick={() => setActiveTab(activeTab === tab.id ? null : tab.id)}
-            className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all ${activeTab === tab.id ? 'bg-[#16a34a] text-white shadow-md' : 'text-[#6b7280] hover:text-[#111827] hover:bg-[#e5e7eb]'}`}
+            key={label}
+            className="text-[10px] font-bold text-gray-400 hover:text-green-600 uppercase tracking-wider transition-colors"
+            onClick={() => setActiveTab(activeTab === label ? null : label)}
           >
-            {tab.label}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Expandable Content Area */}
+      {/* Expandable Content area (Simplified) */}
       {activeTab && (
-        <div className="p-8 bg-[#f9fafb] border-t border-[#e5e7eb] transition-all animate-in fade-in slide-in-from-top-4">
-           {activeTab === 'policy' && (
-             <div className="flex gap-4 items-start">
-               <div className="badge border-[#f97316] text-[#f97316] p-4 font-bold bg-[#fff7ed]">Important</div>
-               <p className="text-sm text-[#111827] font-medium leading-relaxed">
-                 Cancellations made 24 hours before journey are eligible for a 90% refund. 
-                 Inside 24 hours, only a 50% refund is applicable. No refund for no-shows.
-               </p>
-             </div>
-           )}
-           {activeTab === 'amenities' && (
-             <div className="flex flex-wrap gap-4">
-               {['Water Bottle', 'Blanket', 'Pillow', 'WIFI', 'Mobile Charging Port'].map(amenity => (
-                 <div key={amenity} className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-[#e5e7eb]">
-                    <div className="w-2 h-2 rounded-full bg-[#16a34a]/40"></div>
-                    <span className="text-xs font-bold text-[#111827]">{amenity}</span>
-                 </div>
-               ))}
-             </div>
-           )}
-           {activeTab === 'boarding' && (
-             <div className="text-sm text-[#111827] font-bold">
-               Gabtoli (Main Counter) - 30 mins before departure
-             </div>
-           )}
-           {activeTab === 'dropping' && (
-             <div className="text-sm text-[#111827] font-bold">
-               GEC Circle - Drop off point
-             </div>
-           )}
+        <div className="p-5 border-t border-gray-100 bg-gray-50/50 animate-in fade-in slide-in-from-top-2">
+          <p className="text-xs text-gray-500 font-medium leading-relaxed">
+            {activeTab === 'Cancellation Policy' && "Cancellations allowed up to 24 hours before departure with a 10% fee."}
+            {activeTab === 'Amenities' && "Water Bottle, Blanket, Pillow, Reading Light."}
+            {activeTab === 'Boarding Point' && `${trip.route?.origin} Central Bus Terminal`}
+            {activeTab === 'Dropping Point' && `${trip.route?.destination} Junction Counter`}
+          </p>
         </div>
       )}
     </div>

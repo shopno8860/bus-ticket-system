@@ -116,6 +116,14 @@ function SearchResults() {
     }
   }, [date]);
 
+  const handleSwap = () => {
+    setSearchData(prev => ({
+      ...prev,
+      from: prev.to,
+      to: prev.from
+    }));
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const params = new URLSearchParams();
@@ -130,52 +138,95 @@ function SearchResults() {
       <div className="max-w-[1400px] mx-auto space-y-8">
         
         {/* Modern Search Bar at Top */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-[#e5e7eb]">
-          <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row items-end gap-6">
-            <div className="w-full">
+        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100">
+          <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row items-end gap-x-4 gap-y-6">
+            
+            {/* From Input Group */}
+            <div className="w-full relative">
               <label className="label py-1">
-                <span className="label-text text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">From</span>
+                <span className="label-text text-[11px] font-bold text-[#6b7280] uppercase tracking-widest px-1">From City</span>
               </label>
-              <input 
-                type="text" 
-                placeholder="From City" 
-                className="input input-bordered w-full rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a]"
-                value={searchData.from}
-                onChange={(e) => setSearchData(prev => ({ ...prev, from: e.target.value }))}
-                required
-              />
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#16a34a] pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Enter Origin" 
+                  className="input input-bordered w-full h-12 rounded-xl bg-[#f9fafb] border-slate-200 pl-11 text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]/20 transition-all"
+                  value={searchData.from}
+                  onChange={(e) => setSearchData(prev => ({ ...prev, from: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
-            <div className="w-full">
+
+            {/* Swap Button (Desktop) */}
+            <div className="hidden lg:flex items-center justify-center pb-2 px-1">
+               <button 
+                 type="button"
+                 onClick={handleSwap}
+                 className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[#16a34a] shadow-sm hover:shadow-md hover:bg-slate-50 transition-all active:scale-90"
+                 title="Swap Cities"
+               >
+                 <span className="text-xl font-bold leading-none select-none mt-[-2px]">⇄</span>
+               </button>
+            </div>
+
+            {/* To Input Group */}
+            <div className="w-full relative">
               <label className="label py-1">
-                <span className="label-text text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">To</span>
+                <span className="label-text text-[11px] font-bold text-[#6b7280] uppercase tracking-widest px-1">To City</span>
               </label>
-              <input 
-                type="text" 
-                placeholder="To City" 
-                className="input input-bordered w-full rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a]"
-                value={searchData.to}
-                onChange={(e) => setSearchData(prev => ({ ...prev, to: e.target.value }))}
-                required
-              />
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#16a34a] pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Enter Destination" 
+                  className="input input-bordered w-full h-12 rounded-xl bg-[#f9fafb] border-slate-200 pl-11 text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]/20 transition-all"
+                  value={searchData.to}
+                  onChange={(e) => setSearchData(prev => ({ ...prev, to: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
-            <div className="w-full">
+
+            {/* Date Input Group */}
+            <div className="w-full lg:w-[350px]">
               <label className="label py-1">
-                <span className="label-text text-[10px] font-bold text-[#6b7280] uppercase tracking-widest">Journey Date</span>
+                <span className="label-text text-[11px] font-bold text-[#6b7280] uppercase tracking-widest px-1">Journey Date</span>
               </label>
-              <input 
-                type="date" 
-                className="input input-bordered w-full rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a]"
-                value={searchData.date}
-                onChange={(e) => setSearchData(prev => ({ ...prev, date: e.target.value }))}
-                required
-              />
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#16a34a] pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                  </svg>
+                </div>
+                <input 
+                  type="date" 
+                  className="input input-bordered w-full h-12 rounded-xl bg-[#f9fafb] border-slate-200 pl-11 text-sm font-bold text-[#111827] focus:outline-none focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]/20 transition-all"
+                  value={searchData.date}
+                  onChange={(e) => setSearchData(prev => ({ ...prev, date: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
-            <div className="w-full lg:w-auto">
+
+            {/* Search Button */}
+            <div className="w-full lg:w-auto pb-0">
               <button 
                 type="submit" 
-                className="btn bg-[#16a34a] hover:bg-[#15803d] text-white w-full lg:w-auto px-10 h-[3rem] rounded-xl border-none font-bold tracking-wide shadow-lg shadow-[#16a34a]/20"
+                className="btn bg-[#16a34a] hover:bg-[#15803d] text-white w-full lg:w-auto px-10 h-12 rounded-xl border-none font-bold tracking-wider shadow-lg shadow-[#16a34a]/30 transition-all hover:scale-[1.02] active:scale-95 text-sm uppercase"
               >
-                MODIFY SEARCH
+                Search Bus
               </button>
             </div>
           </form>
