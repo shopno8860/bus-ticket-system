@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import Home from "../features/home/pages/Home";
-import BookingSummary from "../features/bookings/pages/BookingSummary";
+import BookingPage from "../features/bookings/pages/BookingPage";
 import Login from "../features/auth/pages/Login";
 import Register from "../features/auth/pages/Register";
 import Payment from "../features/payments/pages/Payment";
@@ -29,7 +29,7 @@ function AppRoutes() {
         />
         <Route path="/trips" element={<SearchResults />} />
         <Route path="/seats/:tripId" element={<SeatSelection />} />
-        <Route path="/booking/summary" element={<BookingSummary />} />
+        <Route path="/booking" element={<BookingPage />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/refund" element={<Refund />} />
       </Route>
