@@ -15,10 +15,13 @@ import AdminRoutes from "../features/admin/routes/AdminRoutes";
 function AppRoutes() {
   return (
     <Routes>
+      {/* Auth Routes (No Navbar/Footer) */}
+      <Route path="/auth/login" element={<LoginPage />} />
+      <Route path="/auth/register" element={<RegisterPage />} />
+
+      {/* Main Routes (With Navbar/Footer) */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/auth/login" element={<LoginPage />} />
-        <Route path="/auth/register" element={<RegisterPage />} />
         <Route
           path="/profile"
           element={
@@ -50,6 +53,7 @@ function AppRoutes() {
         
         <Route path="/refund" element={<Refund />} />
       </Route>
+
       <Route path="/admin/*" element={<AdminRoutes />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

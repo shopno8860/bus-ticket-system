@@ -10,6 +10,7 @@ const RegisterPage = () => {
     password: '',
     confirmPassword: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register, token } = useAuth();
@@ -51,20 +52,14 @@ const RegisterPage = () => {
         throw new Error('Password must be at least 8 characters');
       }
 
-      // Payload matching backend DTO
       await register({ fullName, email, phoneNumber, password });
     } catch (err) {
-      // Handle array of errors from backend if it's a JSON response
       if (err.message && err.message.startsWith('{')) {
         try {
           const parsed = JSON.parse(err.message);
-          if (Array.isArray(parsed.message)) {
-            setError(parsed.message.join(', '));
-          } else {
-            setError(parsed.message || 'Registration failed');
-          }
+          setError(Array.isArray(parsed.message) ? parsed.message.join(', ') : parsed.message);
         } catch {
-          setError(err.message);
+          setError('Registration failed');
         }
       } else {
         setError(err.message || 'Registration failed');
@@ -74,108 +69,171 @@ const RegisterPage = () => {
     }
   };
 
+  const isFormEmpty = Object.values(formData).some(value => !value);
+
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-        <div className="bg-[#16a34a] p-8 text-center">
-          <h2 className="text-3xl font-bold text-white">Create Account</h2>
-          <p className="text-white/80 mt-2">Join EasyTrip for better travel experience</p>
-        </div>
+    <div className="h-screen w-full overflow-hidden flex bg-white select-none">
+      
+      {/* LEFT: Split Image Section */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 rounded-r-[40px] overflow-hidden shadow-2xl">
+        <img
+          src="https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&q=80&w=1200"
+          alt="Registration Travel"
+          className="absolute inset-0 w-full h-full object-cover opacity-70"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
         
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
+        <div className="absolute bottom-20 left-16">
+          <h1 className="text-5xl font-black text-white leading-tight">
+            Join the Journey,<br />
+            Join <span className="text-[#16a34a]">EasyTrip</span>
+          </h1>
+        </div>
+      </div>
+
+      {/* RIGHT: Register Form Section */}
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 md:p-8 lg:p-12 overflow-hidden">
+        
+        <div className="max-w-md w-full">
+          {/* Logo */}
+          <div className="mb-6">
+            <Link to="/" className="flex items-center justify-end gap-1">
+              <span className="text-4xl font-black text-slate-800 tracking-tighter">Easy</span>
+              <span className="text-4xl font-black text-[#16a34a] tracking-tighter">Trip</span>
+            </Link>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight mb-2">Create Account</h2>
+            <p className="text-slate-500 font-medium leading-relaxed text-sm">
+              Create your account once and enjoy a seamless journey across all EasyTrip services. One account for all your travel needs.
+            </p>
+          </div>
+
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded text-red-700 text-sm break-words">
+            <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg text-red-700 text-xs mb-4 font-medium">
               {error}
             </div>
           )}
-          
-          <div className="space-y-1">
-            <label className="text-sm font-bold text-slate-600 block">Full Name</label>
-            <input
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="John Doe"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20 outline-none transition-all"
-              required
-            />
-          </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-bold text-slate-600 block">Email Address</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="name@example.com"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20 outline-none transition-all"
-              required
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-bold text-slate-600 block">Phone Number</label>
-            <input
-              type="tel"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              placeholder="017XXXXXXXX"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20 outline-none transition-all"
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-600 block">Password</label>
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+                Full Name
+              </label>
               <input
-                type="password"
-                name="password"
-                value={formData.password}
+                type="text"
+                name="fullName"
+                value={formData.fullName}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20 outline-none transition-all"
+                placeholder="John Doe"
+                className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-4 focus:ring-[#16a34a]/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm text-sm"
                 required
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-600 block">Confirm</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20 outline-none transition-all"
-                required
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="name@example.com"
+                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-4 focus:ring-[#16a34a]/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  placeholder="017XXXXXXXX"
+                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-4 focus:ring-[#16a34a]/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm text-sm"
+                  required
+                />
+              </div>
             </div>
-          </div>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#16a34a]/20 transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2 mt-4"
-          >
-            {loading ? (
-              <span className="loading loading-spinner loading-sm"></span>
-            ) : (
-              'Create Account'
-            )}
-          </button>
-          
-          <div className="text-center pt-2">
-            <p className="text-slate-500">
-              Already have an account?{' '}
-              <Link to="/auth/login" className="font-bold text-[#16a34a] hover:underline">
-                Login
-              </Link>
-            </p>
-          </div>
-        </form>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="••••••••"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-4 focus:ring-[#16a34a]/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm text-sm"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+                  Confirm
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="••••••••"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#16a34a] focus:ring-4 focus:ring-[#16a34a]/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-sm text-sm"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pr-1">
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[10px] font-bold text-slate-400 hover:text-[#16a34a] transition-colors uppercase tracking-widest"
+              >
+                {showPassword ? 'Hide Passwords' : 'Show Passwords'}
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || isFormEmpty}
+              className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white font-black py-4 rounded-xl shadow-lg shadow-[#16a34a]/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? (
+                <>
+                  <span className="loading loading-spinner loading-sm"></span>
+                  Creating Account...
+                </>
+              ) : (
+                'Create Account'
+              )}
+            </button>
+
+            <div className="text-center mt-4">
+              <p className="text-slate-500 font-bold text-sm">
+                Already have an account?{' '}
+                <Link to="/auth/login" className="text-[#16a34a] hover:underline">
+                  Log In
+                </Link>
+              </p>
+            </div>
+          </form>
+        </div>
+
       </div>
     </div>
   );
