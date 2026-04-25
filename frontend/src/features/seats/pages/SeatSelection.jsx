@@ -62,10 +62,12 @@ const SeatSelection = () => {
     
     try {
       setLoading(true);
-      await lockSeats({
+      const lockResponse = await lockSeats({
         tripId,
         seatIds: selectedSeats,
       });
+      
+      const { lockExpiresAt } = lockResponse;
       
       // Get seat numbers for display
       const selectedSeatDetails = allSeats.filter(s => selectedSeats.includes(s.id));
@@ -77,6 +79,7 @@ const SeatSelection = () => {
           selectedSeatNumbers: selectedSeatDetails.map(s => s.seatNumber),
           seatPrice: PRICE_PER_SEAT,
           busType: tripData.bus.busType,
+          lockExpiresAt, // Pass the expiry time
         },
       });
     } catch (err) {

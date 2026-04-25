@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { confirmBooking } from "../services/bookingApi";
 import { useAuth } from "../../auth/context/AuthContext";
 
@@ -20,11 +20,62 @@ const BookingPage = () => {
     );
   }
 
-  const { tripId, selectedSeats, selectedSeatNumbers, seatPrice, busType } = state;
+  const { tripId, selectedSeats, selectedSeatNumbers, seatPrice, busType, lockExpiresAt } = state;
 
   const [name, setName] = useState(user?.fullName || "");
   const [phone, setPhone] = useState(user?.phoneNumber || "");
   const [loading, setLoading] = useState(false);
+
+  // Timer State
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [isExpired, setIsExpired] = useState(false);
+
+  // Initialize and persist timer
+  useEffect(() => {
+    // Check localStorage for existing expiry for this trip
+    const storageKey = `lock_expiry_${tripId}`;
+    let expiryTime = localStorage.getItem(storageKey);
+
+    if (!expiryTime && lockExpiresAt) {
+      expiryTime = new Date(lockExpiresAt).getTime();
+      localStorage.setItem(storageKey, expiryTime);
+    } else if (!expiryTime) {
+      // Fallback: 5 minutes from now if no data available
+      expiryTime = Date.now() + 5 * 60 * 1000;
+      localStorage.setItem(storageKey, expiryTime);
+    }
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const distance = expiryTime - now;
+
+      if (distance <= 0) {
+        clearInterval(timer);
+        setTimeLeft(0);
+        setIsExpired(true);
+        localStorage.removeItem(storageKey);
+      } else {
+        setTimeLeft(Math.floor(distance / 1000));
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [tripId, lockExpiresAt]);
+
+  // Handle auto-expiry action
+  useEffect(() => {
+    if (isExpired) {
+      alert("Session expired. Please select seats again.");
+      navigate(`/seats/${tripId}`);
+    }
+  }, [isExpired, navigate, tripId]);
+
+  const formatTime = (seconds) => {
+    if (seconds === null) return "00:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   // Price Calculation
   const feePerSeat = busType === "AC" ? 70 : 40;
@@ -62,6 +113,9 @@ const BookingPage = () => {
 
       console.log("Booking success:", res);
 
+      // Clear timer persistence
+      localStorage.removeItem(`lock_expiry_${tripId}`);
+
       alert("Booking Confirmed!");
 
       navigate("/payment", {
@@ -79,11 +133,35 @@ const BookingPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 py-8">
       <div className="max-w-6xl mx-auto">
+        
+        {/* Header Section: Title & Timer */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            Booking Summary
+          </h2>
 
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">
-          Booking Summary
-        </h2>
+          {timeLeft !== null && (
+            <div className={`px-5 py-3 rounded-2xl border flex items-center gap-4 transition-all duration-500 shadow-sm ${
+              timeLeft < 60 
+                ? "bg-red-50 border-red-200 text-red-600 animate-pulse" 
+                : "bg-white border-gray-200 text-gray-700"
+            }`}>
+              <div className={`p-2 rounded-xl ${timeLeft < 60 ? "bg-red-100" : "bg-green-50 text-green-600"}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50 leading-none mb-1">
+                  {timeLeft < 60 ? "Hurry! Expiring" : "Seats Reserved"}
+                </span>
+                <span className="font-mono text-xl font-black leading-none">
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -169,7 +247,7 @@ const BookingPage = () => {
 
             <button
               onClick={handleBooking}
-              disabled={!name || !phone || loading}
+              disabled={!name || !phone || loading || isExpired}
               className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-sm tracking-widest transition-all shadow-lg shadow-green-100 uppercase disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
             >
               {loading ? (
