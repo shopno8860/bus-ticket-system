@@ -25,4 +25,21 @@ export const tripApi = {
     const data = await response.json();
     return Array.isArray(data) ? data : (data.trips || data.data || []);
   },
+
+  getTripDetails: async (tripId) => {
+    const url = `${config.apiBaseUrl}/trips/${tripId}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch trip details: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
 };

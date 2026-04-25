@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BookingSeatStatus,
   BookingStatus,
   PaymentStatus,
   Prisma,
@@ -100,6 +101,39 @@ export class TripsService {
   async findOneById(id: string): Promise<Trip> {
     const trip = await this.prismaService.trip.findUnique({
       where: { id },
+    });
+
+    if (!trip) {
+      throw new NotFoundException(`Trip not found for id: ${id}`);
+    }
+
+    return trip;
+  }
+
+  async findOneWithSeats(id: string) {
+    const trip = await this.prismaService.trip.findUnique({
+      where: { id },
+      include: {
+        bus: {
+          include: {
+            seats: {
+              orderBy: [{ rowNumber: 'asc' }, { columnNumber: 'asc' }],
+            },
+          },
+        },
+        route: true,
+        bookingSeats: {
+          where: {
+            OR: [
+              { status: BookingSeatStatus.RESERVED },
+              {
+                status: BookingSeatStatus.LOCKED,
+                lockExpiresAt: { gt: new Date() },
+              },
+            ],
+          },
+        },
+      },
     });
 
     if (!trip) {

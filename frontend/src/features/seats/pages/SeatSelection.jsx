@@ -1,26 +1,44 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { tripApi } from "../../trips/services/tripApi";
+import { lockSeats } from "../../bookings/services/bookingApi";
 
 const SeatSelection = () => {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const [tripData, setTripData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const PRICE_PER_SEAT = 550; // Dynamic pricing can be added later
 
-  // Generate 40 seats (A1...J4) - Mocking availability for production-ready frontend
-  const allSeats = useMemo(() => {
-    const seats = [];
-    const rows = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
-    rows.forEach((row) => {
-      for (let i = 1; i <= 4; i++) {
-        seats.push({
-          id: `${row}${i}`,
-          isBooked: Math.random() < 0.15, // ~15% booked
-        });
+  useEffect(() => {
+    const fetchTripDetails = async () => {
+      try {
+        const data = await tripApi.getTripDetails(tripId);
+        setTripData(data);
+      } catch (err) {
+        console.error("Failed to fetch trip details:", err);
+        alert("Failed to load trip details. Please try again.");
+      } finally {
+        setLoading(false);
       }
-    });
-    return seats;
-  }, []);
+    };
+    fetchTripDetails();
+  }, [tripId]);
+
+  const allSeats = useMemo(() => {
+    if (!tripData || !tripData.bus || !tripData.bus.seats) return [];
+
+    const bookedSeatIds = new Set(
+      tripData.bookingSeats.map((bs) => bs.seatId)
+    );
+
+    return tripData.bus.seats.map((seat) => ({
+      ...seat,
+      isBooked: bookedSeatIds.has(seat.id),
+    }));
+  }, [tripData]);
+
+  const PRICE_PER_SEAT = tripData ? parseFloat(tripData.price) : 0;
 
   const handleSeatClick = (seat) => {
     if (seat.isBooked) return;
@@ -39,17 +57,60 @@ const SeatSelection = () => {
 
   const totalPrice = selectedSeats.length * PRICE_PER_SEAT;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedSeats.length === 0) return;
-    navigate("/booking", {
-      state: {
+    
+    try {
+      setLoading(true);
+      await lockSeats({
         tripId,
-        selectedSeats,
-        seatPrice: PRICE_PER_SEAT,
-        busType: "AC",
-      },
-    });
+        seatIds: selectedSeats,
+      });
+      
+      // Get seat numbers for display
+      const selectedSeatDetails = allSeats.filter(s => selectedSeats.includes(s.id));
+      
+      navigate("/booking", {
+        state: {
+          tripId,
+          selectedSeats: selectedSeats, // These are UUIDs/CUIDs
+          selectedSeatNumbers: selectedSeatDetails.map(s => s.seatNumber),
+          seatPrice: PRICE_PER_SEAT,
+          busType: tripData.bus.busType,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to lock seats:", err);
+      alert(err.message || "Failed to reserve seats. They might have been taken.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="loading loading-spinner loading-lg text-green-600"></div>
+          <p className="text-gray-500 font-medium">Loading available seats...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tripData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-gray-800">Trip not found</h2>
+          <button onClick={() => navigate(-1)} className="mt-4 text-green-600 font-bold">Go Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Group seats by row for the grid
+  const rowCount = Math.ceil(allSeats.length / 4);
 
   return (
     <div className="min-h-screen bg-gray-50 md:flex md:items-center md:justify-center p-0 md:p-4">
@@ -57,7 +118,12 @@ const SeatSelection = () => {
       <div className="w-full max-w-xl mx-auto bg-white flex flex-col h-screen md:h-auto md:min-h-[600px] relative shadow-md md:rounded-xl overflow-hidden border border-gray-100">
         {/* Header */}
         <div className="px-4 py-3 flex justify-between items-center border-b">
-          <h1 className="text-lg font-bold">Select Seats</h1>
+          <div>
+            <h1 className="text-lg font-bold">Select Seats</h1>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+              {tripData.route.origin} &rarr; {tripData.route.destination}
+            </p>
+          </div>
           <button
             onClick={() => navigate(-1)}
             className="text-gray-400 text-2xl px-2 hover:text-gray-600 transition-colors"
@@ -93,7 +159,7 @@ const SeatSelection = () => {
             </div>
 
             <div className="grid grid-cols-5 gap-2 items-center justify-center">
-              {Array.from({ length: 10 }).map((_, rowIndex) => {
+              {Array.from({ length: rowCount }).map((_, rowIndex) => {
                 const rowSeats = allSeats.slice(
                   rowIndex * 4,
                   (rowIndex + 1) * 4,
@@ -171,9 +237,9 @@ const SeatSelection = () => {
 
 // Seat Button Component
 const SeatButton = ({ seat, isSelected, onClick }) => {
-  const { id, isBooked } = seat;
+  const { seatNumber, isBooked } = seat;
   const base =
-    "w-10 h-10 rounded-lg flex items-center justify-center text-[11px] font-bold transition-all border-b-2";
+    "w-10 h-10 rounded-lg flex items-center justify-center text-[9px] font-bold transition-all border-b-2";
 
   if (isBooked) {
     return (
@@ -181,7 +247,7 @@ const SeatButton = ({ seat, isSelected, onClick }) => {
         disabled
         className={`${base} bg-red-100 border-red-200 text-red-500/50 cursor-not-allowed`}
       >
-        {id}
+        {seatNumber}
       </button>
     );
   }
@@ -192,7 +258,7 @@ const SeatButton = ({ seat, isSelected, onClick }) => {
         onClick={onClick}
         className={`${base} bg-green-600 border-green-800 text-white shadow-md active:translate-y-0.5 active:border-b-0`}
       >
-        {id}
+        {seatNumber}
       </button>
     );
   }
@@ -202,7 +268,7 @@ const SeatButton = ({ seat, isSelected, onClick }) => {
       onClick={onClick}
       className={`${base} bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200 active:translate-y-0.5 active:border-b-0`}
     >
-      {id}
+      {seatNumber}
     </button>
   );
 };

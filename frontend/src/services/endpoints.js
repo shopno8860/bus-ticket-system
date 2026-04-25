@@ -15,6 +15,7 @@ export const endpoints = {
   },
   trips: {
     search: '/trips',
+    details: (id) => `/trips/${id}`,
   },
   seats: {
     byBus: (busId) => `/seats/bus/${busId}`,
