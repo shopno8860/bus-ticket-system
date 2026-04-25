@@ -2,14 +2,14 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import Home from "../features/home/pages/Home";
 import BookingPage from "../features/bookings/pages/BookingPage";
-import Login from "../features/auth/pages/Login";
-import Register from "../features/auth/pages/Register";
+import LoginPage from "../features/auth/pages/LoginPage";
+import RegisterPage from "../features/auth/pages/RegisterPage";
 import Payment from "../features/payments/pages/Payment";
 import Refund from "../features/refunds/pages/Refund";
 import SeatSelection from "../features/seats/pages/SeatSelection";
 import SearchResults from "../features/trips/pages/SearchResults";
-import Profile from "../features/users/pages/Profile";
-import ProtectedRoute from "../components/ProtectedRoute";
+import ProfilePage from "../features/users/pages/ProfilePage";
+import ProtectedRoute from "../features/auth/components/ProtectedRoute";
 import AdminRoutes from "../features/admin/routes/AdminRoutes";
 
 function AppRoutes() {
@@ -17,20 +17,37 @@ function AppRoutes() {
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/auth/login" element={<Login />} />
-        <Route path="/auth/register" element={<Register />} />{" "}
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/register" element={<RegisterPage />} />
         <Route
           path="/profile"
           element={
             <ProtectedRoute>
-              <Profile />
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
         <Route path="/trips" element={<SearchResults />} />
         <Route path="/seats/:tripId" element={<SeatSelection />} />
-        <Route path="/booking" element={<BookingPage />} />
-        <Route path="/payment" element={<Payment />} />
+        
+        {/* Protected Booking Flow */}
+        <Route 
+          path="/booking" 
+          element={
+            <ProtectedRoute>
+              <BookingPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/payment" 
+          element={
+            <ProtectedRoute>
+              <Payment />
+            </ProtectedRoute>
+          } 
+        />
+        
         <Route path="/refund" element={<Refund />} />
       </Route>
       <Route path="/admin/*" element={<AdminRoutes />} />

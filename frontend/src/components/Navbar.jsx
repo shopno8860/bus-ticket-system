@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "../features/auth/context/AuthContext";
 
 const Navbar = () => {
-  // Mock login state for demonstration
-  const isLoggedIn = false;
+  const { user, logout, token } = useAuth();
+  const isLoggedIn = !!token;
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50 h-16 md:h-20 flex items-center">
@@ -38,7 +39,7 @@ const Navbar = () => {
                   <div className="w-10 rounded-full">
                     <img
                       alt="User profile"
-                      src="https://ui-avatars.com/api/?name=Mock+User&background=16a34a&color=fff"
+                      src={`https://ui-avatars.com/api/?name=${user?.fullName || user?.name || 'User'}&background=16a34a&color=fff`}
                     />
                   </div>
                 </div>
@@ -47,11 +48,19 @@ const Navbar = () => {
                   className="mt-3 z-[1] p-2 shadow-xl menu menu-sm dropdown-content bg-base-100 rounded-xl w-52 border border-slate-100"
                 >
                   <li className="menu-title text-[10px] uppercase tracking-widest text-slate-400">Account</li>
+                  <li className="px-4 py-2 text-xs text-slate-500 border-b border-slate-50 mb-1">
+                    Logged in as <span className="font-bold text-slate-700 block truncate">{user?.fullName}</span>
+                  </li>
                   <li>
                     <Link to="/profile" className="py-3 font-bold text-slate-700">Profile</Link>
                   </li>
                   <li>
-                    <button className="py-3 font-bold text-red-500">Logout</button>
+                    <button 
+                      onClick={logout}
+                      className="py-3 font-bold text-red-500 w-full text-left"
+                    >
+                      Logout
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -63,7 +72,7 @@ const Navbar = () => {
                 >
                   Login
                 </Link>
-                {/* Mobile Menu Icon (Placeholder for now) */}
+                {/* Mobile Menu Icon */}
                 <button className="lg:hidden text-slate-600 p-1">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
