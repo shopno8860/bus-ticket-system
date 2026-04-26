@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 
 const connectionString = process.env.DATABASE_URL;
@@ -8,55 +8,28 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-function randomItem<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
 async function main() {
-
   console.log("🧹 Cleaning old data...");
 
-  //////////////////////////////////////////////////////
-  // 🗑️ DELETE ORDER (IMPORTANT - relation wise)
-  //////////////////////////////////////////////////////
-  await prisma.refund.deleteMany();
-  await prisma.payment.deleteMany();
   await prisma.bookingSeat.deleteMany();
   await prisma.booking.deleteMany();
-  await prisma.trip.deleteMany();
+  await prisma.payment.deleteMany();
   await prisma.seat.deleteMany();
+  await prisma.trip.deleteMany();
   await prisma.bus.deleteMany();
-  await prisma.route.deleteMany(); // 🔥 route delete hobe ekhane
-  await prisma.user.deleteMany();
+  await prisma.route.deleteMany();
 
   console.log("✅ Old data deleted");
 
   //////////////////////////////////////////////////////
-  // 👤 USERS
-  //////////////////////////////////////////////////////
-  const users = await Promise.all(
-    Array.from({ length: 5 }).map((_, i) =>
-      prisma.user.create({
-        data: {
-          fullName: i === 0 ? "Admin User" : `User ${i}`,
-          email: i === 0 ? "admin@gmail.com" : `user${i}@gmail.com`,
-          passwordHash: "123456",
-          phoneNumber: `0170000000${i}`,
-          role: i === 0 ? "ADMIN" : "USER"
-        }
-      })
-    )
-  );
-
-  //////////////////////////////////////////////////////
-  // 🚌 BUSES
+  // 🚌 MULTIPLE BUS
   //////////////////////////////////////////////////////
   const buses = await Promise.all([
     prisma.bus.create({
       data: {
         name: "Green Line",
-        operatorName: "Green Line Paribahan",
-        registrationNumber: "BUS-111",
+        operatorName: "Green Line",
+        registrationNumber: "BUS-101",
         seatCapacity: 40,
         busType: "AC"
       }
@@ -65,7 +38,7 @@ async function main() {
       data: {
         name: "Hanif",
         operatorName: "Hanif Enterprise",
-        registrationNumber: "BUS-222",
+        registrationNumber: "BUS-102",
         seatCapacity: 36,
         busType: "NON_AC"
       }
@@ -89,103 +62,44 @@ async function main() {
   }
 
   //////////////////////////////////////////////////////
-  // 🛣 ROUTES (NEW)
+  // 🛣 ROUTES
   //////////////////////////////////////////////////////
   const routes = await Promise.all([
     prisma.route.create({ data: { origin: "Dhaka", destination: "Chittagong" } }),
+    prisma.route.create({ data: { origin: "Chittagong", destination: "Dhaka" } }),
     prisma.route.create({ data: { origin: "Dhaka", destination: "Sylhet" } }),
-    prisma.route.create({ data: { origin: "Dhaka", destination: "Khulna" } })
+    prisma.route.create({ data: { origin: "Sylhet", destination: "Dhaka" } }),
   ]);
 
   //////////////////////////////////////////////////////
-  // 🧳 TRIPS
+  // 🧳 MANY TRIPS (🔥 MAIN PART)
   //////////////////////////////////////////////////////
-  const trips: any[] = [];
+  const trips: Promise<any>[] = [];
 
-  for (let i = 0; i < 5; i++) {
-    const trip = await prisma.trip.create({
-      data: {
-        busId: randomItem(buses).id,
-        routeId: randomItem(routes).id,
-        departureTime: new Date(Date.now() + i * 2 * 60 * 60 * 1000),
-        arrivalTime: new Date(Date.now() + (i + 5) * 60 * 60 * 1000),
-        price: 500 + i * 100
-      }
-    });
+  let hourOffset = 0;
 
-    trips.push(trip);
+  for (let i = 0; i < 25; i++) {
+    const route = routes[i % routes.length];
+    const bus = buses[i % buses.length];
+
+    trips.push(
+      prisma.trip.create({
+        data: {
+          busId: bus.id,
+          routeId: route.id,
+          departureTime: new Date(Date.now() + hourOffset * 60 * 60 * 1000),
+          arrivalTime: new Date(Date.now() + (hourOffset + 6) * 60 * 60 * 1000),
+          price: 700 + (i % 5) * 100
+        }
+      })
+    );
+
+    hourOffset += 2; // every 2 hour gap
   }
 
-  //////////////////////////////////////////////////////
-  // 🎫 BOOKINGS + PAYMENT + REFUND
-  //////////////////////////////////////////////////////
-  for (let i = 0; i < 15; i++) {
+  await Promise.all(trips);
 
-    const user = randomItem(users);
-    const trip = randomItem(trips);
-
-    const booking = await prisma.booking.create({
-      data: {
-        bookingReference: `BOOK-${i}-${Date.now()}`,
-        userId: user.id,
-        tripId: trip.id,
-        passengerName: user.fullName,
-        passengerPhone: user.phoneNumber || "01700000000",
-        totalAmount: 800,
-        status: "CONFIRMED"
-      }
-    });
-
-    // SAFE seat select
-    const availableSeat = await prisma.seat.findFirst({
-      where: {
-        busId: trip.busId,
-        bookingSeats: {
-          none: {
-            tripId: trip.id
-          }
-        }
-      }
-    });
-
-    if (availableSeat) {
-      await prisma.bookingSeat.create({
-        data: {
-          bookingId: booking.id,
-          tripId: trip.id,
-          seatId: availableSeat.id,
-          price: 800,
-          status: "RESERVED"
-        }
-      });
-    }
-
-    const payment = await prisma.payment.create({
-      data: {
-        bookingId: booking.id,
-        userId: user.id,
-        amount: 800,
-        method: randomItem(["BKASH", "NAGAD", "CARD"]),
-        status: "SUCCESS",
-        transactionId: `TXN-${i}-${Date.now()}`
-      }
-    });
-
-    if (i % 4 === 0) {
-      await prisma.refund.create({
-        data: {
-          bookingId: booking.id,
-          paymentId: payment.id,
-          userId: user.id,
-          reason: "Partial refund",
-          amount: 200,
-          status: "APPROVED"
-        }
-      });
-    }
-  }
-
-  console.log("🔥 FULL RESET + SEED DONE!");
+  console.log("🔥 MANY TRIPS SEEDED (25+)");
 }
 
 main()

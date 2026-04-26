@@ -14,3 +14,7 @@ export function confirmBooking(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function getBookingDetails(id) {
+  return apiFetch(endpoints.bookings.details(id));
+}

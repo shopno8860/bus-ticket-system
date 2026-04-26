@@ -16,9 +16,9 @@ export class PaymentsController {
   @Post('success')
   async success(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body;
-    await this.paymentsService.handlePaymentSuccess(tran_id);
-    // Redirect to frontend success page
-    return res.redirect('http://localhost:5173/payment/success');
+    const payment = await this.paymentsService.handlePaymentSuccess(tran_id);
+    // Redirect to frontend success page with bookingId
+    return res.redirect(`http://localhost:5173/payment/success?bookingId=${payment.bookingId}`);
   }
 
   @Post('fail')

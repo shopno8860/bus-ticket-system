@@ -235,6 +235,35 @@ export class BookingsService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
+  async findOne(id: string) {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id },
+      include: {
+        trip: {
+          include: {
+            route: true,
+            bus: true,
+          },
+        },
+        bookingSeats: {
+          include: {
+            seat: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    return booking;
+  }
+
   async findAllAdmin(filters: AdminBookingsFilterDto) {
     const where: Prisma.BookingWhereInput = {};
 

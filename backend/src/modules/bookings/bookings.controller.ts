@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { Booking } from '@prisma/client';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -22,5 +22,10 @@ export class BookingsController {
     @Body() confirmBookingDto: ConfirmBookingDto,
   ): Promise<Booking> {
     return this.bookingsService.confirmBooking(confirmBookingDto);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string): Promise<any> {
+    return this.bookingsService.findOne(id);
   }
 }
