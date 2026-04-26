@@ -25,6 +25,7 @@ export const endpoints = {
     confirm: '/bookings/confirm',
     details: (id) => `/bookings/${id}`,
     my: '/bookings/my-bookings',
+    cancel: (id) => `/bookings/${id}/cancel`,
   },
   payments: {
     create: '/payments',

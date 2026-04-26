@@ -22,3 +22,9 @@ export function getBookingDetails(id) {
 export function getMyBookings() {
   return apiFetch(endpoints.bookings.my);
 }
+
+export function cancelBooking(id) {
+  return apiFetch(endpoints.bookings.cancel(id), {
+    method: 'PATCH',
+  });
+}

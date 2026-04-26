@@ -39,4 +39,13 @@ export class BookingsController {
   async findOne(@Param('id') id: string): Promise<any> {
     return this.bookingsService.findOne(id);
   }
+
+  @Patch(':id/cancel')
+  @UseGuards(AccessTokenGuard)
+  async cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<any> {
+    return this.bookingsService.cancel(id, user.sub);
+  }
 }

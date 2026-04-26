@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,6 +9,7 @@ import {
   Booking,
   BookingSeatStatus,
   BookingStatus,
+  PaymentStatus,
   Prisma,
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
@@ -345,6 +348,109 @@ export class BookingsService {
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async cancel(bookingId: string, userId: string): Promise<any> {
+    const now = new Date();
+
+    return this.prismaService.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          trip: true,
+          payments: {
+            where: { status: PaymentStatus.SUCCESS },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      if (!booking) {
+        throw new NotFoundException('Booking not found');
+      }
+
+      if (booking.userId !== userId) {
+        throw new ForbiddenException(
+          'You are not authorized to cancel this booking',
+        );
+      }
+
+      if (booking.status !== BookingStatus.CONFIRMED) {
+        throw new ConflictException('Only confirmed bookings can be cancelled');
+      }
+
+      const departureTime = new Date(booking.trip.departureTime);
+      const diffInHours =
+        (departureTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      if (diffInHours < 2) {
+        throw new BadRequestException(
+          'Cancellations are not allowed within 2 hours of departure',
+        );
+      }
+
+      let refundPercentage = 0;
+      if (diffInHours >= 24) {
+        refundPercentage = 0.9;
+      } else if (diffInHours >= 6) {
+        refundPercentage = 0.5;
+      } else if (diffInHours >= 2) {
+        refundPercentage = 0.25;
+      }
+
+      const totalAmount = new Prisma.Decimal(booking.totalAmount);
+      const refundAmount = totalAmount.mul(refundPercentage);
+
+      // Update Booking
+      const updatedBooking = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: BookingStatus.CANCELLED,
+          cancelledAt: now,
+          refundAmount: refundAmount,
+          cancelReason: 'Cancelled by user',
+          cancelledBy: userId,
+        },
+        include: {
+          trip: {
+            include: {
+              route: true,
+              bus: true,
+            },
+          },
+          bookingSeats: {
+            include: {
+              seat: true,
+            },
+          },
+          payments: true,
+        },
+      });
+
+      // Update Payment
+      if (booking.payments.length > 0) {
+        await tx.payment.update({
+          where: { id: booking.payments[0].id },
+          data: {
+            refundAmount: refundAmount,
+            refundStatus: 'PROCESSED',
+            status: PaymentStatus.REFUNDED,
+          },
+        });
+      }
+
+      // Delete bookingSeats to free them
+      await tx.bookingSeat.deleteMany({
+        where: { bookingId: bookingId },
+      });
+
+      return {
+        message: 'Booking cancelled successfully',
+        refundAmount: refundAmount.toNumber(),
+        booking: updatedBooking,
+      };
     });
   }
 
