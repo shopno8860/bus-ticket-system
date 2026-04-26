@@ -273,6 +273,34 @@ export class BookingsService {
     return booking;
   }
 
+  async findMyBookings(userId: string) {
+    return this.prismaService.booking.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        trip: {
+          include: {
+            route: true,
+            bus: true,
+          },
+        },
+        bookingSeats: {
+          include: {
+            seat: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async findAllAdmin(filters: AdminBookingsFilterDto) {
     const where: Prisma.BookingWhereInput = {};
 

@@ -25,8 +25,7 @@ const Navbar = () => {
           <div className="flex items-center space-x-6">
             <div className="hidden lg:flex items-center space-x-8 mr-8">
               <Link to="/" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">Home</Link>
-              <Link to="/trips" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">Bus Tickets</Link>
-              <Link to="/#contact" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">Contact</Link>
+              <Link to="/my-tickets" className="text-sm font-bold text-slate-600 hover:text-[#16a34a] transition-colors">My Tickets</Link>
             </div>
 
             {isLoggedIn ? (
@@ -53,6 +52,9 @@ const Navbar = () => {
                   </li>
                   <li>
                     <Link to="/profile" className="py-3 font-bold text-slate-700">Profile</Link>
+                  </li>
+                  <li>
+                    <Link to="/my-tickets" className="py-3 font-bold text-slate-700">My Tickets</Link>
                   </li>
                   <li>
                     <button 

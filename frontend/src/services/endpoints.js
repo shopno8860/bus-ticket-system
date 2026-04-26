@@ -24,6 +24,7 @@ export const endpoints = {
     lock: '/bookings',
     confirm: '/bookings/confirm',
     details: (id) => `/bookings/${id}`,
+    my: '/bookings/my-bookings',
   },
   payments: {
     create: '/payments',

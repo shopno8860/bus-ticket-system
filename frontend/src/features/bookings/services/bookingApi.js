@@ -18,3 +18,7 @@ export function confirmBooking(payload) {
 export function getBookingDetails(id) {
   return apiFetch(endpoints.bookings.details(id));
 }
+
+export function getMyBookings() {
+  return apiFetch(endpoints.bookings.my);
+}

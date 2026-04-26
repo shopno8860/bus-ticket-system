@@ -14,6 +14,7 @@ import AdminRoutes from "../features/admin/routes/AdminRoutes";
 
 import PaymentSuccess from "../features/payments/pages/PaymentSuccess";
 import PaymentFailed from "../features/payments/pages/PaymentFailed";
+import MyTickets from "../features/bookings/pages/MyTickets";
 import TicketPage from "../pages/TicketPage";
 
 function AppRoutes() {
@@ -47,6 +48,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <BookingPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/my-tickets" 
+          element={
+            <ProtectedRoute>
+              <MyTickets />
             </ProtectedRoute>
           } 
         />
