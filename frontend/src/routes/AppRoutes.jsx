@@ -12,6 +12,9 @@ import ProfilePage from "../features/users/pages/ProfilePage";
 import ProtectedRoute from "../features/auth/components/ProtectedRoute";
 import AdminRoutes from "../features/admin/routes/AdminRoutes";
 
+import PaymentSuccess from "../features/payments/pages/PaymentSuccess";
+import PaymentFailed from "../features/payments/pages/PaymentFailed";
+
 function AppRoutes() {
   return (
     <Routes>
@@ -57,6 +60,8 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
+      <Route path="/payment/failed" element={<PaymentFailed />} />
 
       <Route path="/admin/*" element={<AdminRoutes />} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,5 +1,6 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { Payment } from '@prisma/client';
+import { Body, Controller, Post, Res } from '@nestjs/common';
+import { PaymentStatus } from '@prisma/client';
+import type { Response } from 'express';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentsService } from './payments.service';
 
@@ -10,5 +11,27 @@ export class PaymentsController {
   @Post()
   async create(@Body() createPaymentDto: CreatePaymentDto): Promise<any> {
     return this.paymentsService.create(createPaymentDto);
+  }
+
+  @Post('success')
+  async success(@Body() body: any, @Res() res: Response) {
+    const { tran_id } = body;
+    await this.paymentsService.handlePaymentSuccess(tran_id);
+    // Redirect to frontend success page
+    return res.redirect('http://localhost:5173/payment/success');
+  }
+
+  @Post('fail')
+  async fail(@Body() body: any, @Res() res: Response) {
+    const { tran_id } = body;
+    await this.paymentsService.handlePaymentFailure(tran_id, PaymentStatus.FAILED);
+    return res.redirect('http://localhost:5173/payment/failed');
+  }
+
+  @Post('cancel')
+  async cancel(@Body() body: any, @Res() res: Response) {
+    const { tran_id } = body;
+    await this.paymentsService.handlePaymentFailure(tran_id, PaymentStatus.FAILED); // Treating cancel as fail for simplicity
+    return res.redirect('http://localhost:5173/payment/failed');
   }
 }

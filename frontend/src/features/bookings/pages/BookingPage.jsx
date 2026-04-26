@@ -253,7 +253,7 @@ const BookingPage = () => {
                   <span className="loading loading-spinner loading-xs"></span>
                   PROCESSING...
                 </div>
-              ) : "Confirm Booking"}
+              ) : "Proceed to Payment"}
             </button>
 
             <p className="text-[10px] text-center text-gray-400 font-medium leading-relaxed">

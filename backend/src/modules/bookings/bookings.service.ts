@@ -119,6 +119,8 @@ export class BookingsService {
     const now = new Date();
 
     return this.prismaService.$transaction(async (transactionClient) => {
+      console.log('Confirming booking for trip:', confirmBookingDto.tripId, 'seats:', confirmBookingDto.seatIds);
+
       const trip = await transactionClient.trip.findUnique({
         where: { id: confirmBookingDto.tripId },
         select: { id: true, busId: true, price: true },
@@ -137,6 +139,8 @@ export class BookingsService {
         },
         select: { id: true },
       });
+
+      console.log('Found valid seats count:', seats.length);
 
       if (seats.length !== requestedSeatIds.length) {
         throw new NotFoundException(
@@ -161,6 +165,8 @@ export class BookingsService {
         },
         select: { id: true, seatId: true },
       });
+
+      console.log('Active locked seats count:', activeLockedSeats.length);
 
       if (activeLockedSeats.length !== requestedSeatIds.length) {
         throw new ConflictException(
@@ -189,6 +195,8 @@ export class BookingsService {
         requestedSeatIds.length,
       );
 
+      console.log('Attempting to create Booking with ref:', bookingReference);
+
       const booking = await transactionClient.booking.create({
         data: {
           bookingReference,
@@ -197,10 +205,13 @@ export class BookingsService {
           passengerName: confirmBookingDto.passengerName,
           passengerPhone: confirmBookingDto.passengerPhone,
           totalAmount,
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.PENDING, // Start as PENDING
         },
       });
 
+      console.log('Booking created successfully, ID:', booking.id);
+
+      // Link seats to booking but keep them LOCKED (expiry still applies)
       const updatedSeatResult = await transactionClient.bookingSeat.updateMany({
         where: {
           id: { in: activeLockedSeats.map((bookingSeat) => bookingSeat.id) },
@@ -209,10 +220,10 @@ export class BookingsService {
         },
         data: {
           bookingId: booking.id,
-          status: BookingSeatStatus.RESERVED,
-          lockExpiresAt: null,
         },
       });
+
+      console.log('Updated bookingId for seats. Count:', updatedSeatResult.count);
 
       if (updatedSeatResult.count !== requestedSeatIds.length) {
         throw new ConflictException(
