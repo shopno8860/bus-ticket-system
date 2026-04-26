@@ -14,6 +14,7 @@ import AdminRoutes from "../features/admin/routes/AdminRoutes";
 
 import PaymentSuccess from "../features/payments/pages/PaymentSuccess";
 import PaymentFailed from "../features/payments/pages/PaymentFailed";
+import TicketPage from "../pages/TicketPage";
 
 function AppRoutes() {
   return (
@@ -62,6 +63,7 @@ function AppRoutes() {
       />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/failed" element={<PaymentFailed />} />
+      <Route path="/booking/:id" element={<TicketPage />} />
 
       <Route path="/admin/*" element={<AdminRoutes />} />
       <Route path="*" element={<Navigate to="/" replace />} />

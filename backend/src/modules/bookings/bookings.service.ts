@@ -123,7 +123,12 @@ export class BookingsService {
 
       const trip = await transactionClient.trip.findUnique({
         where: { id: confirmBookingDto.tripId },
-        select: { id: true, busId: true, price: true },
+        select: { 
+          id: true, 
+          busId: true, 
+          price: true,
+          bus: { select: { busType: true } }
+        },
       });
 
       if (!trip) {
@@ -191,9 +196,13 @@ export class BookingsService {
 
       const bookingReference =
         await this.generateUniqueBookingReference(transactionClient);
-      const totalAmount = new Prisma.Decimal(trip.price).mul(
-        requestedSeatIds.length,
-      );
+      
+      // Calculate total amount including platform fees and insurance (Per seat)
+      const seatCount = requestedSeatIds.length;
+      const seatTotal = new Prisma.Decimal(trip.price).mul(seatCount);
+      const serviceCharge = 50 * seatCount;
+      const insurance = 20 * seatCount;
+      const totalAmount = seatTotal.add(serviceCharge).add(insurance);
 
       console.log('Attempting to create Booking with ref:', bookingReference);
 
