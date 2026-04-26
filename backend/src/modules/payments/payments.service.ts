@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   BookingSeatStatus,
   BookingStatus,
@@ -14,13 +10,27 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AdminPaymentsFilterDto } from './dto/admin-payments-filter.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
+/** Generates a simulated payment gateway URL for a given transaction ID. */
+function buildPaymentUrl(transactionId: string): string {
+  return `https://sandbox.sslcommerz.com/gwprocess/v4/gw.php?id=${transactionId}`;
+}
+
 @Injectable()
 export class PaymentsService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
-    return this.prismaService.$transaction(async (transactionClient) => {
-      const booking = await transactionClient.booking.findUnique({
+  /**
+   * Creates a payment for a booking.
+   *
+   * **Idempotent**: if a payment already exists for `bookingId` (e.g. because
+   * the client called this endpoint twice due to React Strict Mode or a retry),
+   * the existing payment record is returned immediately — no duplicate is created
+   * and no error is thrown.
+   */
+  async create(createPaymentDto: CreatePaymentDto): Promise<Payment & { paymentUrl: string }> {
+    return this.prismaService.$transaction(async (tx) => {
+      // ── 1. Validate the booking ───────────────────────────────────────────
+      const booking = await tx.booking.findUnique({
         where: { id: createPaymentDto.bookingId },
         select: { id: true, userId: true, totalAmount: true, status: true },
       });
@@ -29,11 +39,24 @@ export class PaymentsService {
         throw new NotFoundException('Booking not found');
       }
 
-      if (booking.status === BookingStatus.CONFIRMED) {
-        throw new ConflictException('Payment already completed for this booking');
+      // ── 2. Idempotency check ──────────────────────────────────────────────
+      // If a payment already exists for this booking, return it as-is.
+      // This makes the endpoint safe to call multiple times (e.g. React
+      // Strict Mode double-invoke, network retries).
+      const existingPayment = await tx.payment.findFirst({
+        where: { bookingId: booking.id },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingPayment) {
+        return {
+          ...existingPayment,
+          paymentUrl: buildPaymentUrl(existingPayment.transactionId || ''),
+        };
       }
 
-      const payment = await transactionClient.payment.create({
+      // ── 3. Create the payment record ──────────────────────────────────────
+      const payment = await tx.payment.create({
         data: {
           bookingId: booking.id,
           userId: booking.userId,
@@ -44,12 +67,14 @@ export class PaymentsService {
         },
       });
 
-      await transactionClient.booking.update({
+      // ── 4. Confirm the booking ────────────────────────────────────────────
+      await tx.booking.update({
         where: { id: booking.id },
         data: { status: BookingStatus.CONFIRMED },
       });
 
-      await transactionClient.bookingSeat.updateMany({
+      // ── 5. Promote locked seats → reserved ───────────────────────────────
+      await tx.bookingSeat.updateMany({
         where: {
           bookingId: booking.id,
           status: BookingSeatStatus.LOCKED,
@@ -60,7 +85,10 @@ export class PaymentsService {
         },
       });
 
-      return payment;
+      return {
+        ...payment,
+        paymentUrl: buildPaymentUrl(payment.transactionId || ''),
+      };
     });
   }
 
@@ -103,3 +131,4 @@ export class PaymentsService {
     return `TXN-${Date.now()}-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
 }
+

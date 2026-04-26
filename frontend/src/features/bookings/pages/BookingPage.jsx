@@ -116,8 +116,6 @@ const BookingPage = () => {
       // Clear timer persistence
       localStorage.removeItem(`lock_expiry_${tripId}`);
 
-      alert("Booking Confirmed!");
-
       navigate("/payment", {
         state: { booking: res },
       });

@@ -17,8 +17,18 @@ export async function apiFetch(path, options = {}) {
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(errorBody || 'Request failed');
+    const errorText = await response.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { message: errorText };
+    }
+
+    const error = new Error(errorData.message || 'Request failed');
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
 
   if (response.status === 204) {

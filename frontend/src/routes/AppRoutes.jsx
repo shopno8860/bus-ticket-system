@@ -31,7 +31,11 @@ function AppRoutes() {
           }
         />
         <Route path="/trips" element={<SearchResults />} />
-        <Route path="/seats/:tripId" element={<SeatSelection />} />
+        <Route path="/seats/:tripId" element={
+          <ProtectedRoute>
+            <SeatSelection />
+          </ProtectedRoute>
+        } />
         
         {/* Protected Booking Flow */}
         <Route 
@@ -42,17 +46,17 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/payment" 
-          element={
-            <ProtectedRoute>
-              <Payment />
-            </ProtectedRoute>
-          } 
-        />
-        
         <Route path="/refund" element={<Refund />} />
       </Route>
+
+      <Route 
+        path="/payment" 
+        element={
+          <ProtectedRoute>
+            <Payment />
+          </ProtectedRoute>
+        } 
+      />
 
       <Route path="/admin/*" element={<AdminRoutes />} />
       <Route path="*" element={<Navigate to="/" replace />} />

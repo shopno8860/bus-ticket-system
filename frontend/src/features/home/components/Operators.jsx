@@ -64,11 +64,11 @@ const Operators = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .mask-fade-edges {
           mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
         }
-      `}</style>
+      ` }} />
     </section>
   );
 };

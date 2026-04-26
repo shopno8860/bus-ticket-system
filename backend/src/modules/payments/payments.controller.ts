@@ -8,7 +8,7 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post()
-  async create(@Body() createPaymentDto: CreatePaymentDto): Promise<Payment> {
+  async create(@Body() createPaymentDto: CreatePaymentDto): Promise<any> {
     return this.paymentsService.create(createPaymentDto);
   }
 }
