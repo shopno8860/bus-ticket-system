@@ -10,6 +10,7 @@ const TicketPage = () => {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const ticketRef = useRef(null);
 
   useEffect(() => {
@@ -66,8 +67,15 @@ const TicketPage = () => {
     window.print();
   };
 
-  const handleDownloadPDF = () => {
-    downloadPDF('bus-ticket', `Ticket-${booking.bookingReference}.pdf`);
+  const handleDownloadPDF = async () => {
+    try {
+      setIsDownloading(true);
+      await downloadPDF('ticket', `Ticket-${booking.bookingReference}.pdf`);
+    } catch (err) {
+      console.error('Download failed:', err);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (loading) {
@@ -110,9 +118,18 @@ const TicketPage = () => {
             </button>
             <button 
               onClick={handleDownloadPDF}
-              className="btn btn-success bg-green-600 text-white btn-sm flex items-center gap-2 shadow-md"
+              disabled={isDownloading}
+              className="btn btn-success bg-green-600 text-white btn-sm flex items-center gap-2 shadow-md disabled:opacity-70"
             >
-              <FaDownload /> Download PDF
+              {isDownloading ? (
+                <>
+                  <FaSpinner className="animate-spin" /> Generating...
+                </>
+              ) : (
+                <>
+                  <FaDownload /> Download PDF
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -129,11 +146,28 @@ const TicketPage = () => {
       {/* Global Print Styles */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body { background-color: white !important; }
+          body { 
+            background-color: white !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .min-h-screen { min-height: auto !important; padding: 0 !important; }
+          .max-w-\[800px\] { max-width: 100% !important; margin: 0 !important; }
           .print\\:hidden { display: none !important; }
           .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:border-gray-200 { border-color: #e5e7eb !important; }
-          @page { size: auto; margin: 10mm; }
+          .print\\:border-none { border: none !important; }
+          
+          #ticket {
+            border: 1px solid #e5e7eb !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            width: 100% !important;
+          }
+
+          @page { 
+            size: A4; 
+            margin: 10mm; 
+          }
         }
       `}} />
     </div>

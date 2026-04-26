@@ -1,5 +1,5 @@
 import React from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { FaCheckCircle } from 'react-icons/fa';
 
 const Ticket = ({ booking, ticketRef }) => {
@@ -66,21 +66,18 @@ const Ticket = ({ booking, ticketRef }) => {
 
   const getColor = (name) => {
     const colors = [
-      "from-blue-600 to-blue-800",
-      "from-green-600 to-green-800",
-      "from-purple-600 to-purple-800",
-      "from-red-600 to-red-800"
+      { from: "#2563eb", to: "#1e40af" },
+      { from: "#16a34a", to: "#15803d" },
+      { from: "#9333ea", to: "#7e22ce" },
+      { from: "#dc2626", to: "#b91c1c" }
     ];
     return colors[name?.length % colors.length];
   };
 
-  const gradient = getColor(busOperator);
+  const { from, to } = getColor(busOperator);
 
-  // =======================
-  // 🎫 UI
-  // =======================
   return (
-    <div className="bg-[#f5f6f8] py-10 px-4">
+    <div className="bg-[#f5f6f8] py-10 px-4 print:bg-white print:p-0">
       <div
         id="ticket"
         ref={ticketRef}
@@ -91,10 +88,10 @@ const Ticket = ({ booking, ticketRef }) => {
         <div className="flex items-center justify-between border-b border-[#e5e7eb] pb-4">
           <div className="flex gap-4 items-start">
 
-            {/* 🔥 DYNAMIC LOGO */}
+            {/* LOGO */}
             <div
-              className={`w-16 h-16 rounded-md flex items-center justify-center 
-              text-white font-bold text-xl shadow-sm bg-gradient-to-br ${gradient}`}
+              className="w-16 h-16 rounded-md flex items-center justify-center text-white font-bold text-xl shadow-sm"
+              style={{ background: `linear-gradient(to bottom right, ${from}, ${to})` }}
             >
               {initials}
             </div>
@@ -104,88 +101,84 @@ const Ticket = ({ booking, ticketRef }) => {
               <h1 className="text-2xl font-bold">{busOperator}</h1>
               <p className="text-sm text-[#6b7280]">{busName} ({busType})</p>
               <p className="text-sm text-[#6b7280]">Dhaka, Bangladesh</p>
-              <p className="text-sm"> {contact}</p>
+              <p className="text-sm">{contact}</p>
             </div>
           </div>
 
           {/* QR */}
           <div className="text-right">
-            <QRCodeSVG value={bookingReference} size={90} />
-            <p className="text-[11px] mt-2 border border-[#e5e7eb] px-2 py-1 inline-block rounded">
+            <QRCodeCanvas value={bookingReference} size={90} />
+            <p className="text-[11px] mt-2 border px-2 py-1 inline-block rounded">
               PNR: {bookingReference}
             </p>
           </div>
         </div>
 
-        {/* MAIN GRID */}
+        {/* MAIN */}
         <div className="grid grid-cols-3 gap-5 mt-6">
 
           {/* LEFT */}
-          <div className="border border-[#e5e7eb] rounded-md p-4 space-y-4">
+          <div className="border rounded-md p-4 space-y-4">
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">PNR</p>
+              <p className="text-[11px] text-gray-400 uppercase">PNR</p>
               <p className="font-bold text-lg">{bookingReference}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">FROM</p>
+              <p className="text-[11px] text-gray-400 uppercase">FROM</p>
               <p className="font-bold">{routeFrom}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">TO</p>
+              <p className="text-[11px] text-gray-400 uppercase">TO</p>
               <p className="font-bold">{routeTo}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">BOARDING POINT</p>
+              <p className="text-[11px] text-gray-400 uppercase">BOARDING POINT</p>
               <p>{routeFrom}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">DEPARTURE TIME</p>
-              <p className="font-medium">{date}</p>
-              <p className="text-[#16a34a] font-semibold">{time}</p>
+              <p className="text-[11px] text-gray-400 uppercase">DEPARTURE TIME</p>
+              <p>{date}</p>
+              <p className="text-green-600 font-semibold">{time}</p>
             </div>
           </div>
 
           {/* MIDDLE */}
-          <div className="border border-[#e5e7eb] rounded-md p-4 space-y-3">
+          <div className="border rounded-md p-4 space-y-3">
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">JOURNEY DATE</p>
+              <p className="text-[11px] text-gray-400 uppercase">JOURNEY DATE</p>
               <p className="font-bold">{date}</p>
-              <p className="text-[#16a34a]">{time}</p>
+              <p className="text-green-600">{time}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">BUS OPERATOR</p>
+              <p className="text-[11px] text-gray-400 uppercase">BUS OPERATOR</p>
               <p>{busOperator}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">BUS TYPE</p>
+              <p className="text-[11px] text-gray-400 uppercase">BUS TYPE</p>
               <p>{busType}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">COACH / BUS NO.</p>
+              <p className="text-[11px] text-gray-400 uppercase">COACH</p>
               <p>{coach}</p>
             </div>
 
             <div>
-              <p className="text-[11px] text-[#9ca3af] uppercase">BOOKED BY</p>
+              <p className="text-[11px] text-gray-400 uppercase">BOOKED BY</p>
               <p>{passengerName}</p>
             </div>
           </div>
 
           {/* RIGHT */}
           <div className="space-y-4">
-
-            {/* FARE */}
-            <div className="border border-[#dbeafe] bg-[#eff6ff] rounded-md p-4">
-              <p className="text-green-600 font-bold mb-2">
-                FARE DETAILS
-              </p>
+            <div className="border bg-[#eff6ff] rounded-md p-4">
+              <p className="font-bold text-green-600 mb-2">FARE DETAILS</p>
 
               <div className="flex justify-between">
                 <span>Ticket Price</span>
@@ -202,48 +195,65 @@ const Ticket = ({ booking, ticketRef }) => {
                 <span>BDT {insurance}</span>
               </div>
 
-              <div className="border-t mt-2 pt-2 flex justify-between font-bold text-[#16a34a]">
-                <span>TOTAL AMOUNT</span>
+              <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
+                <span>Total</span>
                 <span>BDT {total}</span>
               </div>
             </div>
 
-            {/* WARNING */}
-            <div className="border border-[#fecaca] bg-[#fef2f2] p-4 text-[#dc2626] text-sm rounded">
-              <p className="font-bold">
-                NON-CANCELLABLE, NON-REFUNDABLE & NON-TRANSFERABLE
-              </p>
+            <div className="border border-red-300 bg-red-50 p-4 text-red-600 text-sm">
+              NON-CANCELLABLE, NON-REFUNDABLE & NON-TRANSFERABLE
             </div>
           </div>
         </div>
 
         {/* PASSENGER */}
-        <div className="grid grid-cols-4 gap-4 border border-[#e5e7eb] mt-6 p-3 text-sm">
+        <div className="grid grid-cols-4 gap-4 border mt-6 p-3 text-sm">
           <div>
-            <p className="text-[11px] text-[#9ca3af] uppercase">PASSENGER NAME</p>
+            <p className="text-xs text-gray-400 uppercase">Passenger</p>
             <p>{passengerName}</p>
           </div>
 
           <div>
-            <p className="text-[11px] text-[#9ca3af] uppercase">SEAT(S)</p>
+            <p className="text-xs text-gray-400 uppercase">Seat</p>
             <p>{seats}</p>
           </div>
 
           <div>
-            <p className="text-[11px] text-[#9ca3af] uppercase">STATUS</p>
-            <span className="bg-green-100 text-green-600 px-2 py-1 rounded text-xs flex items-center gap-1 w-fit">
+            <p className="text-xs text-gray-400 uppercase">Status</p>
+            <span className="bg-green-100 text-green-600 px-2 py-1 rounded text-xs flex items-center gap-1">
               <FaCheckCircle /> {status}
             </span>
           </div>
 
           <div>
-            <p className="text-[11px] text-[#9ca3af] uppercase">TRANSACTION ID</p>
+            <p className="text-xs text-gray-400 uppercase">Transaction</p>
             <p className="text-xs">{txn}</p>
           </div>
         </div>
 
+        {/* TERMS */}
+        <div className="grid grid-cols-2 gap-6 mt-6 text-xs text-gray-600">
+          <div>
+            <p className="font-bold mb-2">TERMS & CONDITIONS</p>
+            <ul className="list-disc ml-4 space-y-1">
+              <li>Arrive 30 minutes before departure</li>
+              <li>Tickets are non-refundable</li>
+              <li>Carry valid ID</li>
+              <li>Schedule may change</li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="font-bold mb-2">PAYMENT INFO</p>
+            <p>Method: SSLCommerz</p>
+            <p>Transaction: {txn}</p>
+            <p>Status: PAID</p>
+          </div>
+        </div>
+
         {/* FOOTER */}
-        <div className="text-center text-sm mt-6 border-t border-[#e5e7eb] pt-4 text-green-600">
+        <div className="text-center mt-6 border-t pt-4 text-green-600">
           Thank you for traveling with {busOperator}
         </div>
 
