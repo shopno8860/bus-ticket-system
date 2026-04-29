@@ -3,13 +3,28 @@ import { ConfigService } from '@nestjs/config';
 import {
   BookingSeatStatus,
   BookingStatus,
-  Payment,
+  Prisma,
   PaymentStatus,
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminPaymentsFilterDto } from './dto/admin-payments-filter.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+
+const paymentSafeSelect = {
+  id: true,
+  bookingId: true,
+  userId: true,
+  amount: true,
+  method: true,
+  status: true,
+  refundAmount: true,
+  refundStatus: true,
+  transactionId: true,
+  createdAt: true,
+} satisfies Prisma.PaymentSelect;
+
+type SafePayment = Prisma.PaymentGetPayload<{ select: typeof paymentSafeSelect }>;
 
 @Injectable()
 export class PaymentsService {
@@ -26,7 +41,7 @@ export class PaymentsService {
    * the existing payment record is returned immediately — no duplicate is created
    * and no error is thrown.
    */
-  async create(createPaymentDto: CreatePaymentDto): Promise<Payment & { paymentUrl: string }> {
+  async create(createPaymentDto: CreatePaymentDto): Promise<SafePayment & { paymentUrl: string }> {
     return this.prismaService.$transaction(async (tx) => {
       // ── 1. Validate the booking ───────────────────────────────────────────
       const booking = await tx.booking.findUnique({
@@ -45,6 +60,7 @@ export class PaymentsService {
       const existingPayment = await tx.payment.findFirst({
         where: { bookingId: booking.id },
         orderBy: { createdAt: 'desc' },
+        select: paymentSafeSelect,
       });
 
       if (existingPayment) {
@@ -74,13 +90,7 @@ export class PaymentsService {
           status: PaymentStatus.PENDING,
           transactionId,
         },
-        include: {
-          booking: {
-            include: {
-              user: true,
-            },
-          },
-        },
+        select: paymentSafeSelect,
       });
 
       // ── 4. Initiate SSLCommerz Session ────────────────────────────────────
@@ -103,7 +113,10 @@ export class PaymentsService {
     return this.prismaService.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { transactionId: tranId },
-        include: { booking: true },
+        select: {
+          ...paymentSafeSelect,
+          booking: true,
+        },
       });
 
       if (!payment) throw new NotFoundException('Payment record not found');
@@ -113,6 +126,7 @@ export class PaymentsService {
       const updatedPayment = await tx.payment.update({
         where: { id: payment.id },
         data: { status: PaymentStatus.SUCCESS },
+        select: paymentSafeSelect,
       });
 
       // 2. Update Booking
@@ -142,7 +156,10 @@ export class PaymentsService {
     return this.prismaService.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { transactionId: tranId },
-        include: { booking: true },
+        select: {
+          ...paymentSafeSelect,
+          booking: true,
+        },
       });
 
       if (!payment) throw new NotFoundException('Payment record not found');
@@ -152,6 +169,7 @@ export class PaymentsService {
       const updatedPayment = await tx.payment.update({
         where: { id: payment.id },
         data: { status },
+        select: paymentSafeSelect,
       });
 
       // 2. Update Booking

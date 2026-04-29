@@ -8,7 +8,9 @@ export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Get()
-  async findAll(@Query() searchTripsDto: SearchTripsDto): Promise<Trip[]> {
+  async findAll(
+    @Query() searchTripsDto: SearchTripsDto,
+  ): Promise<Array<Trip & { availableSeats: number }>> {
     return this.tripsService.findAll(searchTripsDto);
   }
 

@@ -53,7 +53,9 @@ export class TripsService {
     }
   }
 
-  async findAll(searchTripsDto: SearchTripsDto): Promise<Trip[]> {
+  async findAll(
+    searchTripsDto: SearchTripsDto,
+  ): Promise<Array<Trip & { availableSeats: number }>> {
     const where: Prisma.TripWhereInput = {};
     const routeFilters: Prisma.RouteWhereInput = {};
 
@@ -88,13 +90,45 @@ export class TripsService {
       };
     }
 
-    return this.prismaService.trip.findMany({
+    const trips = await this.prismaService.trip.findMany({
       where,
       include: {
         bus: true,
         route: true,
       },
       orderBy: { departureTime: 'asc' },
+    });
+
+    // Dynamic availability:
+    // - count seats that are already RESERVED
+    // - count seats that are LOCKED and not expired yet (prevents double booking)
+    const now = new Date();
+    const tripIds = trips.map((t) => t.id);
+
+    const bookedSeatCounts = await this.prismaService.bookingSeat.groupBy({
+      by: ['tripId'],
+      where: {
+        tripId: { in: tripIds },
+        OR: [
+          { status: BookingSeatStatus.RESERVED },
+          {
+            status: BookingSeatStatus.LOCKED,
+            lockExpiresAt: { gt: now },
+          },
+        ],
+      },
+      _count: { _all: true },
+    });
+
+    const countByTripId = new Map<string, number>(
+      bookedSeatCounts.map((row) => [row.tripId, row._count._all]),
+    );
+
+    return trips.map((trip) => {
+      const reservedOrLocked = countByTripId.get(trip.id) ?? 0;
+      const totalCapacity = trip.bus.seatCapacity;
+      const availableSeats = Math.max(0, totalCapacity - reservedOrLocked);
+      return { ...trip, availableSeats };
     });
   }
 
@@ -110,7 +144,10 @@ export class TripsService {
     return trip;
   }
 
-  async findOneWithSeats(id: string) {
+  async findOneWithSeats(
+    id: string,
+  ): Promise<Trip & { availableSeats: number }> {
+    const now = new Date();
     const trip = await this.prismaService.trip.findUnique({
       where: { id },
       include: {
@@ -128,7 +165,7 @@ export class TripsService {
               { status: BookingSeatStatus.RESERVED },
               {
                 status: BookingSeatStatus.LOCKED,
-                lockExpiresAt: { gt: new Date() },
+                lockExpiresAt: { gt: now },
               },
             ],
           },
@@ -140,7 +177,14 @@ export class TripsService {
       throw new NotFoundException(`Trip not found for id: ${id}`);
     }
 
-    return trip;
+    const reservedOrLocked = trip.bookingSeats.length;
+    const totalCapacity = trip.bus.seatCapacity;
+    const availableSeats = Math.max(0, totalCapacity - reservedOrLocked);
+
+    return {
+      ...trip,
+      availableSeats,
+    };
   }
 
   async update(id: string, updateTripDto: UpdateTripDto): Promise<Trip> {

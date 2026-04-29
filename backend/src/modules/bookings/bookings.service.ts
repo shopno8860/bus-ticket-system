@@ -18,6 +18,19 @@ import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
+const paymentSafeSelect = {
+  id: true,
+  bookingId: true,
+  userId: true,
+  amount: true,
+  method: true,
+  status: true,
+  refundAmount: true,
+  refundStatus: true,
+  transactionId: true,
+  createdAt: true,
+} satisfies Prisma.PaymentSelect;
+
 @Injectable()
 export class BookingsService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -265,6 +278,7 @@ export class BookingsService {
         payments: {
           orderBy: { createdAt: 'desc' },
           take: 1,
+          select: paymentSafeSelect,
         },
       },
     });
@@ -296,6 +310,7 @@ export class BookingsService {
         payments: {
           orderBy: { createdAt: 'desc' },
           take: 1,
+          select: paymentSafeSelect,
         },
       },
       orderBy: {
@@ -363,6 +378,7 @@ export class BookingsService {
             where: { status: PaymentStatus.SUCCESS },
             orderBy: { createdAt: 'desc' },
             take: 1,
+            select: paymentSafeSelect,
           },
         },
       });
