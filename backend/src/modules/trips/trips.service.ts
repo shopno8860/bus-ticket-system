@@ -245,6 +245,9 @@ export class TripsService {
             where: { status: PaymentStatus.SUCCESS },
             orderBy: { createdAt: 'desc' },
             take: 1,
+            select: {
+              id: true,
+            },
           },
         },
       });

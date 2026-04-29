@@ -37,6 +37,9 @@ export class RefundsService {
               createdAt: 'desc',
             },
             take: 1,
+            select: {
+              id: true,
+            },
           },
         },
       });

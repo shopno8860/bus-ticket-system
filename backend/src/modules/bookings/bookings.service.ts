@@ -441,7 +441,9 @@ export class BookingsService {
               seat: true,
             },
           },
-          payments: true,
+          payments: {
+            select: paymentSafeSelect,
+          },
         },
       });
 
