@@ -8,17 +8,27 @@ import {
   BookingStatus,
   Prisma,
   RefundStatus,
-  User,
   UserRole,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
-export type UserResponse = Pick<
-  User,
-  'id' | 'fullName' | 'email' | 'phoneNumber' | 'role' | 'createdAt' | 'updatedAt'
->;
+export type UserResponse = {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  address: string | null;
+  dateOfBirth: Date | null;
+  nationalId: string | null;
+  passportNumber: string | null;
+  visaInfo: string | null;
+  role: UserRole;
+  createdAt: Date;
+  updatedAt: Date;
+};
 type DashboardTrendPoint = {
   label: string;
   bookings: number;
@@ -42,6 +52,22 @@ type DashboardStatsResponse = {
   recentActivity: DashboardRecentActivity[];
 };
 
+const userProfileSelect = {
+  id: true,
+  fullName: true,
+  email: true,
+  phoneNumber: true,
+  gender: true,
+  address: true,
+  dateOfBirth: true,
+  nationalId: true,
+  passportNumber: true,
+  visaInfo: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+} as any;
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -49,58 +75,35 @@ export class UsersService {
   async findCurrentUser(userId: string): Promise<UserResponse> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return user as unknown as UserResponse;
   }
 
   async findAll(): Promise<UserResponse[]> {
-    return this.prismaService.user.findMany({
+    const users = await this.prismaService.user.findMany({
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
+    return users as unknown as UserResponse[];
   }
 
   async findOneById(id: string): Promise<UserResponse> {
     const user = await this.prismaService.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
 
     if (!user) {
       throw new NotFoundException(`User not found for id: ${id}`);
     }
 
-    return user;
+    return user as unknown as UserResponse;
   }
 
   async updateProfile(
@@ -119,22 +122,23 @@ export class UsersService {
       }
     }
 
-    return this.prismaService.user.update({
+    const updatedUser = await this.prismaService.user.update({
       where: { id: userId },
       data: {
         fullName: updateProfileDto.fullName,
         phoneNumber: updateProfileDto.phoneNumber,
-      },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+        gender: updateProfileDto.gender,
+        address: updateProfileDto.address,
+        dateOfBirth: updateProfileDto.dateOfBirth
+          ? new Date(updateProfileDto.dateOfBirth)
+          : null,
+        nationalId: updateProfileDto.nationalId,
+        passportNumber: updateProfileDto.passportNumber,
+        visaInfo: updateProfileDto.visaInfo,
+      } as any,
+      select: userProfileSelect,
     });
+    return updatedUser as unknown as UserResponse;
   }
 
   async changeUserRole(
@@ -148,19 +152,12 @@ export class UsersService {
       throw new ForbiddenException('You cannot remove your own admin access');
     }
 
-    return this.prismaService.user.update({
+    const updatedUser = await this.prismaService.user.update({
       where: { id: targetUserId },
       data: { role: dto.role },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userProfileSelect,
     });
+    return updatedUser as unknown as UserResponse;
   }
 
   async getDashboardStats(): Promise<DashboardStatsResponse> {
