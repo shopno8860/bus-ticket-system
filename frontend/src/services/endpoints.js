@@ -9,6 +9,9 @@ export const endpoints = {
   },
   buses: {
     list: '/buses',
+    update: (id) => `/buses/${id}`,
+    delete: (id) => `/buses/${id}`,
+    createSeats: (busId) => `/buses/${busId}/seats`,
   },
   routes: {
     list: '/routes',

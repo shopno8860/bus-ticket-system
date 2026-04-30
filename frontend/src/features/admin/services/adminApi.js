@@ -58,3 +58,34 @@ export function rejectAdminRefund(id, adminNote) {
     body: JSON.stringify({ adminNote }),
   });
 }
+
+export function getAdminBuses() {
+  return apiFetch(endpoints.buses.list).then((res) => res.items ?? res);
+}
+
+export function createAdminBus(payload) {
+  return apiFetch(endpoints.buses.list, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminBus(id, payload) {
+  return apiFetch(endpoints.admin.updateBus(id), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAdminBus(id) {
+  return apiFetch(endpoints.admin.deleteBus(id), {
+    method: 'DELETE',
+  });
+}
+
+export function generateBusSeats(id, columnsPerRow = 4) {
+  return apiFetch(endpoints.admin.createSeats(id), {
+    method: 'POST',
+    body: JSON.stringify({ columnsPerRow }),
+  });
+}
