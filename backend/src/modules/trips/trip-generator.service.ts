@@ -10,6 +10,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TripGeneratorService.name);
   private readonly firstHour = 7;
   private readonly lastHour = 23;
+  private readonly intervalHours = 2;
   private readonly tripDurationHours = 6;
   private readonly defaultGenerationDays = 3;
   private readonly fallbackRoutes: Prisma.RouteCreateManyInput[] = [
@@ -247,10 +248,11 @@ export class TripGeneratorService implements OnApplicationBootstrap {
   }
 
   private generateTimeSlots(): number[] {
-    return Array.from(
-      { length: this.lastHour - this.firstHour + 1 },
-      (_, index) => this.firstHour + index,
-    );
+    const slots: number[] = [];
+    for (let hour = this.firstHour; hour <= this.lastHour; hour += this.intervalHours) {
+      slots.push(hour);
+    }
+    return slots;
   }
 
   private buildDepartureTime(dayStart: Date, hour: number): Date {
