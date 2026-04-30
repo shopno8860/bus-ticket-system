@@ -223,16 +223,28 @@ export class TripsService {
       );
     }
 
-    return this.prismaService.trip.update({
-      where: { id },
-      data: {
-        departureTime: departureDate,
-        arrivalTime: arrivalDate,
-        ...(updateTripDto.price !== undefined && {
-          price: new Prisma.Decimal(updateTripDto.price),
-        }),
-      },
-    });
+    try {
+      return await this.prismaService.trip.update({
+        where: { id },
+        data: {
+          ...(updateTripDto.busId !== undefined && { busId: updateTripDto.busId }),
+          ...(updateTripDto.routeId !== undefined && { routeId: updateTripDto.routeId }),
+          departureTime: departureDate,
+          arrivalTime: arrivalDate,
+          ...(updateTripDto.price !== undefined && {
+            price: new Prisma.Decimal(updateTripDto.price),
+          }),
+        },
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new NotFoundException('Invalid busId or routeId');
+      }
+      throw error;
+    }
   }
 
   async cancel(id: string, reason: string, adminUserId: string): Promise<Trip> {

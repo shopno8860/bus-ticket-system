@@ -119,21 +119,21 @@ export function getAdminTrips() {
 }
 
 export function createAdminTrip(payload) {
-  return apiFetch(endpoints.trips.search, {
+  return apiFetch(endpoints.admin.trips, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function updateAdminTrip(id, payload) {
-  return apiFetch(endpoints.trips.details(id), {
+  return apiFetch(endpoints.admin.updateTrip(id), {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }
 
 export function cancelAdminTrip(id, reason) {
-  return apiFetch(`${endpoints.trips.details(id)}/cancel`, {
+  return apiFetch(endpoints.admin.cancelTrip(id), {
     method: 'PATCH',
     body: JSON.stringify({ reason }),
   });

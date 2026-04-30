@@ -146,6 +146,8 @@ function TripPage() {
     try {
       if (editingTrip?.id) {
         await updateAdminTrip(editingTrip.id, {
+          busId: payload.busId,
+          routeId: payload.routeId,
           departureTime: payload.departureTime,
           arrivalTime: payload.arrivalTime,
           price: payload.price,
@@ -499,14 +501,15 @@ function InputField({ label, value, onChange, type = 'text', ...props }) {
   );
 }
 
-function SelectField({ label, value, onChange, options, placeholder }) {
+function SelectField({ label, value, onChange, options, placeholder, disabled = false }) {
   return (
     <label className="block">
       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
       <select
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (

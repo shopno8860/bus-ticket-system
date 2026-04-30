@@ -1,7 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateTripDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  busId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  routeId?: string;
+
   @IsOptional()
   @IsDateString()
   departureTime?: string;
