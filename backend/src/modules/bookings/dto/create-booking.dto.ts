@@ -1,9 +1,4 @@
-import {
-  ArrayNotEmpty,
-  ArrayUnique,
-  IsArray,
-  IsString,
-} from 'class-validator';
+import { ArrayNotEmpty, ArrayUnique, IsArray, IsString } from 'class-validator';
 
 export class CreateBookingDto {
   @IsString()

@@ -22,6 +22,11 @@ import { UpdateTripDto } from './dto/update-trip.dto';
 export class TripsService {
   constructor(private readonly prismaService: PrismaService) {}
 
+  private parseLocalDate(dateString: string): Date {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
   async create(createTripDto: CreateTripDto): Promise<Trip> {
     const departureDate = new Date(createTripDto.departureTime);
     const arrivalDate = new Date(createTripDto.arrivalTime);
@@ -43,6 +48,14 @@ export class TripsService {
         },
       });
     } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Trip already exists for this route, bus, and departure time',
+        );
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2003'
@@ -79,7 +92,7 @@ export class TripsService {
     }
 
     if (searchTripsDto.date) {
-      const startOfDay = new Date(searchTripsDto.date);
+      const startOfDay = this.parseLocalDate(searchTripsDto.date);
       startOfDay.setHours(0, 0, 0, 0);
 
       const endOfDay = new Date(startOfDay);
@@ -227,8 +240,12 @@ export class TripsService {
       return await this.prismaService.trip.update({
         where: { id },
         data: {
-          ...(updateTripDto.busId !== undefined && { busId: updateTripDto.busId }),
-          ...(updateTripDto.routeId !== undefined && { routeId: updateTripDto.routeId }),
+          ...(updateTripDto.busId !== undefined && {
+            busId: updateTripDto.busId,
+          }),
+          ...(updateTripDto.routeId !== undefined && {
+            routeId: updateTripDto.routeId,
+          }),
           departureTime: departureDate,
           arrivalTime: arrivalDate,
           ...(updateTripDto.price !== undefined && {
@@ -237,6 +254,14 @@ export class TripsService {
         },
       });
     } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Trip already exists for this route, bus, and departure time',
+        );
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2003'

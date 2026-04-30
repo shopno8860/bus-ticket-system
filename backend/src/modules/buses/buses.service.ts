@@ -62,7 +62,10 @@ export class BusesService {
 
   async update(id: string, updateBusDto: UpdateBusDto): Promise<Bus> {
     const existingBus = await this.findOneById(id);
-    const normalizedUpdateBusDto = this.normalizeUpdateDto(updateBusDto, existingBus);
+    const normalizedUpdateBusDto = this.normalizeUpdateDto(
+      updateBusDto,
+      existingBus,
+    );
 
     try {
       const updatedBus = await this.prismaService.bus.update({
@@ -119,7 +122,10 @@ export class BusesService {
     return createBusDto;
   }
 
-  private normalizeUpdateDto(updateBusDto: UpdateBusDto, existingBus: Bus): UpdateBusDto {
+  private normalizeUpdateDto(
+    updateBusDto: UpdateBusDto,
+    existingBus: Bus,
+  ): UpdateBusDto {
     const nextBusClass = updateBusDto.busClass ?? existingBus.busClass;
     if (nextBusClass === BusClass.BUSINESS) {
       return { ...updateBusDto, seatCapacity: 28 };

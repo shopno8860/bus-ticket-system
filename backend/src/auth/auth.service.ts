@@ -19,7 +19,10 @@ import { AuthenticatedUser } from './interfaces/authenticated-user.interface';
 
 type SafeUser = Omit<
   User,
-  'passwordHash' | 'refreshTokenHash' | 'resetPasswordToken' | 'resetPasswordExpires'
+  | 'passwordHash'
+  | 'refreshTokenHash'
+  | 'resetPasswordToken'
+  | 'resetPasswordExpires'
 >;
 
 @Injectable()

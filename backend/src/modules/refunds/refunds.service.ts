@@ -34,91 +34,101 @@ export class RefundsService {
   ): Promise<Refund> {
     const now = new Date();
 
-    return this.prismaService.$transaction(async (transactionClient) => {
-      const booking = await transactionClient.booking.findUnique({
-        where: { id: requestRefundDto.bookingId },
-        include: {
-          trip: {
-            select: {
-              departureTime: true,
+    return this.prismaService
+      .$transaction(
+        async (transactionClient) => {
+          const booking = await transactionClient.booking.findUnique({
+            where: { id: requestRefundDto.bookingId },
+            include: {
+              trip: {
+                select: {
+                  departureTime: true,
+                },
+              },
+              payments: {
+                where: {
+                  status: PaymentStatus.SUCCESS,
+                },
+                orderBy: {
+                  createdAt: 'desc',
+                },
+                take: 1,
+                select: {
+                  id: true,
+                },
+              },
             },
-          },
-          payments: {
+          });
+
+          if (!booking) {
+            throw new NotFoundException('Booking not found');
+          }
+          if (booking.userId !== requesterUserId) {
+            throw new ForbiddenException(
+              'You are not authorized to request a refund for this booking',
+            );
+          }
+
+          if (booking.status !== BookingStatus.CONFIRMED) {
+            throw new ConflictException(
+              'Only confirmed bookings are eligible for refund requests',
+            );
+          }
+
+          const existingRefund = await transactionClient.refund.findFirst({
             where: {
-              status: PaymentStatus.SUCCESS,
+              bookingId: booking.id,
+              status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
             },
-            orderBy: {
-              createdAt: 'desc',
+            select: { id: true },
+          });
+
+          if (existingRefund) {
+            throw new ConflictException(
+              'A refund request already exists for this booking',
+            );
+          }
+
+          const refundPercentage = this.calculateRefundPercentage(
+            now,
+            booking.trip.departureTime,
+          );
+          if (
+            !canCancelBooking(
+              getHoursBeforeDeparture(now, booking.trip.departureTime),
+            )
+          ) {
+            throw new ConflictException(
+              'Refund requests are not allowed within 2 hours of departure',
+            );
+          }
+          const refundAmount = new Prisma.Decimal(booking.totalAmount).mul(
+            refundPercentage,
+          );
+
+          const latestSuccessfulPayment = booking.payments[0];
+          if (!latestSuccessfulPayment) {
+            throw new ConflictException(
+              'No successful payment found for this booking refund',
+            );
+          }
+
+          const refund = await transactionClient.refund.create({
+            data: {
+              bookingId: booking.id,
+              paymentId: latestSuccessfulPayment.id,
+              userId: booking.userId,
+              reason: requestRefundDto.reason,
+              amount: refundAmount,
+              status: RefundStatus.PENDING,
             },
-            take: 1,
-            select: {
-              id: true,
-            },
-          },
+          });
+
+          return refund;
         },
-      });
-
-      if (!booking) {
-        throw new NotFoundException('Booking not found');
-      }
-      if (booking.userId !== requesterUserId) {
-        throw new ForbiddenException(
-          'You are not authorized to request a refund for this booking',
-        );
-      }
-
-      if (booking.status !== BookingStatus.CONFIRMED) {
-        throw new ConflictException(
-          'Only confirmed bookings are eligible for refund requests',
-        );
-      }
-
-      const existingRefund = await transactionClient.refund.findFirst({
-        where: {
-          bookingId: booking.id,
-          status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
-        },
-        select: { id: true },
-      });
-
-      if (existingRefund) {
-        throw new ConflictException('A refund request already exists for this booking');
-      }
-
-      const refundPercentage = this.calculateRefundPercentage(
-        now,
-        booking.trip.departureTime,
-      );
-      if (!canCancelBooking(getHoursBeforeDeparture(now, booking.trip.departureTime))) {
-        throw new ConflictException(
-          'Refund requests are not allowed within 2 hours of departure',
-        );
-      }
-      const refundAmount = new Prisma.Decimal(booking.totalAmount).mul(
-        refundPercentage,
-      );
-
-      const latestSuccessfulPayment = booking.payments[0];
-      if (!latestSuccessfulPayment) {
-        throw new ConflictException(
-          'No successful payment found for this booking refund',
-        );
-      }
-
-      const refund = await transactionClient.refund.create({
-        data: {
-          bookingId: booking.id,
-          paymentId: latestSuccessfulPayment.id,
-          userId: booking.userId,
-          reason: requestRefundDto.reason,
-          amount: refundAmount,
-          status: RefundStatus.PENDING,
-        },
-      });
-
-      return refund;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
-      async (refund) => {
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then(async (refund) => {
         await this.notificationsService.notifyRefundUpdate({
           userId: requesterUserId,
           refundId: refund.id,
@@ -126,8 +136,7 @@ export class RefundsService {
           message: 'Refund request created successfully.',
         });
         return refund;
-      },
-    );
+      });
   }
 
   async approve(
@@ -135,58 +144,66 @@ export class RefundsService {
     adminUserId: string,
     adminNote?: string,
   ): Promise<Refund> {
-    return this.prismaService.$transaction(async (tx) => {
-      const refund = await tx.refund.findUnique({
-        where: { id: refundId },
-      });
+    return this.prismaService
+      .$transaction(
+        async (tx) => {
+          const refund = await tx.refund.findUnique({
+            where: { id: refundId },
+          });
 
-      if (!refund) {
-        throw new NotFoundException('Refund not found');
-      }
+          if (!refund) {
+            throw new NotFoundException('Refund not found');
+          }
 
-      if (refund.status !== RefundStatus.PENDING) {
-        throw new ConflictException('Only pending refunds can be approved');
-      }
+          if (refund.status !== RefundStatus.PENDING) {
+            throw new ConflictException('Only pending refunds can be approved');
+          }
 
-      if (refund.paymentId) {
-        const paymentUpdateResult = await tx.payment.updateMany({
-          where: { id: refund.paymentId },
-          data: {
-            status: PaymentStatus.REFUNDED,
-            refundAmount: refund.amount,
-            refundStatus: 'PROCESSED',
-          },
-        });
+          if (refund.paymentId) {
+            const paymentUpdateResult = await tx.payment.updateMany({
+              where: { id: refund.paymentId },
+              data: {
+                status: PaymentStatus.REFUNDED,
+                refundAmount: refund.amount,
+                refundStatus: 'PROCESSED',
+              },
+            });
 
-        if (paymentUpdateResult.count === 0) {
-          throw new ConflictException('Linked payment was not found for this refund');
-        }
-      }
+            if (paymentUpdateResult.count === 0) {
+              throw new ConflictException(
+                'Linked payment was not found for this refund',
+              );
+            }
+          }
 
-      const bookingUpdateResult = await tx.booking.updateMany({
-        where: { id: refund.bookingId },
-        data: { status: BookingStatus.CANCELLED },
-      });
+          const bookingUpdateResult = await tx.booking.updateMany({
+            where: { id: refund.bookingId },
+            data: { status: BookingStatus.CANCELLED },
+          });
 
-      if (bookingUpdateResult.count === 0) {
-        throw new NotFoundException('Linked booking not found for this refund');
-      }
+          if (bookingUpdateResult.count === 0) {
+            throw new NotFoundException(
+              'Linked booking not found for this refund',
+            );
+          }
 
-      await tx.bookingSeat.deleteMany({
-        where: { bookingId: refund.bookingId },
-      });
+          await tx.bookingSeat.deleteMany({
+            where: { bookingId: refund.bookingId },
+          });
 
-      return tx.refund.update({
-        where: { id: refundId },
-        data: {
-          status: RefundStatus.APPROVED,
-          processedAt: new Date(),
-          processedBy: adminUserId,
-          adminNote,
+          return tx.refund.update({
+            where: { id: refundId },
+            data: {
+              status: RefundStatus.APPROVED,
+              processedAt: new Date(),
+              processedBy: adminUserId,
+              adminNote,
+            },
+          });
         },
-      });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
-      async (refund) => {
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then(async (refund) => {
         await this.notificationsService.notifyRefundUpdate({
           userId: refund.userId,
           refundId: refund.id,
@@ -194,8 +211,7 @@ export class RefundsService {
           message: 'Refund approved by admin.',
         });
         return refund;
-      },
-    );
+      });
   }
 
   async reject(
@@ -203,35 +219,39 @@ export class RefundsService {
     adminUserId: string,
     adminNote?: string,
   ): Promise<Refund> {
-    return this.prismaService.$transaction(async (tx) => {
-      const refund = await tx.refund.findUnique({
-        where: { id: refundId },
-      });
+    return this.prismaService
+      .$transaction(
+        async (tx) => {
+          const refund = await tx.refund.findUnique({
+            where: { id: refundId },
+          });
 
-      if (!refund) {
-        throw new NotFoundException('Refund not found');
-      }
+          if (!refund) {
+            throw new NotFoundException('Refund not found');
+          }
 
-      if (refund.status !== RefundStatus.PENDING) {
-        throw new ConflictException('Only pending refunds can be rejected');
-      }
+          if (refund.status !== RefundStatus.PENDING) {
+            throw new ConflictException('Only pending refunds can be rejected');
+          }
 
-      await tx.booking.update({
-        where: { id: refund.bookingId },
-        data: { status: BookingStatus.CANCELLED },
-      });
+          await tx.booking.update({
+            where: { id: refund.bookingId },
+            data: { status: BookingStatus.CANCELLED },
+          });
 
-      return tx.refund.update({
-        where: { id: refundId },
-        data: {
-          status: RefundStatus.REJECTED,
-          processedAt: new Date(),
-          processedBy: adminUserId,
-          adminNote,
+          return tx.refund.update({
+            where: { id: refundId },
+            data: {
+              status: RefundStatus.REJECTED,
+              processedAt: new Date(),
+              processedBy: adminUserId,
+              adminNote,
+            },
+          });
         },
-      });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
-      async (refund) => {
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then(async (refund) => {
         await this.notificationsService.notifyRefundUpdate({
           userId: refund.userId,
           refundId: refund.id,
@@ -239,8 +259,7 @@ export class RefundsService {
           message: 'Refund rejected by admin.',
         });
         return refund;
-      },
-    );
+      });
   }
 
   async findAllAdmin(filters: AdminRefundsFilterDto) {
@@ -290,6 +309,8 @@ export class RefundsService {
     requestTime: Date,
     departureTime: Date,
   ): number {
-    return getRefundPercentage(getHoursBeforeDeparture(requestTime, departureTime));
+    return getRefundPercentage(
+      getHoursBeforeDeparture(requestTime, departureTime),
+    );
   }
 }

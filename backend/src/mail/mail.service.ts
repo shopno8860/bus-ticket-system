@@ -8,8 +8,12 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async sendResetPasswordEmail(email: string, resetLink: string): Promise<void> {
-    const host = this.configService.get<string>('SMTP_HOST') ?? 'smtp.gmail.com';
+  async sendResetPasswordEmail(
+    email: string,
+    resetLink: string,
+  ): Promise<void> {
+    const host =
+      this.configService.get<string>('SMTP_HOST') ?? 'smtp.gmail.com';
     const port = Number(this.configService.get<string>('SMTP_PORT') ?? 587);
     const user = this.configService.get<string>('SMTP_USER');
     const pass = this.configService.get<string>('SMTP_PASS');

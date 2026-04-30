@@ -31,6 +31,5 @@ import { PrismaModule } from './prisma/prisma.module';
     TripsModule,
     UsersModule,
   ],
-
 })
 export class AppModule {}

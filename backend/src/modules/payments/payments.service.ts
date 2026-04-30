@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   BookingSeatStatus,
@@ -25,7 +29,9 @@ const paymentSafeSelect = {
   createdAt: true,
 } satisfies Prisma.PaymentSelect;
 
-type SafePayment = Prisma.PaymentGetPayload<{ select: typeof paymentSafeSelect }>;
+type SafePayment = Prisma.PaymentGetPayload<{
+  select: typeof paymentSafeSelect;
+}>;
 
 @Injectable()
 export class PaymentsService {
@@ -47,73 +53,83 @@ export class PaymentsService {
     createPaymentDto: CreatePaymentDto,
     requesterUserId: string,
   ): Promise<SafePayment & { paymentUrl: string }> {
-    return this.prismaService.$transaction(async (tx) => {
-      // ── 1. Validate the booking ───────────────────────────────────────────
-      const booking = await tx.booking.findUnique({
-        where: { id: createPaymentDto.bookingId },
-        select: { id: true, userId: true, totalAmount: true, status: true },
-      });
+    return this.prismaService
+      .$transaction(
+        async (tx) => {
+          // ── 1. Validate the booking ───────────────────────────────────────────
+          const booking = await tx.booking.findUnique({
+            where: { id: createPaymentDto.bookingId },
+            select: { id: true, userId: true, totalAmount: true, status: true },
+          });
 
-      if (!booking) {
-        throw new NotFoundException('Booking not found');
-      }
-      if (booking.userId !== requesterUserId) {
-        throw new ForbiddenException(
-          'You are not authorized to pay for this booking',
-        );
-      }
+          if (!booking) {
+            throw new NotFoundException('Booking not found');
+          }
+          if (booking.userId !== requesterUserId) {
+            throw new ForbiddenException(
+              'You are not authorized to pay for this booking',
+            );
+          }
 
-      // ── 2. Idempotency check ──────────────────────────────────────────────
-      // If a payment already exists for this booking, return it as-is.
-      // This makes the endpoint safe to call multiple times (e.g. React
-      // Strict Mode double-invoke, network retries).
-      const existingPayment = await tx.payment.findFirst({
-        where: { bookingId: booking.id },
-        orderBy: { createdAt: 'desc' },
-        select: paymentSafeSelect,
-      });
+          // ── 2. Idempotency check ──────────────────────────────────────────────
+          // If a payment already exists for this booking, return it as-is.
+          // This makes the endpoint safe to call multiple times (e.g. React
+          // Strict Mode double-invoke, network retries).
+          const existingPayment = await tx.payment.findFirst({
+            where: { bookingId: booking.id },
+            orderBy: { createdAt: 'desc' },
+            select: paymentSafeSelect,
+          });
 
-      if (existingPayment) {
-        console.log('Existing payment found, initiating SSLCommerz session for transaction:', existingPayment.transactionId);
-        const paymentUrl = await this.initiateSSLCommerzPayment({
-          ...existingPayment,
-          booking: await tx.booking.findUnique({
-            where: { id: existingPayment.bookingId },
-            include: { user: true }
-          })
-        });
-        return {
-          ...existingPayment,
-          paymentUrl,
-        };
-      }
+          if (existingPayment) {
+            console.log(
+              'Existing payment found, initiating SSLCommerz session for transaction:',
+              existingPayment.transactionId,
+            );
+            const paymentUrl = await this.initiateSSLCommerzPayment({
+              ...existingPayment,
+              booking: await tx.booking.findUnique({
+                where: { id: existingPayment.bookingId },
+                include: { user: true },
+              }),
+            });
+            return {
+              ...existingPayment,
+              paymentUrl,
+            };
+          }
 
-      // ── 3. Create the payment record ──────────────────────────────────────
-      const transactionId = this.generateTransactionId();
-      console.log('Creating new payment record with transactionId:', transactionId);
-      const payment = await tx.payment.create({
-        data: {
-          bookingId: booking.id,
-          userId: booking.userId,
-          amount: booking.totalAmount,
-          method: createPaymentDto.method,
-          status: PaymentStatus.PENDING,
-          transactionId,
+          // ── 3. Create the payment record ──────────────────────────────────────
+          const transactionId = this.generateTransactionId();
+          console.log(
+            'Creating new payment record with transactionId:',
+            transactionId,
+          );
+          const payment = await tx.payment.create({
+            data: {
+              bookingId: booking.id,
+              userId: booking.userId,
+              amount: booking.totalAmount,
+              method: createPaymentDto.method,
+              status: PaymentStatus.PENDING,
+              transactionId,
+            },
+            select: paymentSafeSelect,
+          });
+
+          // ── 4. Initiate SSLCommerz Session ────────────────────────────────────
+          const paymentUrl = await this.initiateSSLCommerzPayment(payment);
+
+          // ── 4. Confirm the booking (REMOVED: should be done in success callback) ──
+
+          return {
+            ...payment,
+            paymentUrl,
+          };
         },
-        select: paymentSafeSelect,
-      });
-
-      // ── 4. Initiate SSLCommerz Session ────────────────────────────────────
-      const paymentUrl = await this.initiateSSLCommerzPayment(payment);
-
-      // ── 4. Confirm the booking (REMOVED: should be done in success callback) ──
-
-      return {
-        ...payment,
-        paymentUrl,
-      };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
-      async (result) => {
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then(async (result) => {
         await this.notificationsService.notifyBookingUpdate({
           userId: requesterUserId,
           bookingId: result.bookingId,
@@ -121,8 +137,7 @@ export class PaymentsService {
           message: 'Payment initiation created for your booking.',
         });
         return result;
-      },
-    );
+      });
   }
 
   /**
@@ -130,43 +145,47 @@ export class PaymentsService {
    * Marks payment as SUCCESS and booking as CONFIRMED.
    */
   async handlePaymentSuccess(tranId: string) {
-    return this.prismaService.$transaction(async (tx) => {
-      const payment = await tx.payment.findUnique({
-        where: { transactionId: tranId },
-        select: {
-          ...paymentSafeSelect,
-          booking: true,
+    return this.prismaService
+      .$transaction(
+        async (tx) => {
+          const payment = await tx.payment.findUnique({
+            where: { transactionId: tranId },
+            select: {
+              ...paymentSafeSelect,
+              booking: true,
+            },
+          });
+
+          if (!payment) throw new NotFoundException('Payment record not found');
+          if (payment.status === PaymentStatus.SUCCESS) return payment; // Idempotent
+
+          // 1. Update Payment
+          const updatedPayment = await tx.payment.update({
+            where: { id: payment.id },
+            data: { status: PaymentStatus.SUCCESS },
+            select: paymentSafeSelect,
+          });
+
+          // 2. Update Booking
+          await tx.booking.update({
+            where: { id: payment.bookingId },
+            data: { status: BookingStatus.CONFIRMED },
+          });
+
+          // 3. Promote Seats to RESERVED
+          await tx.bookingSeat.updateMany({
+            where: { bookingId: payment.bookingId },
+            data: {
+              status: BookingSeatStatus.RESERVED,
+              lockExpiresAt: null,
+            },
+          });
+
+          return updatedPayment;
         },
-      });
-
-      if (!payment) throw new NotFoundException('Payment record not found');
-      if (payment.status === PaymentStatus.SUCCESS) return payment; // Idempotent
-
-      // 1. Update Payment
-      const updatedPayment = await tx.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.SUCCESS },
-        select: paymentSafeSelect,
-      });
-
-      // 2. Update Booking
-      await tx.booking.update({
-        where: { id: payment.bookingId },
-        data: { status: BookingStatus.CONFIRMED },
-      });
-
-      // 3. Promote Seats to RESERVED
-      await tx.bookingSeat.updateMany({
-        where: { bookingId: payment.bookingId },
-        data: {
-          status: BookingSeatStatus.RESERVED,
-          lockExpiresAt: null,
-        },
-      });
-
-      return updatedPayment;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
-      async (updatedPayment) => {
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then(async (updatedPayment) => {
         await this.notificationsService.notifyBookingUpdate({
           userId: updatedPayment.userId,
           bookingId: updatedPayment.bookingId,
@@ -174,8 +193,7 @@ export class PaymentsService {
           message: 'Payment successful. Booking confirmed.',
         });
         return updatedPayment;
-      },
-    );
+      });
   }
 
   /**
@@ -183,42 +201,46 @@ export class PaymentsService {
    * Marks payment as FAILED/CANCELLED and booking as CANCELLED.
    */
   async handlePaymentFailure(tranId: string, status: PaymentStatus) {
-    return this.prismaService.$transaction(async (tx) => {
-      const payment = await tx.payment.findUnique({
-        where: { transactionId: tranId },
-        select: {
-          ...paymentSafeSelect,
-          booking: true,
+    return this.prismaService
+      .$transaction(
+        async (tx) => {
+          const payment = await tx.payment.findUnique({
+            where: { transactionId: tranId },
+            select: {
+              ...paymentSafeSelect,
+              booking: true,
+            },
+          });
+
+          if (!payment) throw new NotFoundException('Payment record not found');
+          if (payment.status === status) return payment;
+
+          // 1. Update Payment
+          const updatedPayment = await tx.payment.update({
+            where: { id: payment.id },
+            data: { status },
+            select: paymentSafeSelect,
+          });
+
+          // 2. Update Booking
+          await tx.booking.update({
+            where: { id: payment.bookingId },
+            data: {
+              status: BookingStatus.CANCELLED,
+              cancelReason: `Payment ${status.toLowerCase()}`,
+            },
+          });
+
+          // 3. Release Seats
+          await tx.bookingSeat.deleteMany({
+            where: { bookingId: payment.bookingId },
+          });
+
+          return updatedPayment;
         },
-      });
-
-      if (!payment) throw new NotFoundException('Payment record not found');
-      if (payment.status === status) return payment;
-
-      // 1. Update Payment
-      const updatedPayment = await tx.payment.update({
-        where: { id: payment.id },
-        data: { status },
-        select: paymentSafeSelect,
-      });
-
-      // 2. Update Booking
-      await tx.booking.update({
-        where: { id: payment.bookingId },
-        data: {
-          status: BookingStatus.CANCELLED,
-          cancelReason: `Payment ${status.toLowerCase()}`,
-        },
-      });
-
-      // 3. Release Seats
-      await tx.bookingSeat.deleteMany({
-        where: { bookingId: payment.bookingId },
-      });
-
-      return updatedPayment;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
-      async (updatedPayment) => {
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then(async (updatedPayment) => {
         await this.notificationsService.notifyBookingUpdate({
           userId: updatedPayment.userId,
           bookingId: updatedPayment.bookingId,
@@ -226,8 +248,7 @@ export class PaymentsService {
           message: 'Payment failed/cancelled and booking was cancelled.',
         });
         return updatedPayment;
-      },
-    );
+      });
   }
 
   /**
@@ -238,10 +259,15 @@ export class PaymentsService {
     const storePassword = this.configService.get<string>('STORE_PASSWORD');
     const sslUrl = this.configService.get<string>('SSLCOMMERZ_URL');
 
-    console.log('SSLCommerz Config:', { storeId: storeId ? 'FOUND' : 'MISSING', sslUrl });
+    console.log('SSLCommerz Config:', {
+      storeId: storeId ? 'FOUND' : 'MISSING',
+      sslUrl,
+    });
 
     if (!storeId || !storePassword || !sslUrl) {
-      console.warn('SSLCommerz credentials missing in .env. Falling back to simulation.');
+      console.warn(
+        'SSLCommerz credentials missing in .env. Falling back to simulation.',
+      );
       return `https://sandbox.sslcommerz.com/gwprocess/v4/gw.php?id=${payment.transactionId}`;
     }
 
@@ -251,7 +277,7 @@ export class PaymentsService {
     data.append('total_amount', payment.amount.toString());
     data.append('currency', 'BDT');
     data.append('tran_id', payment.transactionId);
-    
+
     // Callbacks - these MUST match the controller routes
     const baseUrl = 'http://localhost:3000'; // Backend URL
     data.append('success_url', `${baseUrl}/payments/success`);
@@ -259,10 +285,23 @@ export class PaymentsService {
     data.append('cancel_url', `${baseUrl}/payments/cancel`);
 
     // Customer Info
-    data.append('cus_name', payment.booking?.passengerName || payment.booking?.user?.fullName || 'Customer');
-    data.append('cus_email', payment.booking?.user?.email || 'customer@example.com');
+    data.append(
+      'cus_name',
+      payment.booking?.passengerName ||
+        payment.booking?.user?.fullName ||
+        'Customer',
+    );
+    data.append(
+      'cus_email',
+      payment.booking?.user?.email || 'customer@example.com',
+    );
     data.append('cus_add1', 'Dhaka, Bangladesh');
-    data.append('cus_phone', payment.booking?.passengerPhone || payment.booking?.user?.phoneNumber || '01700000000');
+    data.append(
+      'cus_phone',
+      payment.booking?.passengerPhone ||
+        payment.booking?.user?.phoneNumber ||
+        '01700000000',
+    );
     data.append('cus_city', 'Dhaka');
     data.append('cus_country', 'Bangladesh');
 
@@ -290,7 +329,10 @@ export class PaymentsService {
         return result.GatewayPageURL;
       }
 
-      console.error('SSLCommerz initiation failed. Result:', JSON.stringify(result));
+      console.error(
+        'SSLCommerz initiation failed. Result:',
+        JSON.stringify(result),
+      );
       return `https://sandbox.sslcommerz.com/gwprocess/v4/gw.php?id=${payment.transactionId}&error=${encodeURIComponent(result.failedreason || 'init_failed')}`;
     } catch (error) {
       console.error('Exception during SSLCommerz fetch:', error.message);
@@ -337,4 +379,3 @@ export class PaymentsService {
     return `TXN-${Date.now()}-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
 }
-

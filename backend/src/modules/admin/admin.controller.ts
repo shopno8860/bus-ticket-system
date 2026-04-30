@@ -219,7 +219,11 @@ export class AdminController {
     @Body() dto: CancelTripDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const trip = await this.tripsService.cancel(id, dto.reason, currentUser.sub);
+    const trip = await this.tripsService.cancel(
+      id,
+      dto.reason,
+      currentUser.sub,
+    );
     await this.auditLogService.logAction({
       actorUserId: currentUser.sub,
       action: 'cancel_trip',

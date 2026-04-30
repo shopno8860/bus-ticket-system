@@ -6,17 +6,26 @@ import {
 import { Prisma, Route } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRouteDto } from './dto/create-route.dto';
+import { RouteSeederService } from './route-seeder.service';
 import { UpdateRouteDto } from './dto/update-route.dto';
 
 @Injectable()
 export class RoutesService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly routeSeederService: RouteSeederService,
+  ) {}
 
   async create(createRouteDto: CreateRouteDto): Promise<Route> {
     try {
-      return await this.prismaService.route.create({
+      const route = await this.prismaService.route.create({
         data: createRouteDto,
       });
+      await this.routeSeederService.ensureReverseRoute(
+        createRouteDto.origin,
+        createRouteDto.destination,
+      );
+      return route;
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

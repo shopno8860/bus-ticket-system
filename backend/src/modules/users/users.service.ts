@@ -4,12 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  BookingStatus,
-  Prisma,
-  RefundStatus,
-  UserRole,
-} from '@prisma/client';
+import { BookingStatus, Prisma, RefundStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -161,8 +156,14 @@ export class UsersService {
   }
 
   async getDashboardStats(): Promise<DashboardStatsResponse> {
-    const [totalUsers, totalBuses, totalTrips, totalBookings, pendingRefunds, paymentAggregate] =
-      await Promise.all([
+    const [
+      totalUsers,
+      totalBuses,
+      totalTrips,
+      totalBookings,
+      pendingRefunds,
+      paymentAggregate,
+    ] = await Promise.all([
       this.prismaService.user.count(),
       this.prismaService.bus.count(),
       this.prismaService.trip.count(),
@@ -174,7 +175,7 @@ export class UsersService {
         where: { status: { in: ['SUCCESS', 'REFUNDED'] } },
         _sum: { amount: true },
       }),
-      ]);
+    ]);
 
     const now = new Date();
     const dayKeys: string[] = [];
@@ -258,8 +259,7 @@ export class UsersService {
         user: refund.user.fullName,
         action: 'Refund Requested',
         date: refund.createdAt.toISOString(),
-        status:
-          refund.status === RefundStatus.PENDING ? 'Pending' : 'Success',
+        status: refund.status === RefundStatus.PENDING ? 'Pending' : 'Success',
       }),
     );
 

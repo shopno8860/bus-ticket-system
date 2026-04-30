@@ -40,9 +40,15 @@ const destinations = [
 
 const Destinations = () => {
   const navigate = useNavigate();
+  const toLocalIsoDate = (inputDate) => {
+    const year = inputDate.getFullYear();
+    const month = String(inputDate.getMonth() + 1).padStart(2, "0");
+    const day = String(inputDate.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const handleCardClick = (destinationName) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalIsoDate(new Date());
     const params = new URLSearchParams();
     params.set("from", "Dhaka");
     params.set("to", destinationName);

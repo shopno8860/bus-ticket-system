@@ -14,6 +14,7 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
+import { TripGeneratorService } from './trip-generator.service';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { TripsService } from './trips.service';
 
@@ -21,7 +22,10 @@ import { TripsService } from './trips.service';
 @UseGuards(AccessTokenGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class TripsAdminController {
-  constructor(private readonly tripsService: TripsService) {}
+  constructor(
+    private readonly tripsService: TripsService,
+    private readonly tripGeneratorService: TripGeneratorService,
+  ) {}
 
   @Post()
   async create(
@@ -66,5 +70,72 @@ export class TripsAdminController {
       timestamp: new Date().toISOString(),
     });
     return this.tripsService.cancel(id, cancelTripDto.reason, currentUser.sub);
+  }
+
+  @Post('seed-and-generate')
+  async seedAndGenerate(
+    @Body() body: { forceCreate?: boolean; daysAhead?: number } = {},
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<{
+    routesCreated: number;
+    busesCreated: number;
+    createdTrips: number;
+  }> {
+    console.log('admin_action', {
+      actorUserId: currentUser.sub,
+      action: 'seed_and_generate_trips',
+      timestamp: new Date().toISOString(),
+    });
+
+    const { routesCreated, busesCreated } =
+      await this.tripGeneratorService.seedRoutesAndBuses();
+    const createdTrips = await this.tripGeneratorService.createTripsForUpcomingDays(
+      body.daysAhead ?? 3,
+      {
+        forceCreate: body.forceCreate ?? false,
+      },
+    );
+
+    return {
+      routesCreated,
+      busesCreated,
+      createdTrips,
+    };
+  }
+
+  @Post('generate-daily')
+  async generateDaily(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<{ date: string; createdTrips: number }> {
+    console.log('admin_action', {
+      actorUserId: currentUser.sub,
+      action: 'generate_daily_trips',
+      timestamp: new Date().toISOString(),
+    });
+    return this.tripGeneratorService.generateDailyTrips();
+  }
+
+  @Post('generate-for-date/today')
+  async generateForToday(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<{ date: string; createdTrips: number }> {
+    console.log('admin_action', {
+      actorUserId: currentUser.sub,
+      action: 'generate_trips_for_today_manual',
+      timestamp: new Date().toISOString(),
+    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const createdTrips =
+      await this.tripGeneratorService.createTripsForDate(today);
+    const date = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-');
+    return {
+      date,
+      createdTrips,
+    };
   }
 }

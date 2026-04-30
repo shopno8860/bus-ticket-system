@@ -25,20 +25,28 @@ export class PaymentsController {
     const { tran_id } = body;
     const payment = await this.paymentsService.handlePaymentSuccess(tran_id);
     // Redirect to frontend success page with bookingId
-    return res.redirect(`http://localhost:5173/payment/success?bookingId=${payment.bookingId}`);
+    return res.redirect(
+      `http://localhost:5173/payment/success?bookingId=${payment.bookingId}`,
+    );
   }
 
   @Post('fail')
   async fail(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body;
-    await this.paymentsService.handlePaymentFailure(tran_id, PaymentStatus.FAILED);
+    await this.paymentsService.handlePaymentFailure(
+      tran_id,
+      PaymentStatus.FAILED,
+    );
     return res.redirect('http://localhost:5173/payment/failed');
   }
 
   @Post('cancel')
   async cancel(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body;
-    await this.paymentsService.handlePaymentFailure(tran_id, PaymentStatus.FAILED); // Treating cancel as fail for simplicity
+    await this.paymentsService.handlePaymentFailure(
+      tran_id,
+      PaymentStatus.FAILED,
+    ); // Treating cancel as fail for simplicity
     return res.redirect('http://localhost:5173/payment/failed');
   }
 }

@@ -4,7 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingSeatStatus, BusClass, BusType, Prisma, Seat } from '@prisma/client';
+import {
+  BookingSeatStatus,
+  BusClass,
+  BusType,
+  Prisma,
+  Seat,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSeatsForBusDto } from './dto/create-seats-for-bus.dto';
 
@@ -42,7 +48,8 @@ export class SeatsService {
     }
 
     const columnsPerRow =
-      createSeatsForBusDto.columnsPerRow ?? this.getDefaultColumnsPerRow(bus.busClass);
+      createSeatsForBusDto.columnsPerRow ??
+      this.getDefaultColumnsPerRow(bus.busClass);
     const seatsData = this.buildSeatsData(
       busId,
       bus.seatCapacity,
@@ -125,7 +132,11 @@ export class SeatsService {
     const normalRows = 8;
     const normalRowSeats = 3;
     for (let rowNumber = 1; rowNumber <= normalRows; rowNumber += 1) {
-      for (let columnNumber = 1; columnNumber <= normalRowSeats; columnNumber += 1) {
+      for (
+        let columnNumber = 1;
+        columnNumber <= normalRowSeats;
+        columnNumber += 1
+      ) {
         seatsData.push({
           busId,
           seatNumber: `R${rowNumber}C${columnNumber}`,
@@ -148,7 +159,10 @@ export class SeatsService {
     return seatsData;
   }
 
-  private buildSleeperSeatsData(busId: string, seatCapacity: number): Prisma.SeatCreateManyInput[] {
+  private buildSleeperSeatsData(
+    busId: string,
+    seatCapacity: number,
+  ): Prisma.SeatCreateManyInput[] {
     const deckRows = 9;
     const seatsPerDeckRow = 2;
     const totalUpperSeats = 18;
@@ -161,7 +175,9 @@ export class SeatsService {
       const rowInDeck = Math.floor(deckOffset / seatsPerDeckRow) + 1;
       const columnInDeck = (deckOffset % seatsPerDeckRow) + 1;
       const rowNumber = isUpperDeck ? rowInDeck : deckRows + rowInDeck;
-      const columnNumber = isUpperDeck ? columnInDeck : seatsPerDeckRow + columnInDeck;
+      const columnNumber = isUpperDeck
+        ? columnInDeck
+        : seatsPerDeckRow + columnInDeck;
       const deckPrefix = isUpperDeck ? 'U' : 'L';
       const seatSequence = String(deckOffset + 1).padStart(2, '0');
 
@@ -180,21 +196,25 @@ export class SeatsService {
     return seatsData;
   }
 
-  private async ensureNoFutureSeatLocksOrReservations(busId: string): Promise<void> {
+  private async ensureNoFutureSeatLocksOrReservations(
+    busId: string,
+  ): Promise<void> {
     const now = new Date();
-    const activeSeatAllocation = await this.prismaService.bookingSeat.findFirst({
-      where: {
-        status: {
-          in: [BookingSeatStatus.RESERVED, BookingSeatStatus.LOCKED],
+    const activeSeatAllocation = await this.prismaService.bookingSeat.findFirst(
+      {
+        where: {
+          status: {
+            in: [BookingSeatStatus.RESERVED, BookingSeatStatus.LOCKED],
+          },
+          OR: [{ lockExpiresAt: null }, { lockExpiresAt: { gt: now } }],
+          trip: {
+            busId,
+            departureTime: { gt: now },
+          },
         },
-        OR: [{ lockExpiresAt: null }, { lockExpiresAt: { gt: now } }],
-        trip: {
-          busId,
-          departureTime: { gt: now },
-        },
+        select: { id: true },
       },
-      select: { id: true },
-    });
+    );
 
     if (activeSeatAllocation) {
       throw new BadRequestException(

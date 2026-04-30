@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Booking } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
@@ -13,9 +21,7 @@ export class BookingsController {
 
   @Get('my-bookings')
   @UseGuards(AccessTokenGuard)
-  async findMyBookings(
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<any[]> {
+  async findMyBookings(@CurrentUser() user: AuthenticatedUser): Promise<any[]> {
     return this.bookingsService.findMyBookings(user.sub);
   }
 

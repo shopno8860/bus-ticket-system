@@ -172,6 +172,7 @@ model Trip {
   @@index([busId])
   @@index([routeId])
   @@index([departureTime])
+  @@unique([routeId, busId, departureTime])
 }
 
 //////////////////////////////////////////////////////
