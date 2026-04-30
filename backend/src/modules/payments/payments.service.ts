@@ -174,9 +174,13 @@ export class PaymentsService {
 
           // 3. Promote Seats to RESERVED
           await tx.bookingSeat.updateMany({
-            where: { bookingId: payment.bookingId },
+            where: {
+              bookingId: payment.bookingId,
+              status: BookingSeatStatus.LOCKED,
+            },
             data: {
               status: BookingSeatStatus.RESERVED,
+              bookingId: payment.bookingId,
               lockExpiresAt: null,
             },
           });

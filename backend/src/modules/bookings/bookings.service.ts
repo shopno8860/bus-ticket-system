@@ -52,7 +52,7 @@ export class BookingsService {
     lockExpiresAt: Date;
   }> {
     const now = new Date();
-    const lockExpiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+    const lockExpiresAt = new Date(now.getTime() + 1 * 60 * 1000);
 
     try {
       return await this.prismaService.$transaction(
@@ -82,11 +82,15 @@ export class BookingsService {
             );
           }
 
-          await transactionClient.bookingSeat.deleteMany({
+          await transactionClient.bookingSeat.updateMany({
             where: {
               tripId: createBookingDto.tripId,
               status: BookingSeatStatus.LOCKED,
               lockExpiresAt: { lt: now },
+            },
+            data: {
+              status: BookingSeatStatus.CANCELLED,
+              bookingId: null,
             },
           });
 
@@ -113,15 +117,53 @@ export class BookingsService {
             );
           }
 
-          await transactionClient.bookingSeat.createMany({
-            data: requestedSeatIds.map((seatId) => ({
-              tripId: createBookingDto.tripId,
-              seatId,
-              price: trip.price,
-              status: BookingSeatStatus.LOCKED,
-              lockExpiresAt,
-            })),
-          });
+          for (const seatId of requestedSeatIds) {
+            const recycleResult = await transactionClient.bookingSeat.updateMany({
+              where: {
+                tripId: createBookingDto.tripId,
+                seatId,
+                OR: [
+                  { status: BookingSeatStatus.CANCELLED },
+                  {
+                    status: BookingSeatStatus.LOCKED,
+                    lockExpiresAt: { lt: now },
+                  },
+                ],
+              },
+              data: {
+                status: BookingSeatStatus.LOCKED,
+                bookingId: null,
+                lockExpiresAt,
+                price: trip.price,
+              },
+            });
+
+            if (recycleResult.count > 0) {
+              continue;
+            }
+
+            try {
+              await transactionClient.bookingSeat.create({
+                data: {
+                  tripId: createBookingDto.tripId,
+                  seatId,
+                  price: trip.price,
+                  status: BookingSeatStatus.LOCKED,
+                  lockExpiresAt,
+                },
+              });
+            } catch (createError: unknown) {
+              if (
+                createError instanceof Prisma.PrismaClientKnownRequestError &&
+                createError.code === 'P2002'
+              ) {
+                throw new ConflictException(
+                  `Seat is unavailable for this trip: ${seatId}`,
+                );
+              }
+              throw createError;
+            }
+          }
 
           return {
             tripId: createBookingDto.tripId,
@@ -189,11 +231,15 @@ export class BookingsService {
             );
           }
 
-          await transactionClient.bookingSeat.deleteMany({
+          await transactionClient.bookingSeat.updateMany({
             where: {
               tripId: confirmBookingDto.tripId,
               status: BookingSeatStatus.LOCKED,
               lockExpiresAt: { lt: now },
+            },
+            data: {
+              status: BookingSeatStatus.CANCELLED,
+              bookingId: null,
             },
           });
 

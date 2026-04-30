@@ -11,37 +11,79 @@ const SeatSelection = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
 
   useEffect(() => {
-    const fetchTripDetails = async () => {
+    let isMounted = true;
+
+    const fetchTripDetails = async ({ silent = false } = {}) => {
+      if (!silent) {
+        setLoading(true);
+      }
       try {
         const data = await tripApi.getTripDetails(tripId);
+        if (!isMounted) return;
         setTripData(data);
       } catch (err) {
+        if (!isMounted) return;
         console.error("Failed to fetch trip details:", err);
-        alert("Failed to load trip details. Please try again.");
+        if (!silent) {
+          alert("Failed to load trip details. Please try again.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted && !silent) {
+          setLoading(false);
+        }
       }
     };
+
     fetchTripDetails();
+
+    // Keep seat states fresh so users can see locked seats quickly.
+    const refreshTimer = setInterval(() => {
+      fetchTripDetails({ silent: true });
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(refreshTimer);
+    };
   }, [tripId]);
 
   const allSeats = useMemo(() => {
     if (!tripData || !tripData.bus || !tripData.bus.seats) return [];
 
-    const bookedSeatIds = new Set(
-      tripData.bookingSeats.map((bs) => bs.seatId)
-    );
+    const now = Date.now();
+    const seatStatusById = new Map();
+    for (const bookingSeat of tripData.bookingSeats || []) {
+      if (bookingSeat.status === "RESERVED") {
+        seatStatusById.set(bookingSeat.seatId, "reserved");
+        continue;
+      }
+
+      if (
+        bookingSeat.status === "LOCKED" &&
+        bookingSeat.lockExpiresAt &&
+        new Date(bookingSeat.lockExpiresAt).getTime() > now
+      ) {
+        seatStatusById.set(bookingSeat.seatId, "locked");
+      }
+    }
 
     return tripData.bus.seats.map((seat) => ({
       ...seat,
-      isBooked: bookedSeatIds.has(seat.id),
+      seatState: seatStatusById.get(seat.id) || "available",
     }));
   }, [tripData]);
 
   const PRICE_PER_SEAT = tripData ? parseFloat(tripData.price) : 0;
 
   const handleSeatClick = (seat) => {
-    if (seat.isBooked) return;
+    if (seat.seatState === "reserved") {
+      alert("This seat is already reserved.");
+      return;
+    }
+    if (seat.seatState === "locked") {
+      alert("This seat is temporarily locked by another user.");
+      return;
+    }
     setSelectedSeats((prev) => {
       if (prev.includes(seat.id)) {
         return prev.filter((s) => s !== seat.id);
@@ -213,15 +255,19 @@ const SeatSelection = () => {
 
         {/* Seat Layout Area */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col items-center gap-6">
-          {/* Seat Legend: Available, Sold, Selected */}
+          {/* Seat Legend: Available, Locked, Reserved, Selected */}
           <div className="flex gap-5 text-[10px] font-bold uppercase text-gray-400">
             <div className="flex items-center gap-1.5">
               <div className="w-3.5 h-3.5 rounded bg-gray-100 border border-gray-200"></div>{" "}
               Avail
             </div>
             <div className="flex items-center gap-1.5">
+              <div className="w-3.5 h-3.5 rounded bg-orange-100 border border-orange-200"></div>{" "}
+              Locked
+            </div>
+            <div className="flex items-center gap-1.5">
               <div className="w-3.5 h-3.5 rounded bg-red-100 border border-red-200"></div>{" "}
-              Sold
+              Reserved
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3.5 h-3.5 rounded bg-green-600"></div> Selected
@@ -352,15 +398,28 @@ const SeatSelection = () => {
 
 // Seat Button Component
 const SeatButton = ({ seat, isSelected, onClick }) => {
-  const { seatNumber, isBooked } = seat;
+  const { seatNumber, seatState } = seat;
   const base =
     "w-10 h-10 rounded-lg flex items-center justify-center text-[9px] font-bold transition-all border-b-2";
 
-  if (isBooked) {
+  if (seatState === "reserved") {
     return (
       <button
         disabled
+        title="Already reserved"
         className={`${base} bg-red-100 border-red-200 text-red-500/50 cursor-not-allowed`}
+      >
+        {seatNumber}
+      </button>
+    );
+  }
+
+  if (seatState === "locked") {
+    return (
+      <button
+        disabled
+        title="Temporarily locked by another user"
+        className={`${base} bg-orange-100 border-orange-200 text-orange-500/60 cursor-not-allowed`}
       >
         {seatNumber}
       </button>

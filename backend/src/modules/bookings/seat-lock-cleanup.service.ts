@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { BookingSeatStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -9,18 +9,22 @@ export class SeatLockCleanupService {
 
   constructor(private readonly prismaService: PrismaService) {}
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron('*/30 * * * * *')
   async cleanupExpiredLocks(): Promise<void> {
     const now = new Date();
     try {
-      const result = await this.prismaService.bookingSeat.deleteMany({
+      const result = await this.prismaService.bookingSeat.updateMany({
         where: {
           status: BookingSeatStatus.LOCKED,
           lockExpiresAt: { lt: now },
         },
+        data: {
+          status: BookingSeatStatus.CANCELLED,
+          bookingId: null,
+        },
       });
       if (result.count > 0) {
-        this.logger.log(`Expired seat locks cleaned: ${result.count}`);
+        this.logger.log(`Expired seat locks released: ${result.count}`);
       }
     } catch (error) {
       this.logger.error(`Seat lock cleanup failed: ${String(error)}`);
