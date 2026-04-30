@@ -19,15 +19,15 @@ export class TripGeneratorService implements OnApplicationBootstrap {
   ];
   private readonly fallbackBuses: Prisma.BusCreateManyInput[] = [
     {
-      name: 'Green Line Coach 1',
-      operatorName: 'Green Line',
-      registrationNumber: 'GL-AC-001',
-      seatCapacity: 28,
+      name: 'Alhamra AC Coach 1',
+      operatorName: 'Alhamra',
+      registrationNumber: 'AL-AC-001',
+      seatCapacity: 32,
       busType: BusType.AC,
       busClass: BusClass.BUSINESS,
     },
     {
-      name: 'Hanif Express 1',
+      name: 'Hanif Non-AC Coach 1',
       operatorName: 'Hanif',
       registrationNumber: 'HN-NA-001',
       seatCapacity: 40,
@@ -35,11 +35,11 @@ export class TripGeneratorService implements OnApplicationBootstrap {
       busClass: BusClass.ECONOMY,
     },
     {
-      name: 'Nabil Paribahan 1',
-      operatorName: 'Nabil',
-      registrationNumber: 'NB-AC-001',
+      name: 'Orin Sleeper AC 1',
+      operatorName: 'Orin',
+      registrationNumber: 'OR-SL-001',
       seatCapacity: 36,
-      busType: BusType.AC,
+      busType: BusType.SLEEPER,
       busClass: BusClass.BUSINESS,
     },
   ];
@@ -55,11 +55,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
   private readonly supportedOperators = new Set([
     'alhamra',
     'orin',
-    'sr',
-    'nabil',
     'hanif',
-    'green line',
-    'akota',
   ]);
 
   constructor(
