@@ -1,11 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from '../../../layouts/AdminLayout';
-import BookingsPage from '../pages/BookingsPage';
-import BusesPage from '../pages/BusesPage';
+import BookingPage from '../pages/BookingPage';
+import BusPage from '../pages/BusPage';
 import Dashboard from '../pages/Dashboard';
-import PaymentsPage from '../pages/PaymentsPage';
-import RefundsPage from '../pages/RefundsPage';
-import TripsManagementPage from '../pages/TripsManagementPage';
+import PaymentPage from '../pages/PaymentPage';
+import RefundPage from '../pages/RefundPage';
+import RoutePage from '../pages/RoutePage';
+import TripPage from '../pages/TripPage';
 import UsersPage from '../pages/UsersPage';
 
 function AdminRoutes() {
@@ -14,12 +15,19 @@ function AdminRoutes() {
       <Route element={<AdminLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="buses" element={<BusesPage />} />
-        <Route path="trips" element={<TripsManagementPage />} />
+        <Route path="bus" element={<BusPage />} />
+        <Route path="route" element={<RoutePage />} />
+        <Route path="trip" element={<TripPage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="bookings" element={<BookingsPage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="refunds" element={<RefundsPage />} />
+        <Route path="booking" element={<BookingPage />} />
+        <Route path="payment" element={<PaymentPage />} />
+        <Route path="refund" element={<RefundPage />} />
+
+        <Route path="buses" element={<Navigate to="/admin/bus" replace />} />
+        <Route path="trips" element={<Navigate to="/admin/trip" replace />} />
+        <Route path="bookings" element={<Navigate to="/admin/booking" replace />} />
+        <Route path="payments" element={<Navigate to="/admin/payment" replace />} />
+        <Route path="refunds" element={<Navigate to="/admin/refund" replace />} />
       </Route>
     </Routes>
   );
