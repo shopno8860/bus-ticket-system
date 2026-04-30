@@ -22,7 +22,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
       name: 'Alhamra AC Coach 1',
       operatorName: 'Alhamra',
       registrationNumber: 'AL-AC-001',
-      seatCapacity: 32,
+      seatCapacity: 28,
       busType: BusType.AC,
       busClass: BusClass.BUSINESS,
     },
@@ -50,7 +50,6 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     'chittagong',
     'sylhet',
     "cox's bazar",
-    'khulna',
   ]);
   private readonly supportedOperators = new Set([
     'alhamra',
@@ -143,7 +142,9 @@ export class TripGeneratorService implements OnApplicationBootstrap {
       this.prismaService.route.findMany({
         select: { id: true, origin: true, destination: true },
       }),
-      this.prismaService.bus.findMany({ select: { id: true, operatorName: true } }),
+      this.prismaService.bus.findMany({
+        select: { id: true, operatorName: true, busType: true, busClass: true },
+      }),
     ]);
     const routes = allRoutes.filter((route) =>
       this.isSupportedRoute(route.origin, route.destination),
@@ -167,7 +168,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     const dayEnd = new Date(targetDate);
     dayEnd.setDate(dayEnd.getDate() + 1);
 
-    const tripsToCreate: Prisma.TripCreateManyInput[] = [];
+    const tripsToCreate: any[] = [];
     this.logger.debug(
       `Trip generation loop starts for ${this.formatLocalDate(targetDate)}`,
     );
@@ -198,9 +199,11 @@ export class TripGeneratorService implements OnApplicationBootstrap {
           tripsToCreate.push({
             routeId: route.id,
             busId: bus.id,
+            boardingPoint: route.origin,
+            droppingPoint: route.destination,
             departureTime,
             arrivalTime,
-            price: new Prisma.Decimal(this.randomPrice(500, 1500)).toFixed(2),
+            price: new Prisma.Decimal(this.getTicketPrice(bus.busType, bus.busClass)).toFixed(2),
             status: TripStatus.SCHEDULED,
           });
         }
@@ -239,8 +242,24 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     return `${year}-${month}-${day}`;
   }
 
-  private randomPrice(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  private getTicketPrice(busType: BusType, busClass: BusClass): number {
+    if (busType === BusType.SLEEPER) {
+      return 1400;
+    }
+
+    if (busType === BusType.NON_AC) {
+      return 700;
+    }
+
+    if (busType === BusType.AC && busClass === BusClass.BUSINESS) {
+      return 1000;
+    }
+
+    if (busType === BusType.AC && busClass === BusClass.ECONOMY) {
+      return 800;
+    }
+
+    return 800;
   }
 
   private generateTimeSlots(): number[] {

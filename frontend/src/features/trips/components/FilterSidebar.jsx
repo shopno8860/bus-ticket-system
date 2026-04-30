@@ -1,12 +1,28 @@
 import React from 'react';
 
-function FilterSidebar({ filters, setFilters, onReset, availableOperators }) {
+function FilterSidebar({
+  filters,
+  setFilters,
+  onReset,
+  availableOperators,
+  availableBoardingPoints = [],
+  availableDroppingPoints = [],
+}) {
   const handleBusTypeChange = (type) => {
     setFilters(prev => ({
       ...prev,
       busTypes: prev.busTypes.includes(type)
         ? prev.busTypes.filter(t => t !== type)
         : [...prev.busTypes, type]
+    }));
+  };
+
+  const handleBusClassChange = (busClass) => {
+    setFilters(prev => ({
+      ...prev,
+      busClasses: prev.busClasses.includes(busClass)
+        ? prev.busClasses.filter(c => c !== busClass)
+        : [...prev.busClasses, busClass]
     }));
   };
 
@@ -26,7 +42,7 @@ function FilterSidebar({ filters, setFilters, onReset, availableOperators }) {
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-[#6b7280] uppercase tracking-widest">Bus Type</h3>
         <div className="space-y-3">
-          {['AC', 'NON_AC'].map(type => (
+          {['AC', 'NON_AC', 'SLEEPER'].map(type => (
             <label key={type} className="flex items-center gap-3 group cursor-pointer">
               <input 
                 type="checkbox" 
@@ -35,7 +51,27 @@ function FilterSidebar({ filters, setFilters, onReset, availableOperators }) {
                 onChange={() => handleBusTypeChange(type)}
               />
               <span className="text-sm font-medium text-[#111827] group-hover:text-[#16a34a] transition-colors">
-                {type === 'AC' ? 'AC Bus' : 'Non-AC Bus'}
+                {type === 'AC' ? 'AC Bus' : type === 'NON_AC' ? 'Non-AC Bus' : 'Sleeper'}
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Bus Class */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-bold text-[#6b7280] uppercase tracking-widest">Bus Class</h3>
+        <div className="space-y-3">
+          {['BUSINESS', 'ECONOMY'].map(busClass => (
+            <label key={busClass} className="flex items-center gap-3 group cursor-pointer">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm rounded-md border-slate-300 checked:bg-[#16a34a] checked:border-[#16a34a]"
+                checked={filters.busClasses.includes(busClass)}
+                onChange={() => handleBusClassChange(busClass)}
+              />
+              <span className="text-sm font-medium text-[#111827] group-hover:text-[#16a34a] transition-colors">
+                {busClass}
               </span>
             </label>
           ))}
@@ -66,10 +102,9 @@ function FilterSidebar({ filters, setFilters, onReset, availableOperators }) {
           onChange={(e) => setFilters(prev => ({ ...prev, boardingPoint: e.target.value }))}
         >
           <option value="">Any Point</option>
-          <option value="Gabtoli">Gabtoli</option>
-          <option value="Sayedabad">Sayedabad</option>
-          <option value="Mohakhali">Mohakhali</option>
-          <option value="Abdullahpur">Abdullahpur</option>
+          {availableBoardingPoints.map(point => (
+            <option key={point} value={point}>{point}</option>
+          ))}
         </select>
       </div>
 
@@ -82,11 +117,33 @@ function FilterSidebar({ filters, setFilters, onReset, availableOperators }) {
           onChange={(e) => setFilters(prev => ({ ...prev, droppingPoint: e.target.value }))}
         >
           <option value="">Any Point</option>
-          <option value="Chittagong">Chittagong</option>
-          <option value="Cox's Bazar">Cox's Bazar</option>
-          <option value="Sylhet">Sylhet</option>
-          <option value="Rajshahi">Rajshahi</option>
+          {availableDroppingPoints.map(point => (
+            <option key={point} value={point}>{point}</option>
+          ))}
         </select>
+      </div>
+
+      {/* Price Range */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-bold text-[#6b7280] uppercase tracking-widest">Price Range</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            type="number"
+            min="0"
+            placeholder="Min"
+            className="input input-bordered rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-medium text-[#111827] focus:outline-none focus:border-[#16a34a]"
+            value={filters.minPrice}
+            onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
+          />
+          <input
+            type="number"
+            min="0"
+            placeholder="Max"
+            className="input input-bordered rounded-xl bg-[#f9fafb] border-[#e5e7eb] text-sm font-medium text-[#111827] focus:outline-none focus:border-[#16a34a]"
+            value={filters.maxPrice}
+            onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
+          />
+        </div>
       </div>
 
       <div className="pt-6">

@@ -119,8 +119,9 @@ const SeatSelection = () => {
 
     const toRows = (seats) => {
       const rows = [];
-      for (let i = 0; i < seats.length; i += 2) {
-        rows.push(seats.slice(i, i + 2));
+      const seatsPerRow = 3;
+      for (let i = 0; i < seats.length; i += seatsPerRow) {
+        rows.push(seats.slice(i, i + seatsPerRow));
       }
       return rows;
     };
@@ -395,15 +396,30 @@ const SleeperDeck = ({ title, rows, selectedSeats, onSeatClick }) => {
       </p>
       <div className="space-y-2">
         {rows.map((rowSeats, rowIndex) => (
-          <div key={`${title}-${rowIndex}`} className="flex items-center justify-center gap-2">
-            {rowSeats.map((seat) => (
-              <SeatButton
-                key={seat.id}
-                seat={seat}
-                isSelected={selectedSeats.includes(seat.id)}
-                onClick={() => onSeatClick(seat)}
-              />
-            ))}
+          <div
+            key={`${title}-${rowIndex}`}
+            className="flex items-center justify-center gap-6"
+          >
+            <div className="inline-flex items-center gap-2">
+              {rowSeats.slice(0, 1).map((seat) => (
+                <SeatButton
+                  key={seat.id}
+                  seat={seat}
+                  isSelected={selectedSeats.includes(seat.id)}
+                  onClick={() => onSeatClick(seat)}
+                />
+              ))}
+            </div>
+            <div className="inline-flex items-center gap-2">
+              {rowSeats.slice(1).map((seat) => (
+                <SeatButton
+                  key={seat.id}
+                  seat={seat}
+                  isSelected={selectedSeats.includes(seat.id)}
+                  onClick={() => onSeatClick(seat)}
+                />
+              ))}
+            </div>
           </div>
         ))}
       </div>

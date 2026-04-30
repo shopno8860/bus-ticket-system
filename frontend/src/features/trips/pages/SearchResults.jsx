@@ -34,13 +34,16 @@ function SearchResults() {
   // Filter States
   const [filters, setFilters] = useState({
     busTypes: [],
+    busClasses: [],
     operator: '',
     boardingPoint: '',
-    droppingPoint: ''
+    droppingPoint: '',
+    minPrice: '',
+    maxPrice: ''
   });
 
   // Sort State
-  const [sortBy, setSortBy] = useState('cheapest'); // 'cheapest', 'expensive'
+  const [sortBy, setSortBy] = useState('departure'); // 'departure', 'cheapest', 'expensive'
 
   useEffect(() => {
     setSearchData({
@@ -55,7 +58,14 @@ function SearchResults() {
       setLoading(true);
       setError(null);
       try {
-        const tripsData = await tripApi.getTrips(from, to, date);
+        const tripsData = await tripApi.getTrips(from, to, date, {
+          busTypes: filters.busTypes,
+          busClasses: filters.busClasses,
+          boardingPoint: filters.boardingPoint,
+          droppingPoint: filters.droppingPoint,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
+        });
         console.log('Real Trips Data from Backend:', tripsData);
 
         const mappedTrips = tripsData.map(trip => ({
@@ -77,40 +87,21 @@ function SearchResults() {
     } else {
       setLoading(false);
     }
-  }, [from, to, date]);
+  }, [
+    from,
+    to,
+    date,
+    filters.busTypes,
+    filters.busClasses,
+    filters.boardingPoint,
+    filters.droppingPoint,
+    filters.minPrice,
+    filters.maxPrice,
+  ]);
 
   // Derived filtered and sorted trips
   const filteredTrips = useMemo(() => {
-    const now = Date.now();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayStartMs = todayStart.getTime();
-    const selectedDate = date ? new Date(date) : null;
-    const selectedDateStartMs = selectedDate
-      ? new Date(selectedDate.setHours(0, 0, 0, 0)).getTime()
-      : null;
     let result = [...allTrips];
-
-    if (selectedDateStartMs !== null) {
-      if (selectedDateStartMs < todayStartMs) {
-        result = [];
-      } else if (selectedDateStartMs === todayStartMs) {
-        result = result.filter((trip) => {
-          const departureTime = new Date(trip.departureTime).getTime();
-          return !Number.isNaN(departureTime) && departureTime > now;
-        });
-      }
-    } else {
-      result = result.filter((trip) => {
-        const departureTime = new Date(trip.departureTime).getTime();
-        return !Number.isNaN(departureTime) && departureTime > now;
-      });
-    }
-
-    // Filter by Bus Type
-    if (filters.busTypes.length > 0) {
-      result = result.filter(trip => filters.busTypes.includes(trip.bus?.busType));
-    }
 
     // Filter by Operator
     if (filters.operator) {
@@ -120,7 +111,12 @@ function SearchResults() {
     }
 
     // Sorting
-    if (sortBy === 'cheapest') {
+    if (sortBy === 'departure') {
+      result.sort(
+        (a, b) =>
+          new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime(),
+      );
+    } else if (sortBy === 'cheapest') {
       result.sort((a, b) => Number(a.price) - Number(b.price));
     } else if (sortBy === 'expensive') {
       result.sort((a, b) => Number(b.price) - Number(a.price));
@@ -134,12 +130,25 @@ function SearchResults() {
     return [...new Set(ops)];
   }, [allTrips]);
 
+  const availableBoardingPoints = useMemo(() => {
+    const points = allTrips.map(t => t.boardingPoint || t.route?.origin).filter(Boolean);
+    return [...new Set(points)];
+  }, [allTrips]);
+
+  const availableDroppingPoints = useMemo(() => {
+    const points = allTrips.map(t => t.droppingPoint || t.route?.destination).filter(Boolean);
+    return [...new Set(points)];
+  }, [allTrips]);
+
   const handleResetFilters = () => {
     setFilters({
       busTypes: [],
+      busClasses: [],
       operator: '',
       boardingPoint: '',
-      droppingPoint: ''
+      droppingPoint: '',
+      minPrice: '',
+      maxPrice: ''
     });
   };
 
@@ -273,6 +282,8 @@ function SearchResults() {
                 setFilters={setFilters} 
                 onReset={handleResetFilters}
                 availableOperators={availableOperators}
+                availableBoardingPoints={availableBoardingPoints}
+                availableDroppingPoints={availableDroppingPoints}
              />
           </div>
 
@@ -297,6 +308,12 @@ function SearchResults() {
                </div>
                
                <div className="flex bg-[#f9fafb] p-1.5 rounded-xl gap-2">
+                  <button
+                    onClick={() => setSortBy('departure')}
+                    className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 ${sortBy === 'departure' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
+                  >
+                    Departure
+                  </button>
                   <button 
                     onClick={() => setSortBy('cheapest')}
                     className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 ${sortBy === 'cheapest' ? 'bg-white text-[#16a34a] shadow-sm' : 'text-[#6b7280] hover:text-[#111827]'}`}
@@ -378,6 +395,8 @@ function SearchResults() {
                 setFilters={setFilters} 
                 onReset={handleResetFilters}
                 availableOperators={availableOperators}
+                availableBoardingPoints={availableBoardingPoints}
+                availableDroppingPoints={availableDroppingPoints}
              />
              <button 
                onClick={() => setShowMobileFilters(false)}

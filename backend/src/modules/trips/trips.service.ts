@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   BookingSeatStatus,
+  BusClass,
+  BusType,
   BookingStatus,
   PaymentStatus,
   Prisma,
@@ -21,6 +23,21 @@ import { UpdateTripDto } from './dto/update-trip.dto';
 @Injectable()
 export class TripsService {
   constructor(private readonly prismaService: PrismaService) {}
+
+  private parseEnumList<T extends string>(
+    rawValue: string | undefined,
+    allowedValues: readonly T[],
+  ): T[] {
+    if (!rawValue) {
+      return [];
+    }
+
+    const allowedSet = new Set<string>(allowedValues as readonly string[]);
+    return rawValue
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item): item is T => allowedSet.has(item));
+  }
 
   private parseLocalDate(dateString: string): Date {
     const [year, month, day] = dateString.split('-').map(Number);
@@ -38,10 +55,21 @@ export class TripsService {
     }
 
     try {
+      const route = await this.prismaService.route.findUnique({
+        where: { id: createTripDto.routeId },
+        select: { origin: true, destination: true },
+      });
+
+      if (!route) {
+        throw new NotFoundException('Invalid routeId');
+      }
+
       return await this.prismaService.trip.create({
         data: {
           busId: createTripDto.busId,
           routeId: createTripDto.routeId,
+          boardingPoint: route.origin,
+          droppingPoint: route.destination,
           departureTime: departureDate,
           arrivalTime: arrivalDate,
           price: new Prisma.Decimal(createTripDto.price),
@@ -89,6 +117,50 @@ export class TripsService {
 
     if (Object.keys(routeFilters).length > 0) {
       where.route = { is: routeFilters };
+    }
+
+    const busTypes = this.parseEnumList(searchTripsDto.busType, [
+      BusType.AC,
+      BusType.NON_AC,
+      BusType.SLEEPER,
+    ]);
+    const busClasses = this.parseEnumList(searchTripsDto.busClass, [
+      BusClass.BUSINESS,
+      BusClass.ECONOMY,
+    ]);
+
+    if (busTypes.length > 0 || busClasses.length > 0) {
+      where.bus = {
+        is: {
+          ...(busTypes.length > 0 && { busType: { in: busTypes } }),
+          ...(busClasses.length > 0 && { busClass: { in: busClasses } }),
+        },
+      };
+    }
+
+    if (searchTripsDto.boardingPoint) {
+      where.boardingPoint = {
+        contains: searchTripsDto.boardingPoint,
+        mode: 'insensitive',
+      };
+    }
+
+    if (searchTripsDto.droppingPoint) {
+      where.droppingPoint = {
+        contains: searchTripsDto.droppingPoint,
+        mode: 'insensitive',
+      };
+    }
+
+    const minPrice = Number(searchTripsDto.minPrice);
+    const maxPrice = Number(searchTripsDto.maxPrice);
+    const hasMinPrice = Number.isFinite(minPrice);
+    const hasMaxPrice = Number.isFinite(maxPrice);
+    if (hasMinPrice || hasMaxPrice) {
+      where.price = {
+        ...(hasMinPrice && { gte: minPrice }),
+        ...(hasMaxPrice && { lte: maxPrice }),
+      };
     }
 
     if (searchTripsDto.date) {
@@ -237,6 +309,23 @@ export class TripsService {
     }
 
     try {
+      let nextBoardingPoint = existingTrip.boardingPoint;
+      let nextDroppingPoint = existingTrip.droppingPoint;
+
+      if (updateTripDto.routeId !== undefined) {
+        const route = await this.prismaService.route.findUnique({
+          where: { id: updateTripDto.routeId },
+          select: { origin: true, destination: true },
+        });
+
+        if (!route) {
+          throw new NotFoundException('Invalid routeId');
+        }
+
+        nextBoardingPoint = route.origin;
+        nextDroppingPoint = route.destination;
+      }
+
       return await this.prismaService.trip.update({
         where: { id },
         data: {
@@ -246,6 +335,8 @@ export class TripsService {
           ...(updateTripDto.routeId !== undefined && {
             routeId: updateTripDto.routeId,
           }),
+          boardingPoint: nextBoardingPoint,
+          droppingPoint: nextDroppingPoint,
           departureTime: departureDate,
           arrivalTime: arrivalDate,
           ...(updateTripDto.price !== undefined && {

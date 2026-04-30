@@ -12,4 +12,28 @@ export class SearchTripsDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsString()
+  busType?: string;
+
+  @IsOptional()
+  @IsString()
+  busClass?: string;
+
+  @IsOptional()
+  @IsString()
+  boardingPoint?: string;
+
+  @IsOptional()
+  @IsString()
+  droppingPoint?: string;
+
+  @IsOptional()
+  @IsString()
+  minPrice?: string;
+
+  @IsOptional()
+  @IsString()
+  maxPrice?: string;
 }

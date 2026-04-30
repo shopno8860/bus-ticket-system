@@ -12,7 +12,11 @@ function TripCard({ trip }) {
 
   const formatTime = (dateStr) => {
     try {
-      return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      return new Date(dateStr).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
     } catch {
       return dateStr;
     }
@@ -40,10 +44,22 @@ function TripCard({ trip }) {
               {trip.bus?.operatorName || trip.bus?.name || 'Super Express'}
             </h3>
             <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-              {trip.bus?.busType === 'AC' ? 'Luxury AC Coach' : 'Economy Non-AC'}
+              {trip.bus?.busType === 'AC'
+                ? 'Luxury AC Coach'
+                : trip.bus?.busType === 'SLEEPER'
+                  ? 'Sleeper Coach'
+                  : 'Economy Non-AC'}
             </p>
+            <div className="flex gap-2 justify-center md:justify-start mt-2">
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                {trip.bus?.busType || 'N/A'}
+              </span>
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                {trip.bus?.busClass || 'N/A'}
+              </span>
+            </div>
             <p className="text-xs text-gray-400 font-medium">
-              {trip.route?.origin} ➔ {trip.route?.destination}
+              {(trip.boardingPoint || trip.route?.origin)} ➔ {(trip.droppingPoint || trip.route?.destination)}
             </p>
           </div>
 
@@ -129,8 +145,8 @@ function TripCard({ trip }) {
           ) : (
             <p className="text-xs text-gray-500 font-medium leading-relaxed">
               {activeTab === 'Amenities' && "Water Bottle, Blanket, Pillow, Reading Light."}
-              {activeTab === 'Boarding Point' && `${trip.route?.origin} Central Bus Terminal`}
-              {activeTab === 'Dropping Point' && `${trip.route?.destination} Junction Counter`}
+              {activeTab === 'Boarding Point' && `${trip.boardingPoint || trip.route?.origin} Central Bus Terminal`}
+              {activeTab === 'Dropping Point' && `${trip.droppingPoint || trip.route?.destination} Junction Counter`}
             </p>
           )}
         </div>

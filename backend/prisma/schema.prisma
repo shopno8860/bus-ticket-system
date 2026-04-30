@@ -150,6 +150,8 @@ model Trip {
   id             String      @id @default(cuid())
   busId          String
   routeId        String
+  boardingPoint  String
+  droppingPoint  String
 
   departureTime  DateTime
   arrivalTime    DateTime

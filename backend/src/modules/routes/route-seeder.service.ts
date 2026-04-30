@@ -12,7 +12,6 @@ export class RouteSeederService {
     'Chittagong',
     'Sylhet',
     "Cox's Bazar",
-    'Khulna',
   ] as const;
 
   constructor(private readonly prismaService: PrismaService) {}

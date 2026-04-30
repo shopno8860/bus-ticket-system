@@ -163,8 +163,8 @@ export class SeatsService {
     busId: string,
     seatCapacity: number,
   ): Prisma.SeatCreateManyInput[] {
-    const deckRows = 9;
-    const seatsPerDeckRow = 2;
+    const deckRows = 6;
+    const seatsPerDeckRow = 3;
     const totalUpperSeats = 18;
     const totalLowerSeats = 18;
     const seatsData: Prisma.SeatCreateManyInput[] = [];

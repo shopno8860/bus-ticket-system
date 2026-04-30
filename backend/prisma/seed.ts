@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { BusClass, BusType, Prisma, PrismaClient, TripStatus } from '@prisma/client';
+import { BusClass, BusType, PrismaClient, TripStatus } from '@prisma/client';
 import { Pool } from 'pg';
 
 const connectionString = process.env.DATABASE_URL;
@@ -12,34 +12,95 @@ async function main() {
   const cities = [
     'Chittagong',
     'Sylhet',
-    'Rajshahi',
-    'Khulna',
-    'Barisal',
     'Rangpur',
     'Bogra',
-    'Cumilla',
-    'Feni',
     "Cox's Bazar",
-    'Bandarban',
-    'Rangamati',
-    'Kuakata',
     'Gaibandha',
-    'Kurigram',
-    'Panchagarh',
-    'Dinajpur',
   ] as const;
 
   const buses = [
     {
-      name: 'Green Line Coach 1',
-      operatorName: 'Green Line',
-      registrationNumber: 'GL-AC-001',
+      name: 'Alhamra AC Coach 1',
+      operatorName: 'Alhamra',
+      registrationNumber: 'AL-AC-001',
       seatCapacity: 28,
       busType: BusType.AC,
       busClass: BusClass.BUSINESS,
     },
     {
-      name: 'Hanif Express 1',
+      name: 'Alhamra AC Coach 2',
+      operatorName: 'Alhamra',
+      registrationNumber: 'AL-AC-002',
+      seatCapacity: 36,
+      busType: BusType.AC,
+      busClass: BusClass.ECONOMY,
+    },
+    {
+      name: 'Alhamra Non-AC Coach 1',
+      operatorName: 'Alhamra',
+      registrationNumber: 'AL-NA-001',
+      seatCapacity: 40,
+      busType: BusType.NON_AC,
+      busClass: BusClass.ECONOMY,
+    },
+    {
+      name: 'Alhamra Sleeper AC 1',
+      operatorName: 'Alhamra',
+      registrationNumber: 'AL-SL-001',
+      seatCapacity: 36,
+      busType: BusType.SLEEPER,
+      busClass: BusClass.BUSINESS,
+    },
+    {
+      name: 'Orin AC Coach 1',
+      operatorName: 'Orin',
+      registrationNumber: 'OR-AC-001',
+      seatCapacity: 28,
+      busType: BusType.AC,
+      busClass: BusClass.BUSINESS,
+    },
+    {
+      name: 'Orin AC Coach 2',
+      operatorName: 'Orin',
+      registrationNumber: 'OR-AC-002',
+      seatCapacity: 36,
+      busType: BusType.AC,
+      busClass: BusClass.ECONOMY,
+    },
+    {
+      name: 'Orin Non-AC Coach 1',
+      operatorName: 'Orin',
+      registrationNumber: 'OR-NA-001',
+      seatCapacity: 40,
+      busType: BusType.NON_AC,
+      busClass: BusClass.ECONOMY,
+    },
+    {
+      name: 'Orin Sleeper AC 1',
+      operatorName: 'Orin',
+      registrationNumber: 'OR-SL-001',
+      seatCapacity: 36,
+      busType: BusType.SLEEPER,
+      busClass: BusClass.BUSINESS,
+    },
+    {
+      name: 'Hanif AC Coach 1',
+      operatorName: 'Hanif',
+      registrationNumber: 'HN-AC-001',
+      seatCapacity: 28,
+      busType: BusType.AC,
+      busClass: BusClass.BUSINESS,
+    },
+    {
+      name: 'Hanif AC Coach 2',
+      operatorName: 'Hanif',
+      registrationNumber: 'HN-AC-002',
+      seatCapacity: 36,
+      busType: BusType.AC,
+      busClass: BusClass.ECONOMY,
+    },
+    {
+      name: 'Hanif Non-AC Coach 1',
       operatorName: 'Hanif',
       registrationNumber: 'HN-NA-001',
       seatCapacity: 40,
@@ -47,12 +108,12 @@ async function main() {
       busClass: BusClass.ECONOMY,
     },
     {
-      name: 'Shohag Sleeper 1',
-      operatorName: 'Shohag',
-      registrationNumber: 'SH-SL-001',
+      name: 'Hanif Sleeper AC 1',
+      operatorName: 'Hanif',
+      registrationNumber: 'HN-SL-001',
       seatCapacity: 36,
       busType: BusType.SLEEPER,
-      busClass: BusClass.ECONOMY,
+      busClass: BusClass.BUSINESS,
     },
   ] as const;
 
@@ -91,8 +152,12 @@ async function main() {
   }
   console.log(`Created buses: ${createdBuses}`);
 
-  const allRoutes = await prisma.route.findMany({ select: { id: true } });
-  const allBuses = await prisma.bus.findMany({ select: { id: true } });
+  const allRoutes = await prisma.route.findMany({
+    select: { id: true, origin: true, destination: true },
+  });
+  const allBuses = await prisma.bus.findMany({
+    select: { id: true, busType: true, busClass: true },
+  });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -119,8 +184,8 @@ async function main() {
     ),
   );
 
-  const tripsToCreate: Prisma.TripCreateManyInput[] = [];
-  for (let hour = 7; hour <= 23; hour += 1) {
+  const tripsToCreate: any[] = [];
+  for (let hour = 7; hour <= 23; hour += 2) {
     for (const route of allRoutes) {
       for (const bus of allBuses) {
         const departureTime = new Date(today);
@@ -131,11 +196,13 @@ async function main() {
         }
         const arrivalTime = new Date(departureTime);
         arrivalTime.setHours(arrivalTime.getHours() + 6);
-        const price = Math.floor(Math.random() * (1500 - 500 + 1)) + 500;
+        const price = getTicketPrice(bus.busType, bus.busClass);
 
         tripsToCreate.push({
           routeId: route.id,
           busId: bus.id,
+          boardingPoint: route.origin,
+          droppingPoint: route.destination,
           departureTime,
           arrivalTime,
           price: price.toFixed(2),
@@ -158,15 +225,21 @@ async function main() {
 
 function buildSeats(busId: string, busClass: BusClass, busType: BusType) {
   if (busType === BusType.SLEEPER) {
+    const deckRows = 6;
+    const seatsPerDeckRow = 3;
+    const seatsPerDeck = deckRows * seatsPerDeckRow;
+
     return Array.from({ length: 36 }, (_, index) => {
-      const isUpperDeck = index < 18;
-      const seatIndex = isUpperDeck ? index : index - 18;
+      const isUpperDeck = index < seatsPerDeck;
+      const seatIndex = isUpperDeck ? index : index - seatsPerDeck;
       const deckPrefix = isUpperDeck ? 'U' : 'L';
       return {
         busId,
         seatNumber: `${deckPrefix}${String(seatIndex + 1).padStart(2, '0')}`,
-        rowNumber: Math.floor(seatIndex / 2) + 1 + (isUpperDeck ? 0 : 9),
-        columnNumber: (seatIndex % 2) + 1 + (isUpperDeck ? 0 : 2),
+        rowNumber:
+          Math.floor(seatIndex / seatsPerDeckRow) + 1 + (isUpperDeck ? 0 : deckRows),
+        columnNumber:
+          (seatIndex % seatsPerDeckRow) + 1 + (isUpperDeck ? 0 : seatsPerDeckRow),
       };
     });
   }
@@ -184,6 +257,26 @@ function buildSeats(busId: string, busClass: BusClass, busType: BusType) {
       columnNumber,
     };
   });
+}
+
+function getTicketPrice(busType: BusType, busClass: BusClass): number {
+  if (busType === BusType.SLEEPER) {
+    return 1400;
+  }
+
+  if (busType === BusType.NON_AC) {
+    return 700;
+  }
+
+  if (busType === BusType.AC && busClass === BusClass.BUSINESS) {
+    return 1000;
+  }
+
+  if (busType === BusType.AC && busClass === BusClass.ECONOMY) {
+    return 800;
+  }
+
+  return 800;
 }
 
 main()
