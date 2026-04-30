@@ -1,6 +1,9 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const normalizeRole = (role) =>
+  typeof role === 'string' ? role.toUpperCase() : '';
+
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { token, user, loading } = useAuth();
   const location = useLocation();
@@ -20,7 +23,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (
     Array.isArray(allowedRoles) &&
     allowedRoles.length > 0 &&
-    (!user || !allowedRoles.includes(user.role))
+    (!user ||
+      !allowedRoles
+        .map((role) => normalizeRole(role))
+        .includes(normalizeRole(user.role)))
   ) {
     return <Navigate to="/" replace />;
   }

@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
           if (error?.status !== 401) {
             console.error('Failed to fetch user:', error);
           }
-          logout();
+          logout({ preservePath: true });
         }
       }
       setLoading(false);
@@ -41,13 +41,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('accessToken', accessToken);
     setToken(accessToken);
     setUser(userData);
-
-    if (userData?.role === 'ADMIN') {
-      navigate('/admin/dashboard');
-      return;
-    }
-
-    navigate('/');
+    return userData;
   };
 
   const register = async (data) => {
@@ -61,11 +55,24 @@ export const AuthProvider = ({ children }) => {
     navigate('/auth/login');
   };
 
-  const logout = () => {
+  const logout = ({ preservePath = false } = {}) => {
     localStorage.removeItem('accessToken');
     setToken(null);
     setUser(null);
-    navigate('/auth/login');
+    if (preservePath) {
+      navigate('/auth/login', {
+        state: {
+          from: {
+            pathname: window.location.pathname,
+            search: window.location.search,
+            hash: window.location.hash,
+          },
+        },
+        replace: true,
+      });
+      return;
+    }
+    navigate('/auth/login', { replace: true });
   };
 
   const updateUserProfile = (nextUser) => {

@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 @layer utilities {
+  @keyframes toast-rgb-shift {
+    0% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
   @keyframes marquee {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
@@ -17,4 +26,32 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.custom-toast {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 !important;
+  padding: 12px 14px !important;
+  background: linear-gradient(90deg, #ffffff, #f8fafc, #eef2f7) !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14) !important;
+}
+
+.custom-toast--rgb::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #ff4d6d, #8b5cf6, #22d3ee, #ff4d6d);
+  background-size: 240% 100%;
+  animation: toast-rgb-shift 2s linear infinite;
+  opacity: 0.9;
+}
+
+.custom-toast--error {
+  background: linear-gradient(90deg, #fff7f7, #ffecec) !important;
+  color: #7f1d1d !important;
 }

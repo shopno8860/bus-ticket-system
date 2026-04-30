@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { showError, showSuccess } from '../../../utils/toastHelper';
+
+const normalizeRole = (role) =>
+  typeof role === 'string' ? role.toUpperCase() : '';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -11,20 +14,27 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { login, token, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromState = location.state?.from;
+  const requestedRedirect = fromState
+    ? `${fromState.pathname || ''}${fromState.search || ''}${fromState.hash || ''}`
+    : null;
+
+  const resolvePostLoginRedirect = (role) => {
+    if (requestedRedirect && !requestedRedirect.startsWith('/auth')) {
+      return requestedRedirect;
+    }
+
+    return normalizeRole(role) === 'ADMIN' ? '/admin/dashboard' : '/';
+  };
 
   // Redirect if already logged in
   useEffect(() => {
     if (!token || authLoading || !user) {
       return;
     }
-
-    if (user.role === 'ADMIN') {
-      navigate('/admin/dashboard');
-      return;
-    }
-
-    navigate('/');
-  }, [token, user, authLoading, navigate]);
+    navigate(resolvePostLoginRedirect(user.role), { replace: true });
+  }, [token, user, authLoading, navigate, requestedRedirect]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
