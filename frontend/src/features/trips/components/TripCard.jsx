@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 function TripCard({ trip }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(null);
+  const [showPolicyDetails, setShowPolicyDetails] = useState(false);
 
   const handleBookTicket = () => {
     navigate(`/seats/${trip.id}`);
@@ -106,12 +107,32 @@ function TripCard({ trip }) {
       {/* Expandable Content area (Simplified) */}
       {activeTab && (
         <div className="p-5 border-t border-gray-100 bg-gray-50/50 animate-in fade-in slide-in-from-top-2">
-          <p className="text-xs text-gray-500 font-medium leading-relaxed">
-            {activeTab === 'Cancellation Policy' && "Cancellations allowed up to 24 hours before departure with a 10% fee."}
-            {activeTab === 'Amenities' && "Water Bottle, Blanket, Pillow, Reading Light."}
-            {activeTab === 'Boarding Point' && `${trip.route?.origin} Central Bus Terminal`}
-            {activeTab === 'Dropping Point' && `${trip.route?.destination} Junction Counter`}
-          </p>
+          {activeTab === 'Cancellation Policy' ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowPolicyDetails((prev) => !prev)}
+                className="text-xs font-bold uppercase tracking-wider text-green-700 hover:text-green-800"
+              >
+                {showPolicyDetails ? 'Hide Policy' : 'Show Policy'}
+              </button>
+
+              {showPolicyDetails && (
+                <div className="text-xs text-gray-600 font-medium leading-relaxed space-y-2">
+                  <p>Cancellation refund rules: 24h আগে 90%, 6h আগে 50%, 2h আগে 25%.</p>
+                  <p>Refund status final হয় admin approval-এর পর; approve না হওয়া পর্যন্ত pending থাকবে.</p>
+                  <p>Seat lock policy: selected seats সাধারণত 5 minutes hold থাকে payment/confirmation-এর আগে.</p>
+                  <p>Departure cutoff: departure time পার হয়ে গেলে booking/cancel applicable না.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 font-medium leading-relaxed">
+              {activeTab === 'Amenities' && "Water Bottle, Blanket, Pillow, Reading Light."}
+              {activeTab === 'Boarding Point' && `${trip.route?.origin} Central Bus Terminal`}
+              {activeTab === 'Dropping Point' && `${trip.route?.destination} Junction Counter`}
+            </p>
+          )}
         </div>
       )}
     </div>

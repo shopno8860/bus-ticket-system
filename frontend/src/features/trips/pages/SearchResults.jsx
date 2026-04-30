@@ -65,7 +65,31 @@ function SearchResults() {
 
   // Derived filtered and sorted trips
   const filteredTrips = useMemo(() => {
+    const now = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartMs = todayStart.getTime();
+    const selectedDate = date ? new Date(date) : null;
+    const selectedDateStartMs = selectedDate
+      ? new Date(selectedDate.setHours(0, 0, 0, 0)).getTime()
+      : null;
     let result = [...allTrips];
+
+    if (selectedDateStartMs !== null) {
+      if (selectedDateStartMs < todayStartMs) {
+        result = [];
+      } else if (selectedDateStartMs === todayStartMs) {
+        result = result.filter((trip) => {
+          const departureTime = new Date(trip.departureTime).getTime();
+          return !Number.isNaN(departureTime) && departureTime > now;
+        });
+      }
+    } else {
+      result = result.filter((trip) => {
+        const departureTime = new Date(trip.departureTime).getTime();
+        return !Number.isNaN(departureTime) && departureTime > now;
+      });
+    }
 
     // Filter by Bus Type
     if (filters.busTypes.length > 0) {

@@ -58,6 +58,7 @@ export class TripsService {
   ): Promise<Array<Trip & { availableSeats: number }>> {
     const where: Prisma.TripWhereInput = {};
     const routeFilters: Prisma.RouteWhereInput = {};
+    const now = new Date();
 
     if (searchTripsDto.origin) {
       routeFilters.origin = {
@@ -83,10 +84,27 @@ export class TripsService {
 
       const endOfDay = new Date(startOfDay);
       endOfDay.setDate(endOfDay.getDate() + 1);
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
 
+      if (startOfDay < todayStart) {
+        return [];
+      }
+
+      if (startOfDay.getTime() === todayStart.getTime()) {
+        where.departureTime = {
+          gte: now,
+          lt: endOfDay,
+        };
+      } else {
+        where.departureTime = {
+          gte: startOfDay,
+          lt: endOfDay,
+        };
+      }
+    } else {
       where.departureTime = {
-        gte: startOfDay,
-        lt: endOfDay,
+        gte: now,
       };
     }
 
@@ -102,7 +120,6 @@ export class TripsService {
     // Dynamic availability:
     // - count seats that are already RESERVED
     // - count seats that are LOCKED and not expired yet (prevents double booking)
-    const now = new Date();
     const tripIds = trips.map((t) => t.id);
 
     const bookedSeatCounts = await this.prismaService.bookingSeat.groupBy({

@@ -260,8 +260,12 @@ const MyTickets = () => {
           return (
             <div
               key={ticket.id}
-              onClick={() => navigate(`/booking/${ticket.id}`)}
-              className={`group bg-white border ${isCancelled ? "border-slate-200 opacity-75" : "border-slate-100"} rounded-2xl shadow-sm hover:shadow-xl hover:border-[#16a34a]/20 transition-all duration-300 overflow-hidden cursor-pointer flex flex-col md:flex-row`}
+              onClick={() => {
+                if (!isCancelled) {
+                  navigate(`/booking/${ticket.id}`);
+                }
+              }}
+              className={`group bg-white border ${isCancelled ? "border-slate-200 opacity-75 cursor-default" : "border-slate-100 cursor-pointer"} rounded-2xl shadow-sm hover:shadow-xl hover:border-[#16a34a]/20 transition-all duration-300 overflow-hidden flex flex-col md:flex-row`}
             >
               {/* Left Status Bar */}
               <div
@@ -399,8 +403,11 @@ const MyTickets = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/booking/${ticket.id}`);
+                        if (!isCancelled) {
+                          navigate(`/booking/${ticket.id}`);
+                        }
                       }}
+                      disabled={isCancelled}
                       className={`w-full btn btn-sm font-bold rounded-lg transition-all ${isCancelled ? "bg-slate-100 text-slate-400 border-none cursor-not-allowed" : "bg-[#16a34a] text-white hover:bg-[#15803d] border-none"}`}
                     >
                       View Ticket
