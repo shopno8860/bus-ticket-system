@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -7,12 +8,19 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { randomBytes, createHash } from 'crypto';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthenticatedUser } from './interfaces/authenticated-user.interface';
 
-type SafeUser = Omit<User, 'passwordHash' | 'refreshTokenHash'>;
+type SafeUser = Omit<
+  User,
+  'passwordHash' | 'refreshTokenHash' | 'resetPasswordToken' | 'resetPasswordExpires'
+>;
 
 @Injectable()
 export class AuthService {
@@ -20,6 +28,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -111,6 +120,73 @@ export class AuthService {
     return this.sanitizeUser(user);
   }
 
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const email = forgotPasswordDto.email.toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (user) {
+      const rawToken = randomBytes(32).toString('hex');
+      const hashedToken = this.hashToken(rawToken);
+      const resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetPasswordToken: hashedToken,
+          resetPasswordExpires,
+        },
+      });
+
+      const frontendBaseUrl =
+        this.configService.get<string>('FRONTEND_URL') ??
+        'http://localhost:5173';
+      const resetLink = `${frontendBaseUrl}/auth/reset-password?token=${rawToken}`;
+
+      await this.mailService.sendResetPasswordEmail(user.email, resetLink);
+    }
+
+    return {
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
+    };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const hashedIncomingToken = this.hashToken(resetPasswordDto.token);
+    const now = new Date();
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        resetPasswordToken: hashedIncomingToken,
+        resetPasswordExpires: {
+          gt: now,
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        refreshTokenHash: null,
+      },
+    });
+
+    return {
+      message: 'Password has been reset successfully. Please log in again.',
+    };
+  }
+
   async validateAccessTokenUser(payload: AuthenticatedUser) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
@@ -171,10 +247,22 @@ export class AuthService {
   }
 
   private sanitizeUser(user: User): SafeUser {
-    const { passwordHash, refreshTokenHash, ...safeUser } = user;
+    const {
+      passwordHash,
+      refreshTokenHash,
+      resetPasswordToken,
+      resetPasswordExpires,
+      ...safeUser
+    } = user;
     void passwordHash;
     void refreshTokenHash;
+    void resetPasswordToken;
+    void resetPasswordExpires;
 
     return safeUser;
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 }

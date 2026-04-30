@@ -4,6 +4,8 @@ import Home from "../features/home/pages/Home";
 import BookingPage from "../features/bookings/pages/BookingPage";
 import LoginPage from "../features/auth/pages/LoginPage";
 import RegisterPage from "../features/auth/pages/RegisterPage";
+import ForgotPassword from "../features/auth/pages/ForgotPassword";
+import ResetPassword from "../features/auth/pages/ResetPassword";
 import Payment from "../features/payments/pages/Payment";
 import Refund from "../features/refunds/pages/Refund";
 import SeatSelection from "../features/seats/pages/SeatSelection";
@@ -23,6 +25,8 @@ function AppRoutes() {
       {/* Auth Routes (No Navbar/Footer) */}
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/register" element={<RegisterPage />} />
+      <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+      <Route path="/auth/reset-password" element={<ResetPassword />} />
 
       {/* Main Routes (With Navbar/Footer) */}
       <Route element={<MainLayout />}>

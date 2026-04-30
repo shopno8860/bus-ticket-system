@@ -120,7 +120,10 @@ const LoginPage = () => {
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   Password
                 </label>
-                <Link to="#" className="text-xs font-bold text-[#16a34a] hover:underline">
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-xs font-bold text-[#16a34a] hover:underline"
+                >
                   Forgot Password?
                 </Link>
               </div>

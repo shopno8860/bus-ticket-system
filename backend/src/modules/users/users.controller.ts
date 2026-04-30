@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
-import { User, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
@@ -7,9 +7,7 @@ import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { UsersService } from './users.service';
-
-type UserResponse = Omit<User, 'passwordHash' | 'refreshTokenHash'>;
+import { type UserResponse, UsersService } from './users.service';
 
 @Controller('users')
 @UseGuards(AccessTokenGuard)

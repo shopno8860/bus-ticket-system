@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Refund, User, UserRole } from '@prisma/client';
+import { Refund, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
@@ -36,7 +36,7 @@ import { CreateTripDto } from '../trips/dto/create-trip.dto';
 import { UpdateTripDto } from '../trips/dto/update-trip.dto';
 import { TripsService } from '../trips/trips.service';
 import { ChangeUserRoleDto } from '../users/dto/change-user-role.dto';
-import { UsersService } from '../users/users.service';
+import { type UserResponse, UsersService } from '../users/users.service';
 import { AuditLogService } from './audit-log.service';
 
 @Controller('admin')
@@ -71,7 +71,7 @@ export class AdminController {
     @Param('id') id: string,
     @Body() dto: ChangeUserRoleDto,
     @CurrentUser() currentUser: AuthenticatedUser,
-  ): Promise<Omit<User, 'passwordHash' | 'refreshTokenHash'>> {
+  ): Promise<UserResponse> {
     const updated = await this.usersService.changeUserRole(
       id,
       currentUser.sub,

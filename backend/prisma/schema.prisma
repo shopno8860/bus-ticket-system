@@ -93,6 +93,8 @@ model User {
   visaInfo          String?
   role              UserRole @default(USER)
   refreshTokenHash  String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
 
   bookings          Booking[]
   payments          Payment[]

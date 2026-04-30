@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 
@@ -22,6 +23,7 @@ describe('AuthService', () => {
   };
   let jwtService: { signAsync: jest.Mock };
   let configService: { getOrThrow: jest.Mock };
+  let mailService: { sendResetPasswordEmail: jest.Mock };
 
   beforeEach(() => {
     prisma = {
@@ -46,11 +48,15 @@ describe('AuthService', () => {
         return values[key];
       }),
     };
+    mailService = {
+      sendResetPasswordEmail: jest.fn(),
+    };
 
     service = new AuthService(
       prisma as unknown as PrismaService,
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
+      mailService as unknown as MailService,
     );
   });
 
