@@ -6,23 +6,13 @@ export class RouteSeederService {
   private readonly logger = new Logger(RouteSeederService.name);
 
   private readonly bangladeshCities = [
-    'Chittagong',
-    'Sylhet',
-    'Rajshahi',
-    'Khulna',
-    'Barisal',
+    'Gaibandha',
     'Rangpur',
     'Bogra',
-    'Cumilla',
-    'Feni',
+    'Chittagong',
+    'Sylhet',
     "Cox's Bazar",
-    'Bandarban',
-    'Rangamati',
-    'Kuakata',
-    'Gaibandha',
-    'Kurigram',
-    'Panchagarh',
-    'Dinajpur',
+    'Khulna',
   ] as const;
 
   constructor(private readonly prismaService: PrismaService) {}

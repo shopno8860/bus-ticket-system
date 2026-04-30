@@ -34,14 +34,32 @@ export class TripGeneratorService implements OnApplicationBootstrap {
       busClass: BusClass.ECONOMY,
     },
     {
-      name: 'Shohag Sleeper 1',
-      operatorName: 'Shohag',
-      registrationNumber: 'SH-SL-001',
+      name: 'Nabil Paribahan 1',
+      operatorName: 'Nabil',
+      registrationNumber: 'NB-AC-001',
       seatCapacity: 36,
-      busType: BusType.SLEEPER,
-      busClass: BusClass.ECONOMY,
+      busType: BusType.AC,
+      busClass: BusClass.BUSINESS,
     },
   ];
+  private readonly supportedRouteCities = new Set([
+    'gaibandha',
+    'rangpur',
+    'bogra',
+    'chittagong',
+    'sylhet',
+    "cox's bazar",
+    'khulna',
+  ]);
+  private readonly supportedOperators = new Set([
+    'alhamra',
+    'orin',
+    'sr',
+    'nabil',
+    'hanif',
+    'green line',
+    'akota',
+  ]);
 
   constructor(
     private readonly prismaService: PrismaService,
@@ -124,10 +142,18 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     await this.ensureRequiredDataExists();
 
     const timeSlots = this.generateTimeSlots();
-    const [routes, buses] = await Promise.all([
-      this.prismaService.route.findMany({ select: { id: true } }),
-      this.prismaService.bus.findMany({ select: { id: true } }),
+    const [allRoutes, allBuses] = await Promise.all([
+      this.prismaService.route.findMany({
+        select: { id: true, origin: true, destination: true },
+      }),
+      this.prismaService.bus.findMany({ select: { id: true, operatorName: true } }),
     ]);
+    const routes = allRoutes.filter((route) =>
+      this.isSupportedRoute(route.origin, route.destination),
+    );
+    const buses = allBuses.filter((bus) =>
+      this.supportedOperators.has(bus.operatorName.trim().toLowerCase()),
+    );
 
     this.logger.debug(`Routes: ${routes.length}`);
     this.logger.debug(`Buses: ${buses.length}`);
@@ -259,5 +285,19 @@ export class TripGeneratorService implements OnApplicationBootstrap {
         `No buses found. Seeded fallback buses. Created buses: ${result.count}`,
       );
     }
+  }
+
+  private isSupportedRoute(origin: string, destination: string): boolean {
+    const normalizedOrigin = origin.trim().toLowerCase();
+    const normalizedDestination = destination.trim().toLowerCase();
+
+    const isDhakaToSupported =
+      normalizedOrigin === 'dhaka' &&
+      this.supportedRouteCities.has(normalizedDestination);
+    const isSupportedToDhaka =
+      normalizedDestination === 'dhaka' &&
+      this.supportedRouteCities.has(normalizedOrigin);
+
+    return isDhakaToSupported || isSupportedToDhaka;
   }
 }
