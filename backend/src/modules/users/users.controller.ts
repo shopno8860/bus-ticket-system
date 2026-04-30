@@ -61,8 +61,27 @@ export class UsersController {
   @UseGuards(RolesGuard)
   async getDashboardStats(): Promise<{
     totalUsers: number;
+    totalBuses: number;
+    totalTrips: number;
     totalBookings: number;
     totalRevenue: string;
+    pendingRefunds: number;
+    bookingTrends: Array<{
+      label: string;
+      bookings: number;
+      revenue: number;
+    }>;
+    revenueOverview: Array<{
+      label: string;
+      bookings: number;
+      revenue: number;
+    }>;
+    recentActivity: Array<{
+      user: string;
+      action: 'Booked' | 'Cancelled' | 'Refund Requested';
+      date: string;
+      status: 'Success' | 'Warning' | 'Pending';
+    }>;
   }> {
     return this.usersService.getDashboardStats();
   }

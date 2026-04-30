@@ -3,12 +3,40 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User, UserRole } from '@prisma/client';
+import {
+  BookingStatus,
+  Prisma,
+  RefundStatus,
+  User,
+  UserRole,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 type UserResponse = Omit<User, 'passwordHash' | 'refreshTokenHash'>;
+type DashboardTrendPoint = {
+  label: string;
+  bookings: number;
+  revenue: number;
+};
+type DashboardRecentActivity = {
+  user: string;
+  action: 'Booked' | 'Cancelled' | 'Refund Requested';
+  date: string;
+  status: 'Success' | 'Warning' | 'Pending';
+};
+type DashboardStatsResponse = {
+  totalUsers: number;
+  totalBuses: number;
+  totalTrips: number;
+  totalBookings: number;
+  totalRevenue: string;
+  pendingRefunds: number;
+  bookingTrends: DashboardTrendPoint[];
+  revenueOverview: DashboardTrendPoint[];
+  recentActivity: DashboardRecentActivity[];
+};
 
 @Injectable()
 export class UsersService {
@@ -121,26 +149,133 @@ export class UsersService {
     });
   }
 
-  async getDashboardStats(): Promise<{
-    totalUsers: number;
-    totalBookings: number;
-    totalRevenue: string;
-  }> {
-    const [totalUsers, totalBookings, paymentAggregate] = await Promise.all([
+  async getDashboardStats(): Promise<DashboardStatsResponse> {
+    const [totalUsers, totalBuses, totalTrips, totalBookings, pendingRefunds, paymentAggregate] =
+      await Promise.all([
       this.prismaService.user.count(),
+      this.prismaService.bus.count(),
+      this.prismaService.trip.count(),
       this.prismaService.booking.count(),
+      this.prismaService.refund.count({
+        where: { status: RefundStatus.PENDING },
+      }),
       this.prismaService.payment.aggregate({
         where: { status: { in: ['SUCCESS', 'REFUNDED'] } },
         _sum: { amount: true },
       }),
+      ]);
+
+    const now = new Date();
+    const dayKeys: string[] = [];
+    const dayLabelMap = new Map<string, string>();
+    for (let i = 6; i >= 0; i -= 1) {
+      const date = new Date(now);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(now.getDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      dayKeys.push(key);
+      dayLabelMap.set(
+        key,
+        date.toLocaleDateString('en-US', { weekday: 'short' }),
+      );
+    }
+
+    const rangeStart = new Date(now);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeStart.setDate(now.getDate() - 6);
+
+    const [recentBookings, recentRefunds] = await Promise.all([
+      this.prismaService.booking.findMany({
+        where: { createdAt: { gte: rangeStart } },
+        select: {
+          createdAt: true,
+          status: true,
+          cancelReason: true,
+          user: { select: { fullName: true } },
+        },
+      }),
+      this.prismaService.refund.findMany({
+        where: { createdAt: { gte: rangeStart } },
+        select: {
+          createdAt: true,
+          status: true,
+          user: { select: { fullName: true } },
+        },
+      }),
     ]);
+
+    const bookingCounts = new Map<string, number>();
+    recentBookings.forEach((booking) => {
+      const key = booking.createdAt.toISOString().slice(0, 10);
+      bookingCounts.set(key, (bookingCounts.get(key) ?? 0) + 1);
+    });
+
+    const revenueCounts = new Map<string, number>();
+    const revenueGroups = await this.prismaService.$queryRaw<
+      Array<{ day: string; total: Prisma.Decimal | null }>
+    >`SELECT to_char("createdAt"::date, 'YYYY-MM-DD') AS day,
+       SUM(amount)::numeric AS total
+       FROM "Payment"
+       WHERE "createdAt" >= ${rangeStart}
+         AND status IN ('SUCCESS', 'REFUNDED')
+       GROUP BY day
+       ORDER BY day ASC`;
+    revenueGroups.forEach((row) => {
+      if (!row.day) return;
+      revenueCounts.set(row.day, Number(row.total ?? 0));
+    });
+
+    const trendPoints: DashboardTrendPoint[] = dayKeys.map((key) => ({
+      label: dayLabelMap.get(key) ?? key,
+      bookings: bookingCounts.get(key) ?? 0,
+      revenue: revenueCounts.get(key) ?? 0,
+    }));
+
+    const bookingActivities: DashboardRecentActivity[] = recentBookings.map(
+      (booking) => ({
+        user: booking.user.fullName,
+        action:
+          booking.status === BookingStatus.CANCELLED ? 'Cancelled' : 'Booked',
+        date: booking.createdAt.toISOString(),
+        status:
+          booking.status === BookingStatus.CANCELLED ? 'Warning' : 'Success',
+      }),
+    );
+
+    const refundActivities: DashboardRecentActivity[] = recentRefunds.map(
+      (refund) => ({
+        user: refund.user.fullName,
+        action: 'Refund Requested',
+        date: refund.createdAt.toISOString(),
+        status:
+          refund.status === RefundStatus.PENDING ? 'Pending' : 'Success',
+      }),
+    );
+
+    const recentActivity = [...bookingActivities, ...refundActivities]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 8);
 
     return {
       totalUsers,
+      totalBuses,
+      totalTrips,
       totalBookings,
       totalRevenue: paymentAggregate._sum.amount
         ? paymentAggregate._sum.amount.toString()
         : '0',
+      pendingRefunds,
+      bookingTrends: trendPoints.map(({ label, bookings }) => ({
+        label,
+        bookings,
+        revenue: 0,
+      })),
+      revenueOverview: trendPoints.map(({ label, revenue }) => ({
+        label,
+        bookings: 0,
+        revenue,
+      })),
+      recentActivity,
     };
   }
 }

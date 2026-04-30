@@ -2,7 +2,17 @@ import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 
 export function getAdminStats() {
-  return apiFetch(endpoints.admin.stats);
+  return apiFetch(endpoints.admin.stats).then((res) => ({
+    totalUsers: Number(res?.totalUsers ?? 0),
+    totalBuses: Number(res?.totalBuses ?? 0),
+    totalTrips: Number(res?.totalTrips ?? 0),
+    totalBookings: Number(res?.totalBookings ?? 0),
+    totalRevenue: String(res?.totalRevenue ?? '0'),
+    pendingRefunds: Number(res?.pendingRefunds ?? 0),
+    bookingTrends: Array.isArray(res?.bookingTrends) ? res.bookingTrends : [],
+    revenueOverview: Array.isArray(res?.revenueOverview) ? res.revenueOverview : [],
+    recentActivity: Array.isArray(res?.recentActivity) ? res.recentActivity : [],
+  }));
 }
 
 export function getAdminUsers() {
