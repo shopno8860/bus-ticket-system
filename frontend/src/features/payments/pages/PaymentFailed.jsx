@@ -1,8 +1,17 @@
 import React from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { showError } from '../../../utils/toastHelper';
 
 const PaymentFailed = () => {
   const navigate = useNavigate();
+  const toastShownRef = useRef(false);
+
+  useEffect(() => {
+    if (toastShownRef.current) return;
+    toastShownRef.current = true;
+    showError('Payment failed');
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

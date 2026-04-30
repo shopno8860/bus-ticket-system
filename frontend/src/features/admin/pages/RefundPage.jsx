@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { config } from '../../../config';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
+import { showError, showSuccess } from '../../../utils/toastHelper';
 
 const REFUND_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
 
@@ -19,9 +20,6 @@ function RefundPage() {
   const [adminNote, setAdminNote] = useState('');
   const [actionError, setActionError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const [toast, setToast] = useState(null);
-  const toastTimerRef = useRef(null);
 
   const refundQuery = useMemo(() => {
     const params = new URLSearchParams();
@@ -55,16 +53,6 @@ function RefundPage() {
       return bookingRef.includes(query) || phone.includes(query);
     });
   }, [refunds, filters.search]);
-
-  const showToast = useCallback((type, message) => {
-    setToast({ type, message });
-    window.clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = window.setTimeout(() => setToast(null), 2500);
-  }, []);
-
-  useEffect(() => {
-    return () => window.clearTimeout(toastTimerRef.current);
-  }, []);
 
   const resetActionModal = () => {
     setApproveTarget(null);
@@ -111,12 +99,12 @@ function RefundPage() {
 
       await refetch();
       resetActionModal();
-      showToast('success', type === 'approve' ? 'Refund approved successfully.' : 'Refund rejected successfully.');
+      showSuccess(type === 'approve' ? 'Refund approved' : 'Refund rejected');
     } catch (err) {
       const fallback = type === 'approve' ? 'Failed to approve refund.' : 'Failed to reject refund.';
       const message = err?.message || fallback;
       setActionError(message);
-      showToast('error', message);
+      showError(message);
     } finally {
       setSubmitting(false);
     }
@@ -345,17 +333,6 @@ function RefundPage() {
         />
       ) : null}
 
-      {toast ? (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div
-            className={`rounded-md px-3 py-2 text-sm font-medium shadow-sm ${
-              toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
-            }`}
-          >
-            {toast.message}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

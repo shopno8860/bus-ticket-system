@@ -4,6 +4,7 @@ import { getBookingDetails } from '../../bookings/services/bookingApi';
 import { generatePDFBlob } from '../../../utils/pdf';
 import Ticket from '../../../components/ticket/Ticket';
 import { sendConfirmationEmailWithTicket } from '../services/paymentApi';
+import { showSuccess } from '../../../utils/toastHelper';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +16,13 @@ const PaymentSuccess = () => {
   const [error, setError] = useState(null);
   const [emailNotice, setEmailNotice] = useState('');
   const emailSentRef = useRef(false);
+  const toastShownRef = useRef(false);
+
+  useEffect(() => {
+    if (toastShownRef.current) return;
+    toastShownRef.current = true;
+    showSuccess('Payment successful');
+  }, []);
 
   useEffect(() => {
     if (!bookingId) {

@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { confirmBooking } from "../services/bookingApi";
 import { useAuth } from "../../auth/context/AuthContext";
+import { showError, showSuccess } from "../../../utils/toastHelper";
 
 const BookingPage = () => {
   const { state } = useLocation();
@@ -65,7 +66,7 @@ const BookingPage = () => {
   // Handle auto-expiry action
   useEffect(() => {
     if (isExpired) {
-      alert("Session expired. Please select seats again.");
+      showError("Seat lock expired. Please select seats again");
       navigate(`/seats/${tripId}`);
     }
   }, [isExpired, navigate, tripId]);
@@ -88,12 +89,12 @@ const BookingPage = () => {
   // Booking handler
   const handleBooking = async () => {
     if (!name || !phone) {
-      alert("Please enter name and phone");
+      showError("Please enter name and phone");
       return;
     }
 
     if (!user || !token) {
-      alert("Please login to continue");
+      showError("Please login to continue");
       navigate("/auth/login");
       return;
     }
@@ -116,6 +117,7 @@ const BookingPage = () => {
 
       // Clear timer persistence
       localStorage.removeItem(`lock_expiry_${tripId}`);
+      showSuccess("Booking confirmed");
 
       navigate("/payment", {
         state: { booking: res },
@@ -124,11 +126,11 @@ const BookingPage = () => {
     } catch (err) {
       console.error("Booking error details:", err);
       if (err.status === 401) {
-        alert("Your session expired. Please login again.");
+        showError("Booking failed");
         navigate("/auth/login");
         return;
       }
-      alert(err.message || "Booking failed. Please try again.");
+      showError("Booking failed");
     } finally {
       setLoading(false);
     }

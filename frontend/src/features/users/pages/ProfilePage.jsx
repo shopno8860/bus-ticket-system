@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/context/AuthContext';
 import { updateProfile } from '../services/userApi';
+import { showError, showSuccess } from '../../../utils/toastHelper';
 
 const ProfileField = ({ label, value }) => (
   <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 transition-all hover:shadow-md">
@@ -114,19 +115,16 @@ const ProfilePage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     setProfileData(buildProfileData(user, fallbackUser));
   }, [user]);
 
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
   const maxDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const handleLogout = () => {
+    logout();
+    showSuccess('Logged out');
+  };
 
   const openModal = () => {
     setFormData(profileData);
@@ -207,9 +205,10 @@ const ProfilePage = () => {
         updateUserProfile(mergedUser);
       }
 
-      setToast({ type: 'success', message: 'Profile updated successfully.' });
+      showSuccess('Profile updated successfully');
       setIsModalOpen(false);
     } catch (error) {
+      showError('Update failed');
       setSubmitError(error?.message || 'Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
@@ -254,7 +253,7 @@ const ProfilePage = () => {
                   ))}
                   <li>
                     <button 
-                      onClick={logout}
+                      onClick={handleLogout}
                       className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50 transition-all"
                     >
                       <span className="text-xl">🚪</span>
@@ -316,14 +315,6 @@ const ProfilePage = () => {
 
         </div>
       </div>
-
-      {toast && (
-        <div className="fixed top-5 right-5 z-[70]">
-          <div className="bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg font-semibold text-sm">
-            {toast.message}
-          </div>
-        </div>
-      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">

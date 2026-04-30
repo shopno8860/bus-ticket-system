@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPayment } from '../services/paymentApi';
+import { showError, showLoading, showSuccess } from '../../../utils/toastHelper';
 
 const Payment = () => {
   const { state } = useLocation();
@@ -24,6 +25,7 @@ const Payment = () => {
     hasInitiated.current = true;
 
     const initiatePayment = async () => {
+      const loadingToastId = showLoading('Processing payment...');
       try {
         const { id } = state.booking;
 
@@ -33,6 +35,7 @@ const Payment = () => {
         });
 
         if (response?.paymentUrl) {
+          showSuccess('Payment successful', { id: loadingToastId });
           // Hard-redirect to the payment gateway
           window.location.href = response.paymentUrl;
         } else {
@@ -45,11 +48,13 @@ const Payment = () => {
         // The backend now returns the existing paymentUrl in that case,
         // so this branch should rarely be reached — but handle it gracefully.
         if (status === 409 && err?.data?.paymentUrl) {
+          showSuccess('Payment successful', { id: loadingToastId });
           window.location.href = err.data.paymentUrl;
           return;
         }
 
         console.error('Payment initiation failed:', err);
+        showError('Payment failed', { id: loadingToastId });
         setError(err?.message || 'Payment initiation failed. Please try again.');
       }
     };

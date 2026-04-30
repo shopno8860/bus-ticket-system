@@ -12,6 +12,7 @@ import {
   FaUndo,
 } from "react-icons/fa";
 import { getMyBookings, cancelBooking } from "../services/bookingApi";
+import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
 
 const MyTickets = () => {
   const [tickets, setTickets] = useState([]);
@@ -22,7 +23,6 @@ const MyTickets = () => {
     booking: null,
   });
   const [cancelling, setCancelling] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(null);
   const navigate = useNavigate();
 
   const fetchTickets = async () => {
@@ -138,20 +138,17 @@ const MyTickets = () => {
   const confirmCancellation = async () => {
     if (!cancelModal.booking) return;
 
+    const loadingToastId = showLoading("Cancelling ticket...");
     try {
       setCancelling(true);
       await cancelBooking(cancelModal.booking.id);
-      setSuccessMessage(
-        "Ticket cancelled successfully. Refund request sent to admin for approval.",
-      );
+      showSuccess("Ticket cancelled", { id: loadingToastId });
+      showSuccess("Refund requested");
       setCancelModal({ open: false, booking: null });
       fetchTickets(); // Refresh the list
-
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
       console.error("Cancellation error:", err);
-      alert(err.message || "Failed to cancel ticket. Please try again.");
+      showError("Cancellation failed", { id: loadingToastId });
     } finally {
       setCancelling(false);
     }
@@ -210,27 +207,6 @@ const MyTickets = () => {
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-4">
-      {successMessage && (
-        <div className="alert alert-success shadow-lg mb-6 bg-[#16a34a] text-white border-none">
-          <div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current flex-shrink-0 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="C9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span>{successMessage}</span>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">

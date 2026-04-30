@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { tripApi } from '../services/tripApi';
 import TripCard from '../components/TripCard';
 import FilterSidebar from '../components/FilterSidebar';
 import TripSearchForm from '../components/TripSearchForm';
+import { showError } from '../../../utils/toastHelper';
 
 function SearchResults() {
   const toLocalIsoDate = (inputDate) => {
@@ -30,6 +31,8 @@ function SearchResults() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const apiErrorShownRef = useRef(false);
+  const noTripsToastKeyRef = useRef('');
 
   // Filter States
   const [filters, setFilters] = useState({
@@ -210,6 +213,41 @@ function SearchResults() {
     }
     return dateStripDays[0]?.iso ?? '';
   }, [searchData.date, dateStripDays]);
+  const noTripsToastKey = useMemo(
+    () =>
+      [
+        from,
+        to,
+        date,
+        filters.operator,
+        filters.minPrice,
+        filters.maxPrice,
+        filters.boardingPoint,
+        filters.droppingPoint,
+        filters.busTypes.join(','),
+        filters.busClasses.join(','),
+      ].join('|'),
+    [from, to, date, filters],
+  );
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (error) {
+      if (!apiErrorShownRef.current) {
+        showError('Failed to load trips');
+        apiErrorShownRef.current = true;
+      }
+      return;
+    }
+
+    apiErrorShownRef.current = false;
+
+    if ((from || to || date) && filteredTrips.length === 0 && noTripsToastKeyRef.current !== noTripsToastKey) {
+      showError('No trips available');
+      noTripsToastKeyRef.current = noTripsToastKey;
+    }
+  }, [loading, error, filteredTrips.length, from, to, date, noTripsToastKey]);
 
   const handleDateChipClick = (nextDateIso) => {
     setSearchData((prev) => ({ ...prev, date: nextDateIso }));

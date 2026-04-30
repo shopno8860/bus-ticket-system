@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { tripApi } from "../../trips/services/tripApi";
 import { lockSeats } from "../../bookings/services/bookingApi";
+import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
 
 const SeatSelection = () => {
   const { tripId } = useParams();
@@ -25,7 +26,7 @@ const SeatSelection = () => {
         if (!isMounted) return;
         console.error("Failed to fetch trip details:", err);
         if (!silent) {
-          alert("Failed to load trip details. Please try again.");
+          showError("Failed to load trip details");
         }
       } finally {
         if (isMounted && !silent) {
@@ -77,19 +78,20 @@ const SeatSelection = () => {
 
   const handleSeatClick = (seat) => {
     if (seat.seatState === "reserved") {
-      alert("This seat is already reserved.");
+      showError("Seat already booked");
       return;
     }
     if (seat.seatState === "locked") {
-      alert("This seat is temporarily locked by another user.");
+      showError("Seat already booked");
       return;
     }
     setSelectedSeats((prev) => {
       if (prev.includes(seat.id)) {
+        showSuccess("Seat released");
         return prev.filter((s) => s !== seat.id);
       } else {
         if (prev.length >= 4) {
-          alert("Maximum 4 seats selectable");
+          showError("You can select up to 4 seats");
           return prev;
         }
         return [...prev, seat.id];
@@ -181,12 +183,14 @@ const SeatSelection = () => {
   const handleContinue = async () => {
     if (selectedSeats.length === 0) return;
     
+    const loadingToastId = showLoading("Locking seats...");
     try {
       setLoading(true);
       const lockResponse = await lockSeats({
         tripId,
         seatIds: selectedSeats,
       });
+      showSuccess("Seat locked for 2 minutes", { id: loadingToastId });
       
       const { lockExpiresAt } = lockResponse;
       
@@ -205,7 +209,7 @@ const SeatSelection = () => {
       });
     } catch (err) {
       console.error("Failed to lock seats:", err);
-      alert(err.message || "Failed to reserve seats. They might have been taken.");
+      showError("Seat already booked", { id: loadingToastId });
     } finally {
       setLoading(false);
     }

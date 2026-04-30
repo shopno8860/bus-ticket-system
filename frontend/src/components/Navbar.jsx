@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../features/auth/context/AuthContext";
+import { showSuccess } from "../utils/toastHelper";
 
 const Navbar = () => {
   const { user, logout, token } = useAuth();
   const isLoggedIn = !!token;
+  const handleLogout = () => {
+    logout();
+    showSuccess('Logged out');
+  };
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50 h-16 md:h-20 flex items-center">
@@ -58,7 +63,7 @@ const Navbar = () => {
                   </li>
                   <li>
                     <button 
-                      onClick={logout}
+                      onClick={handleLogout}
                       className="py-3 font-bold text-red-500 w-full text-left"
                     >
                       Logout

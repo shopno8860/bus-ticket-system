@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { showError, showSuccess } from '../../../utils/toastHelper';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -37,16 +38,18 @@ const LoginPage = () => {
         throw new Error('Password must be at least 8 characters');
       }
       await login(email, password);
+      showSuccess('Login successful');
     } catch (err) {
+      showError('Invalid credentials');
       if (err.message && err.message.startsWith('{')) {
         try {
           const parsed = JSON.parse(err.message);
           setError(Array.isArray(parsed.message) ? parsed.message.join(', ') : parsed.message);
         } catch {
-          setError('Invalid login credentials');
+          setError('Invalid credentials');
         }
       } else {
-        setError(err.message || 'Login failed. Please check your credentials.');
+        setError(err.message || 'Invalid credentials');
       }
     } finally {
       setLoading(false);
