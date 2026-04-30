@@ -25,7 +25,9 @@ export function useFetch(asyncFn, options = { immediate: true }) {
 
   useEffect(() => {
     if (options.immediate) {
-      void execute();
+      void execute().catch(() => {
+        // Keep errors in hook state and avoid unhandled promise noise in console.
+      });
     }
   }, [execute, options.immediate]);
 

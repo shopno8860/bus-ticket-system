@@ -18,7 +18,9 @@ export const AuthProvider = ({ children }) => {
           const userData = await apiFetch(endpoints.users.me);
           setUser(userData);
         } catch (error) {
-          console.error('Failed to fetch user:', error);
+          if (error?.status !== 401) {
+            console.error('Failed to fetch user:', error);
+          }
           logout();
         }
       }

@@ -109,16 +109,16 @@ function Dashboard() {
       </section>
 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {statCards.map((card) => (
-          <StatCard key={card.key} {...card} />
+        {statCards.map(({ key, ...cardProps }) => (
+          <StatCard key={key} {...cardProps} />
         ))}
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="min-w-0 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h2 className="mb-4 text-lg font-semibold text-slate-800">Booking Trends</h2>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-72 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={280}>
               <LineChart data={stats?.bookingTrends ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} />
@@ -136,10 +136,10 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="min-w-0 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h2 className="mb-4 text-lg font-semibold text-slate-800">Revenue Overview</h2>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-72 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={280}>
               <BarChart data={stats?.revenueOverview ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} />
