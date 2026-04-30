@@ -1,6 +1,17 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Param,
+  Post,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { PaymentStatus } from '@prisma/client';
 import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
@@ -48,5 +59,27 @@ export class PaymentsController {
       PaymentStatus.FAILED,
     ); // Treating cancel as fail for simplicity
     return res.redirect('http://localhost:5173/payment/failed');
+  }
+
+  @Post(':bookingId/send-confirmation-email')
+  @UseGuards(AccessTokenGuard)
+  @UseInterceptors(FileInterceptor('ticketPdf'))
+  async sendConfirmationEmail(
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() ticketPdf?: { buffer?: Buffer; path?: string },
+  ): Promise<{ message: string }> {
+    if (!ticketPdf?.buffer?.length && !ticketPdf?.path) {
+      throw new BadRequestException('ticketPdf file is required');
+    }
+
+    await this.paymentsService.sendConfirmationEmailWithExistingTicket({
+      bookingId,
+      requesterUserId: user.sub,
+      ticketPdfBuffer: ticketPdf?.buffer,
+      ticketPdfPath: ticketPdf?.path,
+    });
+
+    return { message: 'Booking confirmation email sent.' };
   }
 }

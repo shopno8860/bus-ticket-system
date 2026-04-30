@@ -54,7 +54,7 @@ const Ticket = ({ booking, ticketRef }) => {
   const platformFee = seatCount * platformFeePerSeat;
   const insuranceFee = seatCount * insurancePerSeat;
   const fallbackTotal = seatTotal + platformFee + insuranceFee;
-  const totalPayable = Number(booking?.totalAmount ?? fallbackTotal);
+  const total = Number(booking?.totalAmount ?? fallbackTotal);
 
   // =======================
   // ✅ DYNAMIC LOGO
@@ -204,7 +204,7 @@ const Ticket = ({ booking, ticketRef }) => {
 
               <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
                 <span>Total Payable</span>
-                <span>৳{totalPayable}</span>
+                <span>৳{total}</span>
               </div>
             </div>
 

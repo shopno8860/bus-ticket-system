@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getBookingDetails } from '../../bookings/services/bookingApi';
+import { generatePDFBlob } from '../../../utils/pdf';
+import Ticket from '../../../components/ticket/Ticket';
+import { sendConfirmationEmailWithTicket } from '../services/paymentApi';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -10,6 +13,8 @@ const PaymentSuccess = () => {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [emailNotice, setEmailNotice] = useState('');
+  const emailSentRef = useRef(false);
 
   useEffect(() => {
     if (!bookingId) {
@@ -32,6 +37,32 @@ const PaymentSuccess = () => {
 
     fetchDetails();
   }, [bookingId]);
+
+  useEffect(() => {
+    if (!booking || emailSentRef.current) return;
+
+    const sendTicketEmail = async () => {
+      try {
+        // Wait for the hidden ticket DOM to paint before capture.
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const blob = await generatePDFBlob('ticket');
+        const ticketFile = new File(
+          [blob],
+          `Ticket-${booking.bookingReference || booking.id}.pdf`,
+          { type: 'application/pdf' },
+        );
+
+        await sendConfirmationEmailWithTicket(booking.id, ticketFile);
+        emailSentRef.current = true;
+        setEmailNotice('Ticket was sent to your email with the same PDF.');
+      } catch (sendError) {
+        console.error('Failed to send ticket email:', sendError);
+        setEmailNotice('Could not send ticket email automatically.');
+      }
+    };
+
+    sendTicketEmail();
+  }, [booking]);
 
   // 🔄 Loading
   if (loading) {
@@ -98,6 +129,9 @@ const PaymentSuccess = () => {
         <p className="text-gray-500 mb-6">
           Your booking is confirmed
         </p>
+        {emailNotice ? (
+          <p className="text-xs text-gray-500 mb-6">{emailNotice}</p>
+        ) : null}
 
         {/* 📄 Booking Info */}
         <div className="text-left text-sm space-y-3 mb-6">
@@ -177,6 +211,10 @@ const PaymentSuccess = () => {
 
         </div>
 
+      </div>
+
+      <div className="fixed -left-[99999px] top-0 pointer-events-none opacity-0">
+        <Ticket booking={booking} ticketRef={null} />
       </div>
     </div>
   );

@@ -36,6 +36,8 @@ export const endpoints = {
   },
   payments: {
     create: '/payments',
+    sendConfirmationEmail: (bookingId) =>
+      `/payments/${bookingId}/send-confirmation-email`,
   },
   refunds: {
     request: '/refunds',

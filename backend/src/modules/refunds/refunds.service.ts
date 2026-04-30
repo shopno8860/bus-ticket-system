@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -16,6 +17,7 @@ import {
   getHoursBeforeDeparture,
   getRefundPercentage,
 } from '../../common/policies/cancellation-policy';
+import { MailService } from '../../mail/mail.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RequestRefundDto } from './dto/request-refund.dto';
@@ -23,9 +25,12 @@ import { AdminRefundsFilterDto } from './dto/admin-refunds-filter.dto';
 
 @Injectable()
 export class RefundsService {
+  private readonly logger = new Logger(RefundsService.name);
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
   ) {}
 
   async requestRefund(
@@ -210,8 +215,53 @@ export class RefundsService {
           status: refund.status,
           message: 'Refund approved by admin.',
         });
+
+        void this.sendRefundApprovedEmail({
+          userId: refund.userId,
+          bookingId: refund.bookingId,
+          refundAmount: refund.amount.toString(),
+        });
+
         return refund;
       });
+  }
+
+  private async sendRefundApprovedEmail(params: {
+    userId: string;
+    bookingId: string;
+    refundAmount: string;
+  }): Promise<void> {
+    try {
+      const [user, booking] = await Promise.all([
+        this.prismaService.user.findUnique({
+          where: { id: params.userId },
+          select: { email: true, fullName: true },
+        }),
+        this.prismaService.booking.findUnique({
+          where: { id: params.bookingId },
+          select: { bookingReference: true },
+        }),
+      ]);
+
+      if (!user?.email || !booking?.bookingReference) {
+        this.logger.warn(
+          `Skipped refund approved email due to missing user or booking details. bookingId=${params.bookingId}`,
+        );
+        return;
+      }
+
+      await this.mailService.sendRefundApprovedEmail({
+        to: user.email,
+        customerName: user.fullName ?? 'Customer',
+        bookingReference: booking.bookingReference,
+        refundAmount: `${params.refundAmount} BDT`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send refund approved email for bookingId=${params.bookingId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   async reject(

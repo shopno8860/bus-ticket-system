@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,7 @@ import {
   getHoursBeforeDeparture,
   getRefundPercentage,
 } from '../../common/policies/cancellation-policy';
+import { MailService } from '../../mail/mail.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
@@ -42,9 +44,12 @@ const paymentSafeSelect = {
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<{
@@ -629,8 +634,42 @@ export class BookingsService {
           status: BookingStatus.CANCELLED,
           message: 'Your booking has been cancelled successfully.',
         });
+        void this.sendBookingCancelledEmail({
+          userId: result.booking.userId,
+          bookingReference: result.booking.bookingReference,
+        });
         return result;
       });
+  }
+
+  private async sendBookingCancelledEmail(params: {
+    userId: string;
+    bookingReference: string;
+  }): Promise<void> {
+    try {
+      const user = await this.prismaService.user.findUnique({
+        where: { id: params.userId },
+        select: { email: true, fullName: true },
+      });
+
+      if (!user?.email) {
+        this.logger.warn(
+          `Skipped booking cancellation email due to missing user email. userId=${params.userId}`,
+        );
+        return;
+      }
+
+      await this.mailService.sendBookingCancellationEmail({
+        to: user.email,
+        customerName: user.fullName ?? 'Customer',
+        bookingReference: params.bookingReference,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send booking cancellation email for userId=${params.userId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   async cancelByAdmin(

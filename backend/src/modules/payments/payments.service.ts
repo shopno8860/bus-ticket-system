@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdminPaymentsFilterDto } from './dto/admin-payments-filter.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -35,10 +37,13 @@ type SafePayment = Prisma.PaymentGetPayload<{
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -157,7 +162,23 @@ export class PaymentsService {
           });
 
           if (!payment) throw new NotFoundException('Payment record not found');
-          if (payment.status === PaymentStatus.SUCCESS) return payment; // Idempotent
+          if (payment.status === PaymentStatus.SUCCESS) {
+            return {
+              payment: {
+                id: payment.id,
+                bookingId: payment.bookingId,
+                userId: payment.userId,
+                amount: payment.amount,
+                method: payment.method,
+                status: payment.status,
+                refundAmount: payment.refundAmount,
+                refundStatus: payment.refundStatus,
+                transactionId: payment.transactionId,
+                createdAt: payment.createdAt,
+              },
+              shouldSendEmail: false,
+            };
+          }
 
           // 1. Update Payment
           const updatedPayment = await tx.payment.update({
@@ -185,19 +206,85 @@ export class PaymentsService {
             },
           });
 
-          return updatedPayment;
+          return {
+            payment: updatedPayment,
+            shouldSendEmail: true,
+          };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       )
-      .then(async (updatedPayment) => {
+      .then(async ({ payment, shouldSendEmail }) => {
+        if (!shouldSendEmail) {
+          return payment;
+        }
+
         await this.notificationsService.notifyBookingUpdate({
-          userId: updatedPayment.userId,
-          bookingId: updatedPayment.bookingId,
-          status: updatedPayment.status,
+          userId: payment.userId,
+          bookingId: payment.bookingId,
+          status: payment.status,
           message: 'Payment successful. Booking confirmed.',
         });
-        return updatedPayment;
+
+        return payment;
       });
+  }
+
+  async sendConfirmationEmailWithExistingTicket(params: {
+    bookingId: string;
+    requesterUserId: string;
+    ticketPdfBuffer?: Buffer;
+    ticketPdfPath?: string;
+  }): Promise<void> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: params.bookingId },
+      select: {
+        id: true,
+        userId: true,
+        bookingReference: true,
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+          },
+        },
+        payments: {
+          where: { status: PaymentStatus.SUCCESS },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.userId !== params.requesterUserId) {
+      throw new ForbiddenException(
+        'You are not authorized to send this booking ticket',
+      );
+    }
+
+    if (!booking.payments.length) {
+      throw new ForbiddenException(
+        'Booking confirmation email can be sent only after payment success',
+      );
+    }
+
+    if (!booking.user?.email || !booking.bookingReference) {
+      this.logger.warn(
+        `Skipped booking confirmation email due to missing user or booking details. bookingId=${params.bookingId}`,
+      );
+      return;
+    }
+
+    await this.mailService.sendBookingConfirmationEmail({
+      to: booking.user.email,
+      customerName: booking.user.fullName ?? 'Customer',
+      bookingReference: booking.bookingReference,
+      ticketPdf: params.ticketPdfBuffer,
+      ticketPdfPath: params.ticketPdfPath,
+    });
   }
 
   /**
