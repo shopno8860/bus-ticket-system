@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
 type UserResponse = Omit<User, 'passwordHash' | 'refreshTokenHash'>;
@@ -30,12 +30,12 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  @Patch('me')
-  async updateMe(
+  @Patch('profile')
+  async updateProfile(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateProfileDto: UpdateProfileDto,
   ): Promise<UserResponse> {
-    return this.usersService.updateProfile(currentUser.sub, updateUserDto);
+    return this.usersService.updateProfile(currentUser.sub, updateProfileDto);
   }
 
   @Patch(':id/role')

@@ -68,8 +68,12 @@ export const AuthProvider = ({ children }) => {
     navigate('/auth/login');
   };
 
+  const updateUserProfile = (nextUser) => {
+    setUser(nextUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, register, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, register, loading, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

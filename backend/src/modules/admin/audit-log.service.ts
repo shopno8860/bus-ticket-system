@@ -11,7 +11,12 @@ export class AuditLogService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.prismaService.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS admin_audit_logs (
+      CREATE SCHEMA IF NOT EXISTS internal;
+
+      ALTER TABLE IF EXISTS public.admin_audit_logs
+      SET SCHEMA internal;
+
+      CREATE TABLE IF NOT EXISTS internal.admin_audit_logs (
         id TEXT PRIMARY KEY,
         actor_user_id TEXT NOT NULL,
         action TEXT NOT NULL,
@@ -33,7 +38,7 @@ export class AuditLogService implements OnModuleInit {
     try {
       await this.prismaService.$executeRaw(
         Prisma.sql`
-          INSERT INTO admin_audit_logs (id, actor_user_id, action, target_type, target_id, payload)
+          INSERT INTO internal.admin_audit_logs (id, actor_user_id, action, target_type, target_id, payload)
           VALUES (${randomUUID()}, ${params.actorUserId}, ${params.action}, ${params.targetType}, ${params.targetId ?? null}, ${JSON.stringify(params.payload ?? {})}::jsonb)
         `,
       );

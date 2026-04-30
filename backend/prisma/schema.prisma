@@ -15,6 +15,12 @@ enum UserRole {
   USER
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum BusType {
   AC
   NON_AC
@@ -79,6 +85,12 @@ model User {
   email             String   @unique
   passwordHash      String
   phoneNumber       String?
+  gender            Gender?
+  address           String?
+  dateOfBirth       DateTime?
+  nationalId        String?
+  passportNumber    String?
+  visaInfo          String?
   role              UserRole @default(USER)
   refreshTokenHash  String?
 

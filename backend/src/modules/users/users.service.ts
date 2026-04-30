@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,7 +13,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 type UserResponse = Omit<User, 'passwordHash' | 'refreshTokenHash'>;
 type DashboardTrendPoint = {
@@ -50,6 +51,12 @@ export class UsersService {
         fullName: true,
         email: true,
         phoneNumber: true,
+        gender: true,
+        address: true,
+        dateOfBirth: true,
+        nationalId: true,
+        passportNumber: true,
+        visaInfo: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -71,6 +78,12 @@ export class UsersService {
         fullName: true,
         email: true,
         phoneNumber: true,
+        gender: true,
+        address: true,
+        dateOfBirth: true,
+        nationalId: true,
+        passportNumber: true,
+        visaInfo: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -86,6 +99,12 @@ export class UsersService {
         fullName: true,
         email: true,
         phoneNumber: true,
+        gender: true,
+        address: true,
+        dateOfBirth: true,
+        nationalId: true,
+        passportNumber: true,
+        visaInfo: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -101,21 +120,45 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    updateUserDto: UpdateUserDto,
+    updateProfileDto: UpdateProfileDto,
   ): Promise<UserResponse> {
     await this.findCurrentUser(userId);
+
+    if (updateProfileDto.dateOfBirth) {
+      const parsedDate = new Date(updateProfileDto.dateOfBirth);
+      const today = new Date();
+      parsedDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      if (parsedDate >= today) {
+        throw new BadRequestException('dateOfBirth must be a past date');
+      }
+    }
 
     return this.prismaService.user.update({
       where: { id: userId },
       data: {
-        fullName: updateUserDto.fullName,
-        phoneNumber: updateUserDto.phoneNumber,
+        fullName: updateProfileDto.fullName,
+        phoneNumber: updateProfileDto.phoneNumber,
+        gender: updateProfileDto.gender,
+        address: updateProfileDto.address,
+        dateOfBirth: updateProfileDto.dateOfBirth
+          ? new Date(updateProfileDto.dateOfBirth)
+          : null,
+        nationalId: updateProfileDto.nationalId,
+        passportNumber: updateProfileDto.passportNumber,
+        visaInfo: updateProfileDto.visaInfo,
       },
       select: {
         id: true,
         fullName: true,
         email: true,
         phoneNumber: true,
+        gender: true,
+        address: true,
+        dateOfBirth: true,
+        nationalId: true,
+        passportNumber: true,
+        visaInfo: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -142,6 +185,12 @@ export class UsersService {
         fullName: true,
         email: true,
         phoneNumber: true,
+        gender: true,
+        address: true,
+        dateOfBirth: true,
+        nationalId: true,
+        passportNumber: true,
+        visaInfo: true,
         role: true,
         createdAt: true,
         updatedAt: true,
