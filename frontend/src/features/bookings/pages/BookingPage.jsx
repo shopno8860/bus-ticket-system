@@ -81,7 +81,8 @@ const BookingPage = () => {
   const feePerSeat = busType === "AC" ? 70 : 40;
   const seatTotal = selectedSeats.length * seatPrice;
   const platformFee = selectedSeats.length * feePerSeat;
-  const total = seatTotal + platformFee;
+  const insuranceFee = 10;
+  const total = seatTotal + platformFee + insuranceFee;
 
   // Booking handler
   const handleBooking = async () => {
@@ -234,6 +235,11 @@ const BookingPage = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Platform Fee</span>
                 <span className="font-semibold text-gray-800">৳{platformFee}</span>
+              </div>
+
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Insurance Fee</span>
+                <span className="font-semibold text-gray-800">৳{insuranceFee}</span>
               </div>
 
               <div className="border-t border-dashed pt-4 flex justify-between items-center">
