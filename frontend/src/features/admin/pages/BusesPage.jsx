@@ -10,6 +10,7 @@ import {
 
 const BUS_TYPES = ['AC', 'NON_AC', 'SLEEPER'];
 const BUS_STATUSES = ['ACTIVE', 'INACTIVE', 'MAINTENANCE'];
+const BUS_CLASSES = ['BUSINESS', 'ECONOMY'];
 const PAGE_SIZE = 8;
 
 const defaultForm = {
@@ -18,6 +19,7 @@ const defaultForm = {
   registrationNumber: '',
   seatCapacity: 40,
   busType: 'AC',
+  busClass: 'ECONOMY',
   status: 'ACTIVE',
 };
 
@@ -67,12 +69,12 @@ function BusesPage() {
     setFormError('');
   };
 
-  const openAddModal = () => {
+  const openFormDrawer = () => {
     resetForm();
     setIsFormOpen(true);
   };
 
-  const openEditModal = (bus) => {
+  const openEditDrawer = (bus) => {
     setEditingBus(bus);
     setFormData({
       busName: bus.name ?? bus.busName ?? '',
@@ -80,18 +82,38 @@ function BusesPage() {
       registrationNumber: bus.registrationNumber ?? '',
       seatCapacity: Number(bus.seatCapacity ?? 1),
       busType: bus.busType ?? 'AC',
+      busClass: bus.busClass ?? 'ECONOMY',
       status: bus.status ?? 'ACTIVE',
     });
     setFormError('');
     setIsFormOpen(true);
   };
 
-  const closeFormModal = () => {
+  const closeFormDrawer = () => {
     setIsFormOpen(false);
     resetForm();
   };
 
   const handleFormChange = (field, value) => {
+    if (field === 'busType') {
+      setFormData((prev) => ({
+        ...prev,
+        busType: value,
+        seatCapacity:
+          value === 'SLEEPER' ? 36 : prev.busClass === 'BUSINESS' ? 28 : prev.seatCapacity,
+      }));
+      return;
+    }
+
+    if (field === 'busClass') {
+      setFormData((prev) => ({
+        ...prev,
+        busClass: value,
+        seatCapacity:
+          prev.busType === 'SLEEPER' ? 36 : value === 'BUSINESS' ? 28 : prev.seatCapacity,
+      }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -121,8 +143,14 @@ function BusesPage() {
       name: formData.busName.trim(),
       operatorName: formData.operatorName.trim(),
       registrationNumber: formData.registrationNumber.trim(),
-      seatCapacity: Number(formData.seatCapacity),
+      seatCapacity:
+        formData.busType === 'SLEEPER'
+          ? 36
+          : formData.busClass === 'BUSINESS'
+            ? 28
+            : Number(formData.seatCapacity),
       busType: formData.busType,
+      busClass: formData.busClass,
       ...(editingBus?.id ? { status: formData.status } : {}),
     };
 
@@ -137,7 +165,7 @@ function BusesPage() {
         showToast('success', 'Bus created successfully.');
       }
       await execute();
-      closeFormModal();
+      closeFormDrawer();
     } catch (err) {
       setFormError(err?.message || 'Failed to save bus.');
       showToast('error', err?.message || 'Failed to save bus.');
@@ -146,12 +174,12 @@ function BusesPage() {
     }
   };
 
-  const openDeleteModal = (bus) => {
+  const openDeleteDialog = (bus) => {
     setBusToDelete(bus);
     setIsDeleteOpen(true);
   };
 
-  const closeDeleteModal = () => {
+  const closeDeleteDialog = () => {
     setIsDeleteOpen(false);
     setBusToDelete(null);
   };
@@ -163,7 +191,7 @@ function BusesPage() {
       await deleteAdminBus(busToDelete.id);
       showToast('success', 'Bus deleted successfully.');
       await execute();
-      closeDeleteModal();
+      closeDeleteDialog();
     } catch (err) {
       showToast('error', err?.message || 'Failed to delete bus.');
     } finally {
@@ -175,95 +203,125 @@ function BusesPage() {
     if (!bus?.id) return;
     setGeneratingBusId(bus.id);
     try {
-      await generateBusSeats(bus.id, 4);
-      showToast('success', `Seats generated for ${bus.name ?? bus.busName}.`);
+      const columnsPerRow =
+        bus.busType === 'SLEEPER' ? 2 : bus.busClass === 'BUSINESS' ? 3 : 4;
+      await generateBusSeats(bus.id, columnsPerRow, true);
+      showToast('success', `Seats regenerated for ${bus.name ?? bus.busName}.`);
     } catch (err) {
-      showToast('error', err?.message || 'Failed to generate seats.');
+      showToast('error', err?.message || 'Failed to regenerate seats.');
     } finally {
       setGeneratingBusId('');
     }
   };
 
+  const seatPreview = useMemo(() => {
+    if (formData.busType === 'SLEEPER') {
+      return {
+        capacity: 36,
+        columns: 2,
+        rows: 18,
+        layout: 'Sleeper (Upper 18, Lower 18)',
+      };
+    }
+
+    const capacity = formData.busClass === 'BUSINESS' ? 28 : Number(formData.seatCapacity || 0);
+    if (formData.busClass === 'BUSINESS') {
+      const fullRows = capacity > 4 ? Math.floor((capacity - 4) / 3) : 0;
+      const rows = Math.max(1, fullRows + 1);
+      return { capacity, columns: 3, rows, layout: '1:2 (last row 2:2)' };
+    }
+    const columns = 4;
+    const rows = Math.ceil(Math.max(capacity, 0) / columns);
+    return { capacity, columns, rows, layout: '2:2' };
+  }, [formData.busClass, formData.seatCapacity]);
+
   return (
-    <div className="space-y-6 p-6">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="space-y-4 bg-slate-50 p-4">
+      <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Bus Management</h1>
-          <p className="text-sm text-slate-600 sm:text-base">Manage all buses</p>
+          <h1 className="text-xl font-semibold text-slate-900">Bus Management</h1>
+          <p className="text-sm text-slate-500">Manage routes, capacity, and bus status.</p>
         </div>
         <button
           type="button"
-          onClick={openAddModal}
-          className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+          onClick={openFormDrawer}
+          className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
         >
           Add Bus
         </button>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+          <div className="space-y-2 p-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-9 animate-pulse rounded bg-slate-100" />
+            ))}
           </div>
         ) : error ? (
-          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="m-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error.message || 'Failed to load buses.'}
           </div>
         ) : buses.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 px-6 py-14 text-center">
-            <p className="text-slate-600">No buses found</p>
+          <div className="px-4 py-10 text-center">
+            <p className="text-sm text-slate-500">No buses found. Add your first bus to get started.</p>
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
-                    <th className="px-3 py-3 font-medium">Bus Name</th>
-                    <th className="px-3 py-3 font-medium">Operator</th>
-                    <th className="px-3 py-3 font-medium">Registration Number</th>
-                    <th className="px-3 py-3 font-medium">Seat Capacity</th>
-                    <th className="px-3 py-3 font-medium">Bus Type</th>
-                    <th className="px-3 py-3 font-medium">Status</th>
-                    <th className="px-3 py-3 font-medium">Actions</th>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2 font-medium">Name</th>
+                    <th className="px-3 py-2 font-medium">Operator</th>
+                    <th className="px-3 py-2 font-medium">Reg No</th>
+                    <th className="px-3 py-2 font-medium">Seats</th>
+                    <th className="px-3 py-2 font-medium">Class</th>
+                    <th className="px-3 py-2 font-medium">Type</th>
+                    <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedBuses.map((bus) => (
-                    <tr key={bus.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50">
-                      <td className="px-3 py-3 text-slate-800">{bus.name ?? bus.busName}</td>
-                      <td className="px-3 py-3 text-slate-700">{bus.operatorName}</td>
-                      <td className="px-3 py-3 text-slate-700">{bus.registrationNumber}</td>
-                      <td className="px-3 py-3 text-slate-700">{bus.seatCapacity}</td>
-                      <td className="px-3 py-3">
+                    <tr key={bus.id} className="border-b border-slate-100 text-sm hover:bg-slate-50">
+                      <td className="px-3 py-2 text-slate-800">{bus.name ?? bus.busName}</td>
+                      <td className="px-3 py-2 text-slate-700">{bus.operatorName}</td>
+                      <td className="px-3 py-2 text-slate-700">{bus.registrationNumber}</td>
+                      <td className="px-3 py-2 text-slate-700">{bus.seatCapacity}</td>
+                      <td className="px-3 py-2 text-slate-700">{bus.busClass ?? 'ECONOMY'}</td>
+                      <td className="px-3 py-2">
                         <TypeBadge type={bus.busType} />
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2">
                         <StatusBadge status={bus.status} />
                       </td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap gap-2">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => openEditModal(bus)}
-                            className="rounded-lg bg-indigo-100 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-200"
+                            onClick={() => openEditDrawer(bus)}
+                            title="Edit Bus"
+                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
                           >
-                            Edit
+                            <IconEdit />
                           </button>
                           <button
                             type="button"
-                            onClick={() => openDeleteModal(bus)}
-                            className="rounded-lg bg-rose-100 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-200"
+                            onClick={() => openDeleteDialog(bus)}
+                            title="Delete Bus"
+                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
                           >
-                            Delete
+                            <IconDelete />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleGenerateSeats(bus)}
+                            title="Generate Seats"
                             disabled={generatingBusId === bus.id}
-                            className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-md border border-slate-200 p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {generatingBusId === bus.id ? 'Generating...' : 'Generate Seats'}
+                            {generatingBusId === bus.id ? <IconSpinner /> : <IconSeat />}
                           </button>
                         </div>
                       </td>
@@ -274,12 +332,12 @@ function BusesPage() {
             </div>
 
             {totalPages > 1 ? (
-              <div className="mt-4 flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-white px-3 py-2">
                 <button
                   type="button"
                   onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50"
+                  className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 disabled:opacity-50"
                 >
                   Previous
                 </button>
@@ -290,7 +348,7 @@ function BusesPage() {
                   type="button"
                   onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50"
+                  className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -301,63 +359,91 @@ function BusesPage() {
       </section>
 
       {isFormOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-slate-900">
+        <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/30">
+          <button
+            type="button"
+            aria-label="Close panel"
+            className="h-full flex-1 cursor-default"
+            onClick={closeFormDrawer}
+          />
+          <div className="h-full w-full max-w-md overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">
               {editingBus ? 'Edit Bus' : 'Add Bus'}
             </h2>
-            <form className="mt-4 space-y-4" onSubmit={handleSaveBus}>
-              <InputField
-                label="Bus Name"
-                value={formData.busName}
-                onChange={(value) => handleFormChange('busName', value)}
-              />
-              <InputField
-                label="Operator Name"
-                value={formData.operatorName}
-                onChange={(value) => handleFormChange('operatorName', value)}
-              />
-              <InputField
-                label="Registration Number"
-                value={formData.registrationNumber}
-                onChange={(value) => handleFormChange('registrationNumber', value)}
-              />
-              <InputField
-                label="Seat Capacity"
-                type="number"
-                value={formData.seatCapacity}
-                onChange={(value) => handleFormChange('seatCapacity', value)}
-              />
-
-              <SelectField
-                label="Bus Type"
-                value={formData.busType}
-                options={BUS_TYPES}
-                onChange={(value) => handleFormChange('busType', value)}
-              />
-              <SelectField
-                label="Status"
-                value={formData.status}
-                options={BUS_STATUSES}
-                onChange={(value) => handleFormChange('status', value)}
-              />
+            <form className="mt-4 space-y-3" onSubmit={handleSaveBus}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <InputField
+                  label="Bus Name"
+                  value={formData.busName}
+                  onChange={(value) => handleFormChange('busName', value)}
+                />
+                <InputField
+                  label="Operator Name"
+                  value={formData.operatorName}
+                  onChange={(value) => handleFormChange('operatorName', value)}
+                />
+                <InputField
+                  label="Registration Number"
+                  value={formData.registrationNumber}
+                  onChange={(value) => handleFormChange('registrationNumber', value)}
+                />
+                <InputField
+                  label="Seat Capacity"
+                  type="number"
+                  value={
+                    formData.busType === 'SLEEPER'
+                      ? 36
+                      : formData.busClass === 'BUSINESS'
+                        ? 28
+                        : formData.seatCapacity
+                  }
+                  onChange={(value) => handleFormChange('seatCapacity', value)}
+                  disabled={formData.busClass === 'BUSINESS' || formData.busType === 'SLEEPER'}
+                />
+                <SelectField
+                  label="Bus Type"
+                  value={formData.busType}
+                  options={BUS_TYPES}
+                  onChange={(value) => handleFormChange('busType', value)}
+                />
+                <SelectField
+                  label="Bus Class"
+                  value={formData.busClass}
+                  options={BUS_CLASSES}
+                  onChange={(value) => handleFormChange('busClass', value)}
+                />
+                <div className="sm:col-span-2">
+                  <SelectField
+                    label="Status"
+                    value={formData.status}
+                    options={BUS_STATUSES}
+                    onChange={(value) => handleFormChange('status', value)}
+                  />
+                </div>
+              </div>
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                Layout preview: {seatPreview.layout} format, {seatPreview.rows} row(s),{' '}
+                {seatPreview.columns} column(s) per row, {seatPreview.capacity} seat(s).
+              </p>
 
               {formError ? (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {formError}
+                </p>
               ) : null}
 
-              <div className="flex justify-end gap-2 pt-1">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={closeFormModal}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+                  onClick={closeFormDrawer}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 >
                   {submitting ? 'Saving...' : 'Save'}
                 </button>
@@ -369,16 +455,16 @@ function BusesPage() {
 
       {isDeleteOpen ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-slate-900">Delete Bus</h2>
+          <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">Delete Bus</h2>
             <p className="mt-2 text-sm text-slate-600">
               Are you sure you want to delete this bus?
             </p>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={closeDeleteModal}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+                onClick={closeDeleteDialog}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700"
               >
                 Cancel
               </button>
@@ -386,7 +472,7 @@ function BusesPage() {
                 type="button"
                 onClick={handleDeleteBus}
                 disabled={deleting}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+                className="rounded-md bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>
@@ -396,9 +482,9 @@ function BusesPage() {
       ) : null}
 
       {toast ? (
-        <div className="fixed bottom-5 right-5 z-50">
+        <div className="fixed bottom-4 right-4 z-50">
           <div
-            className={`rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg ${
+            className={`rounded-md px-3 py-2 text-sm font-medium shadow-sm ${
               toast.type === 'success'
                 ? 'bg-emerald-600 text-white'
                 : 'bg-rose-600 text-white'
@@ -412,15 +498,16 @@ function BusesPage() {
   );
 }
 
-function InputField({ label, value, onChange, type = 'text' }) {
+function InputField({ label, value, onChange, type = 'text', disabled = false }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
       <input
         type={type}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
       />
     </label>
   );
@@ -429,11 +516,11 @@ function InputField({ label, value, onChange, type = 'text' }) {
 function SelectField({ label, value, options, onChange }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       >
         {options.map((option) => (
           <option key={option} value={option}>
@@ -454,7 +541,7 @@ function TypeBadge({ type }) {
 
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${colorMap[type] ?? 'bg-slate-100 text-slate-700'}`}
+      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${colorMap[type] ?? 'bg-slate-100 text-slate-700'}`}
     >
       {type}
     </span>
@@ -470,10 +557,53 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${colorMap[status] ?? 'bg-slate-100 text-slate-700'}`}
+      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${colorMap[status] ?? 'bg-slate-100 text-slate-700'}`}
     >
       {status}
     </span>
+  );
+}
+
+function IconEdit() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path d="M15.232 2.232a2.5 2.5 0 1 1 3.536 3.536l-9.1 9.1a2 2 0 0 1-.848.497l-3.17.906a.75.75 0 0 1-.928-.928l.905-3.17a2 2 0 0 1 .498-.848l9.107-9.093Z" />
+      <path d="M3.5 5.75a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H5v10h10v-5.25a.75.75 0 0 1 1.5 0V17a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V5.75Z" />
+    </svg>
+  );
+}
+
+function IconDelete() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path
+        fillRule="evenodd"
+        d="M8.75 2.5a1.25 1.25 0 0 0-1.19.868L7.35 4H5.25a.75.75 0 0 0 0 1.5h.57l.74 10.36A2 2 0 0 0 8.556 17.75h2.888a2 2 0 0 0 1.996-1.89l.74-10.36h.57a.75.75 0 0 0 0-1.5h-2.1l-.21-.632a1.25 1.25 0 0 0-1.19-.868h-2.5Zm1 4.5a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-1.5 0v-6A.75.75 0 0 1 9.75 7Zm3.25.75a.75.75 0 0 0-1.5 0v6a.75.75 0 0 0 1.5 0v-6Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function IconSeat() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path d="M4.5 3.75A1.75 1.75 0 0 1 6.25 2h7.5A1.75 1.75 0 0 1 15.5 3.75v5A1.75 1.75 0 0 1 13.75 10.5h-7.5A1.75 1.75 0 0 1 4.5 8.75v-5Z" />
+      <path d="M3 11.75a.75.75 0 0 1 .75-.75h12.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V14H4.5v1.25a.75.75 0 0 1-1.5 0v-3.5Z" />
+      <path d="M6.5 14.75a.75.75 0 0 1 .75.75v1.75a.75.75 0 0 1-1.5 0V15.5a.75.75 0 0 1 .75-.75Zm7 0a.75.75 0 0 1 .75.75v1.75a.75.75 0 0 1-1.5 0V15.5a.75.75 0 0 1 .75-.75Z" />
+    </svg>
+  );
+}
+
+function IconSpinner() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin text-emerald-600">
+      <circle cx="12" cy="12" r="10" className="stroke-current opacity-25" strokeWidth="4" fill="none" />
+      <path
+        className="fill-current opacity-90"
+        d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"
+      />
+    </svg>
   );
 }
 

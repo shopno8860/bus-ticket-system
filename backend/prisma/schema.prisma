@@ -21,6 +21,11 @@ enum BusType {
   SLEEPER
 }
 
+enum BusClass {
+  BUSINESS
+  ECONOMY
+}
+
 enum BusStatus {
   ACTIVE
   INACTIVE
@@ -96,6 +101,7 @@ model Bus {
   registrationNumber String   @unique
   seatCapacity       Int
   busType            BusType
+  busClass           BusClass @default(ECONOMY)
   status             BusStatus @default(ACTIVE)
 
   seats              Seat[]

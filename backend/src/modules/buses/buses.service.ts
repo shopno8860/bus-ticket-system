@@ -3,20 +3,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Bus, Prisma } from '@prisma/client';
+import { Bus, BusClass, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SeatsService } from '../seats/seats.service';
 import { CreateBusDto } from './dto/create-bus.dto';
 import { UpdateBusDto } from './dto/update-bus.dto';
 
 @Injectable()
 export class BusesService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly seatsService: SeatsService,
+  ) {}
 
   async create(createBusDto: CreateBusDto): Promise<Bus> {
+    const normalizedCreateBusDto = this.normalizeCreateDto(createBusDto);
+
     try {
-      return await this.prismaService.bus.create({
-        data: createBusDto,
+      const bus = await this.prismaService.bus.create({
+        data: normalizedCreateBusDto,
       });
+      await this.seatsService.createForBus(bus.id, { forceRegenerate: false });
+      return bus;
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -53,13 +61,27 @@ export class BusesService {
   }
 
   async update(id: string, updateBusDto: UpdateBusDto): Promise<Bus> {
-    await this.findOneById(id);
+    const existingBus = await this.findOneById(id);
+    const normalizedUpdateBusDto = this.normalizeUpdateDto(updateBusDto, existingBus);
 
     try {
-      return await this.prismaService.bus.update({
+      const updatedBus = await this.prismaService.bus.update({
         where: { id },
-        data: updateBusDto,
+        data: normalizedUpdateBusDto,
       });
+
+      const classChanged =
+        normalizedUpdateBusDto.busClass !== undefined &&
+        normalizedUpdateBusDto.busClass !== existingBus.busClass;
+      const capacityChanged =
+        normalizedUpdateBusDto.seatCapacity !== undefined &&
+        normalizedUpdateBusDto.seatCapacity !== existingBus.seatCapacity;
+
+      if (classChanged || capacityChanged) {
+        await this.seatsService.createForBus(id, { forceRegenerate: true });
+      }
+
+      return updatedBus;
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -88,5 +110,21 @@ export class BusesService {
       }
       throw error;
     }
+  }
+
+  private normalizeCreateDto(createBusDto: CreateBusDto): CreateBusDto {
+    if (createBusDto.busClass === BusClass.BUSINESS) {
+      return { ...createBusDto, seatCapacity: 28 };
+    }
+    return createBusDto;
+  }
+
+  private normalizeUpdateDto(updateBusDto: UpdateBusDto, existingBus: Bus): UpdateBusDto {
+    const nextBusClass = updateBusDto.busClass ?? existingBus.busClass;
+    if (nextBusClass === BusClass.BUSINESS) {
+      return { ...updateBusDto, seatCapacity: 28 };
+    }
+
+    return updateBusDto;
   }
 }

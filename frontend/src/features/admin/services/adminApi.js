@@ -83,9 +83,33 @@ export function deleteAdminBus(id) {
   });
 }
 
-export function generateBusSeats(id, columnsPerRow = 4) {
+export function generateBusSeats(id, columnsPerRow = 4, forceRegenerate = false) {
   return apiFetch(endpoints.admin.createSeats(id), {
     method: 'POST',
-    body: JSON.stringify({ columnsPerRow }),
+    body: JSON.stringify({ columnsPerRow, forceRegenerate }),
+  });
+}
+
+export function getAdminRoutes() {
+  return apiFetch(endpoints.routes.list).then((res) => res.items ?? res);
+}
+
+export function createAdminRoute(payload) {
+  return apiFetch(endpoints.routes.list, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminRoute(id, payload) {
+  return apiFetch(endpoints.admin.updateRoute(id), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAdminRoute(id) {
+  return apiFetch(endpoints.admin.deleteRoute(id), {
+    method: 'DELETE',
   });
 }

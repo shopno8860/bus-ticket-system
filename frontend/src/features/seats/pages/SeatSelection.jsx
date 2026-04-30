@@ -56,6 +56,84 @@ const SeatSelection = () => {
   };
 
   const totalPrice = selectedSeats.length * PRICE_PER_SEAT;
+  const busClass = tripData?.bus?.busClass ?? "ECONOMY";
+  const busType = tripData?.bus?.busType ?? "NON_AC";
+  const seatsByRow = useMemo(() => {
+    const grouped = new Map();
+    allSeats.forEach((seat) => {
+      const row = Number(seat.rowNumber ?? 1);
+      if (!grouped.has(row)) {
+        grouped.set(row, []);
+      }
+      grouped.get(row).push(seat);
+    });
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([rowNumber, seats]) => ({
+        rowNumber,
+        seats: seats.sort((a, b) => Number(a.columnNumber) - Number(b.columnNumber)),
+      }));
+  }, [allSeats]);
+  const businessRows = useMemo(() => {
+    if (busClass !== "BUSINESS" || busType === "SLEEPER") {
+      return [];
+    }
+
+    const sortedSeats = [...allSeats].sort((a, b) => {
+      const byRow = Number(a.rowNumber ?? 0) - Number(b.rowNumber ?? 0);
+      if (byRow !== 0) return byRow;
+      return Number(a.columnNumber ?? 0) - Number(b.columnNumber ?? 0);
+    });
+
+    const rows = [];
+    let cursor = 0;
+
+    for (let row = 0; row < 8 && cursor < sortedSeats.length; row += 1) {
+      rows.push({
+        rowNumber: row + 1,
+        seats: sortedSeats.slice(cursor, cursor + 3),
+      });
+      cursor += 3;
+    }
+
+    if (cursor < sortedSeats.length) {
+      rows.push({
+        rowNumber: 9,
+        seats: sortedSeats.slice(cursor, cursor + 4),
+      });
+    }
+
+    return rows;
+  }, [allSeats, busClass, busType]);
+  const sleeperDeckRows = useMemo(() => {
+    if (busType !== "SLEEPER") {
+      return { upperRows: [], lowerRows: [] };
+    }
+
+    const upperSeats = allSeats.filter((seat) =>
+      String(seat.seatNumber || "").startsWith("U")
+    );
+    const lowerSeats = allSeats.filter((seat) =>
+      String(seat.seatNumber || "").startsWith("L")
+    );
+
+    const toRows = (seats) => {
+      const rows = [];
+      for (let i = 0; i < seats.length; i += 2) {
+        rows.push(seats.slice(i, i + 2));
+      }
+      return rows;
+    };
+
+    return {
+      upperRows: toRows(
+        upperSeats.sort((a, b) => String(a.seatNumber).localeCompare(String(b.seatNumber)))
+      ),
+      lowerRows: toRows(
+        lowerSeats.sort((a, b) => String(a.seatNumber).localeCompare(String(b.seatNumber)))
+      ),
+    };
+  }, [allSeats, busType]);
 
   const handleContinue = async () => {
     if (selectedSeats.length === 0) return;
@@ -112,9 +190,6 @@ const SeatSelection = () => {
     );
   }
 
-  // Group seats by row for the grid
-  const rowCount = Math.ceil(allSeats.length / 4);
-
   return (
     <div className="min-h-screen bg-gray-50 md:flex md:items-center md:justify-center p-0 md:p-4">
       {/* Container: Centered max-w-xl */}
@@ -152,7 +227,7 @@ const SeatSelection = () => {
             </div>
           </div>
 
-          {/* Seat Grid: 5 columns (2-1-2) */}
+          {/* Seat Grid: 5 columns with class-based split */}
           <div className="bg-gray-50/50 p-4 rounded-3xl border border-gray-100 w-full max-w-[300px]">
             {/* Steering area indicator */}
             <div className="flex justify-end mb-6 pr-2">
@@ -161,46 +236,82 @@ const SeatSelection = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-2 items-center justify-center">
-              {Array.from({ length: rowCount }).map((_, rowIndex) => {
-                const rowSeats = allSeats.slice(
-                  rowIndex * 4,
-                  (rowIndex + 1) * 4,
-                );
-                return (
-                  <React.Fragment key={rowIndex}>
-                    {/* Left 2 Seats */}
-                    <div className="col-span-2 flex gap-2 justify-end">
-                      {rowSeats.slice(0, 2).map((seat) => (
-                        <SeatButton
-                          key={seat.id}
-                          seat={seat}
-                          isSelected={selectedSeats.includes(seat.id)}
-                          onClick={() => handleSeatClick(seat)}
-                        />
-                      ))}
-                    </div>
+            {busType === "SLEEPER" ? (
+              <div className="space-y-4">
+                <SleeperDeck
+                  title="Upper Deck"
+                  rows={sleeperDeckRows.upperRows}
+                  selectedSeats={selectedSeats}
+                  onSeatClick={handleSeatClick}
+                />
+                <SleeperDeck
+                  title="Lower Deck"
+                  rows={sleeperDeckRows.lowerRows}
+                  selectedSeats={selectedSeats}
+                  onSeatClick={handleSeatClick}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-y-4">
+                {(busClass === "BUSINESS" ? businessRows : seatsByRow).map(({ rowNumber, seats: rowSeats }, rowIndex) => {
+                  const isLastBusinessRow =
+                    busClass === "BUSINESS" &&
+                    rowIndex === (busClass === "BUSINESS" ? businessRows.length : seatsByRow.length) - 1;
+                  const leftSeatCount = isLastBusinessRow ? 2 : busClass === "BUSINESS" ? 1 : 2;
 
-                    {/* Aisle */}
-                    <div className="col-span-1 text-center text-[10px] font-bold text-gray-300">
-                      {String.fromCharCode(65 + rowIndex)}
-                    </div>
+                  if (busClass === "BUSINESS") {
+                    return (
+                      <div key={rowNumber} className="flex justify-center gap-x-6 gap-y-4">
+                        <div className="inline-flex items-center justify-center gap-2">
+                          {rowSeats.slice(0, leftSeatCount).map((seat) => (
+                            <SeatButton
+                              key={seat.id}
+                              seat={seat}
+                              isSelected={selectedSeats.includes(seat.id)}
+                              onClick={() => handleSeatClick(seat)}
+                            />
+                          ))}
+                          {!isLastBusinessRow ? <div className="w-8" /> : null}
+                          {rowSeats.slice(leftSeatCount).map((seat) => (
+                            <SeatButton
+                              key={seat.id}
+                              seat={seat}
+                              isSelected={selectedSeats.includes(seat.id)}
+                              onClick={() => handleSeatClick(seat)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
 
-                    {/* Right 2 Seats */}
-                    <div className="col-span-2 flex gap-2 justify-start">
-                      {rowSeats.slice(2, 4).map((seat) => (
-                        <SeatButton
-                          key={seat.id}
-                          seat={seat}
-                          isSelected={selectedSeats.includes(seat.id)}
-                          onClick={() => handleSeatClick(seat)}
-                        />
-                      ))}
+                  return (
+                    <div key={rowNumber} className="flex justify-center gap-x-6 gap-y-4">
+                      <div className="inline-flex items-center gap-2">
+                        {rowSeats.slice(0, leftSeatCount).map((seat) => (
+                          <SeatButton
+                            key={seat.id}
+                            seat={seat}
+                            isSelected={selectedSeats.includes(seat.id)}
+                            onClick={() => handleSeatClick(seat)}
+                          />
+                        ))}
+                      </div>
+                      <div className="inline-flex items-center gap-2">
+                        {rowSeats.slice(leftSeatCount).map((seat) => (
+                          <SeatButton
+                            key={seat.id}
+                            seat={seat}
+                            isSelected={selectedSeats.includes(seat.id)}
+                            onClick={() => handleSeatClick(seat)}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -273,6 +384,30 @@ const SeatButton = ({ seat, isSelected, onClick }) => {
     >
       {seatNumber}
     </button>
+  );
+};
+
+const SleeperDeck = ({ title, rows, selectedSeats, onSeatClick }) => {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-2.5">
+      <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-wide text-gray-400">
+        {title}
+      </p>
+      <div className="space-y-2">
+        {rows.map((rowSeats, rowIndex) => (
+          <div key={`${title}-${rowIndex}`} className="flex items-center justify-center gap-2">
+            {rowSeats.map((seat) => (
+              <SeatButton
+                key={seat.id}
+                seat={seat}
+                isSelected={selectedSeats.includes(seat.id)}
+                onClick={() => onSeatClick(seat)}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 

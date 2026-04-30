@@ -15,6 +15,8 @@ export const endpoints = {
   },
   routes: {
     list: '/routes',
+    update: (id) => `/routes/${id}`,
+    delete: (id) => `/routes/${id}`,
   },
   trips: {
     search: '/trips',

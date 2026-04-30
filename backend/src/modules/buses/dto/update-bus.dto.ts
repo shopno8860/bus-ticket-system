@@ -1,4 +1,4 @@
-import { BusStatus, BusType } from '@prisma/client';
+import { BusClass, BusStatus, BusType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
@@ -24,6 +24,10 @@ export class UpdateBusDto {
   @IsOptional()
   @IsEnum(BusType)
   busType?: BusType;
+
+  @IsOptional()
+  @IsEnum(BusClass)
+  busClass?: BusClass;
 
   @IsOptional()
   @IsEnum(BusStatus)

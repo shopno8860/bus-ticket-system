@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { BusClass, Prisma, PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 
 const connectionString = process.env.DATABASE_URL;
@@ -30,8 +30,9 @@ async function main() {
         name: "Green Line",
         operatorName: "Green Line",
         registrationNumber: "BUS-101",
-        seatCapacity: 40,
-        busType: "AC"
+        seatCapacity: 28,
+        busType: "AC",
+        busClass: BusClass.BUSINESS,
       }
     }),
     prisma.bus.create({
@@ -40,7 +41,8 @@ async function main() {
         operatorName: "Hanif Enterprise",
         registrationNumber: "BUS-102",
         seatCapacity: 36,
-        busType: "NON_AC"
+        busType: "NON_AC",
+        busClass: BusClass.ECONOMY,
       }
     })
   ]);
@@ -49,13 +51,14 @@ async function main() {
   // 💺 SEATS
   //////////////////////////////////////////////////////
   for (const bus of buses) {
-    const seats: any[] = [];
+    const seats: Prisma.SeatCreateManyInput[] = [];
+    const columnsPerRow = bus.busClass === BusClass.BUSINESS ? 3 : 4;
     for (let i = 1; i <= bus.seatCapacity; i++) {
       seats.push({
         busId: bus.id,
-        seatNumber: `S${i}`,
-        rowNumber: Math.ceil(i / 4),
-        columnNumber: (i % 4) || 4
+        seatNumber: `R${Math.ceil(i / columnsPerRow)}C${((i - 1) % columnsPerRow) + 1}`,
+        rowNumber: Math.ceil(i / columnsPerRow),
+        columnNumber: ((i - 1) % columnsPerRow) + 1,
       });
     }
     await prisma.seat.createMany({ data: seats });

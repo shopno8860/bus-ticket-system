@@ -1,4 +1,4 @@
-import { BusType } from '@prisma/client';
+import { BusClass, BusType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
 
@@ -22,4 +22,7 @@ export class CreateBusDto {
 
   @IsEnum(BusType)
   busType: BusType;
+
+  @IsEnum(BusClass)
+  busClass: BusClass;
 }
