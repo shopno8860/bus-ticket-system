@@ -6,6 +6,13 @@ import FilterSidebar from '../components/FilterSidebar';
 import TripSearchForm from '../components/TripSearchForm';
 
 function SearchResults() {
+  const toLocalIsoDate = (inputDate) => {
+    const year = inputDate.getFullYear();
+    const month = String(inputDate.getMonth() + 1).padStart(2, '0');
+    const day = String(inputDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const from = searchParams.get('from') || '';
@@ -34,6 +41,14 @@ function SearchResults() {
 
   // Sort State
   const [sortBy, setSortBy] = useState('cheapest'); // 'cheapest', 'expensive'
+
+  useEffect(() => {
+    setSearchData({
+      from,
+      to,
+      date,
+    });
+  }, [from, to, date]);
 
   useEffect(() => {
     const fetchTrips = async () => {
@@ -158,10 +173,78 @@ function SearchResults() {
     navigate(`/trips?${params.toString()}`);
   };
 
+  const dateStripDays = useMemo(() => {
+    const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 15; i += 1) {
+      const day = new Date(today);
+      day.setDate(today.getDate() + i);
+      days.push({
+        iso: toLocalIsoDate(day),
+        dayLabel: day.toLocaleDateString('en-US', { weekday: 'short' }),
+        dateLabel: day.toLocaleDateString('en-US', { day: 'numeric' }),
+        monthLabel: day.toLocaleDateString('en-US', { month: 'short' }),
+      });
+    }
+
+    return days;
+  }, []);
+
+  const activeDateIso = useMemo(() => {
+    if (searchData.date) {
+      const parsed = new Date(searchData.date);
+      if (!Number.isNaN(parsed.getTime())) {
+        return toLocalIsoDate(parsed);
+      }
+    }
+    return dateStripDays[0]?.iso ?? '';
+  }, [searchData.date, dateStripDays]);
+
+  const handleDateChipClick = (nextDateIso) => {
+    setSearchData((prev) => ({ ...prev, date: nextDateIso }));
+
+    const params = new URLSearchParams();
+    const nextFrom = from || searchData.from;
+    const nextTo = to || searchData.to;
+    if (nextFrom) params.set('from', nextFrom);
+    if (nextTo) params.set('to', nextTo);
+    params.set('date', nextDateIso);
+    navigate(`/trips?${params.toString()}`);
+  };
+
   return (
     <div className="min-h-screen bg-[#f9fafb] py-16 px-4 md:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {dateStripDays.map((item) => {
+              const isActive = item.iso === activeDateIso;
+              return (
+                <button
+                  key={item.iso}
+                  type="button"
+                  onClick={() => handleDateChipClick(item.iso)}
+                  className={`min-w-[86px] px-3 py-2 rounded-xl border text-center transition-all ${
+                    isActive
+                      ? 'bg-[#16a34a] text-white border-[#16a34a] shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-[#16a34a]/40 hover:text-[#16a34a]'
+                  }`}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wider">
+                    {item.dayLabel}
+                  </p>
+                  <p className="text-lg font-black leading-tight">{item.dateLabel}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide">
+                    {item.monthLabel}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <TripSearchForm
           from={searchData.from}
           to={searchData.to}
