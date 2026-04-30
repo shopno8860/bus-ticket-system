@@ -113,3 +113,28 @@ export function deleteAdminRoute(id) {
     method: 'DELETE',
   });
 }
+
+export function getAdminTrips() {
+  return apiFetch(endpoints.trips.search).then((res) => res.items ?? res);
+}
+
+export function createAdminTrip(payload) {
+  return apiFetch(endpoints.trips.search, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminTrip(id, payload) {
+  return apiFetch(endpoints.trips.details(id), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function cancelAdminTrip(id, reason) {
+  return apiFetch(`${endpoints.trips.details(id)}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
