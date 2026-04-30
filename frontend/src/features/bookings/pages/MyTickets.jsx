@@ -28,21 +28,34 @@ const MyTickets = () => {
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const data = await getMyBookings();
+      const response = await getMyBookings();
+      const data = Array.isArray(response) ? response : [];
 
-      // We want to show both confirmed and cancelled tickets, but filter past ones
-      const now = new Date();
+      // Hide tickets whose departure time has already passed.
+      // Keep entries with missing/invalid departureTime visible to avoid
+      // accidentally hiding fresh bookings due to parsing inconsistencies.
+      const now = Date.now();
       const relevantTickets = data.filter((ticket) => {
-        const departureDate = new Date(ticket.trip?.departureTime);
-        // Show if it's in the future OR if it was recently cancelled
-        return departureDate > now || ticket.status === "CANCELLED";
+        if (!ticket?.id) return false;
+        const rawDeparture = ticket?.trip?.departureTime;
+        if (!rawDeparture) return true;
+
+        const departureTime = new Date(rawDeparture).getTime();
+        if (Number.isNaN(departureTime)) return true;
+
+        return departureTime > now;
       });
 
       // Sort by date (nearest first)
-      relevantTickets.sort(
-        (a, b) =>
-          new Date(a.trip.departureTime) - new Date(b.trip.departureTime),
-      );
+      relevantTickets.sort((a, b) => {
+        const dateA = a?.trip?.departureTime
+          ? new Date(a.trip.departureTime).getTime()
+          : 0;
+        const dateB = b?.trip?.departureTime
+          ? new Date(b.trip.departureTime).getTime()
+          : 0;
+        return dateA - dateB;
+      });
 
       setTickets(relevantTickets);
     } catch (err) {

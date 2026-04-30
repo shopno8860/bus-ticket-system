@@ -1,6 +1,9 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
 import { PaymentStatus } from '@prisma/client';
 import type { Response } from 'express';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
+import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentsService } from './payments.service';
 
@@ -9,8 +12,12 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post()
-  async create(@Body() createPaymentDto: CreatePaymentDto): Promise<any> {
-    return this.paymentsService.create(createPaymentDto);
+  @UseGuards(AccessTokenGuard)
+  async create(
+    @Body() createPaymentDto: CreatePaymentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<any> {
+    return this.paymentsService.create(createPaymentDto, user.sub);
   }
 
   @Post('success')

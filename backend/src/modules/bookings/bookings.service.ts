@@ -11,9 +11,16 @@ import {
   BookingStatus,
   PaymentStatus,
   Prisma,
+  UserRole,
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import {
+  canCancelBooking,
+  getHoursBeforeDeparture,
+  getRefundPercentage,
+} from '../../common/policies/cancellation-policy';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -33,7 +40,10 @@ const paymentSafeSelect = {
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<{
     tripId: string;
@@ -131,11 +141,14 @@ export class BookingsService {
     }
   }
 
-  async confirmBooking(confirmBookingDto: ConfirmBookingDto): Promise<Booking> {
+  async confirmBooking(
+    confirmBookingDto: ConfirmBookingDto,
+    userId: string,
+  ): Promise<Booking> {
     const now = new Date();
-
-    return this.prismaService.$transaction(async (transactionClient) => {
-      console.log('Confirming booking for trip:', confirmBookingDto.tripId, 'seats:', confirmBookingDto.seatIds);
+    try {
+      return await this.prismaService.$transaction(async (transactionClient) => {
+        console.log('Confirming booking for trip:', confirmBookingDto.tripId, 'seats:', confirmBookingDto.seatIds);
 
       const trip = await transactionClient.trip.findUnique({
         where: { id: confirmBookingDto.tripId },
@@ -225,7 +238,7 @@ export class BookingsService {
       const booking = await transactionClient.booking.create({
         data: {
           bookingReference,
-          userId: confirmBookingDto.userId,
+          userId,
           tripId: confirmBookingDto.tripId,
           passengerName: confirmBookingDto.passengerName,
           passengerPhone: confirmBookingDto.passengerPhone,
@@ -256,11 +269,22 @@ export class BookingsService {
         );
       }
 
-      return booking;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        return booking;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Seat was just booked by another user. Please refresh and try again.',
+        );
+      }
+      throw error;
+    }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, requesterUserId: string, requesterRole: UserRole) {
     const booking = await this.prismaService.booking.findUnique({
       where: { id },
       include: {
@@ -285,6 +309,11 @@ export class BookingsService {
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
+    }
+    if (requesterRole !== UserRole.ADMIN && booking.userId !== requesterUserId) {
+      throw new ForbiddenException(
+        'You are not authorized to view this booking',
+      );
     }
 
     return booking;
@@ -398,23 +427,15 @@ export class BookingsService {
       }
 
       const departureTime = new Date(booking.trip.departureTime);
-      const diffInHours =
-        (departureTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const diffInHours = getHoursBeforeDeparture(now, departureTime);
 
-      if (diffInHours < 2) {
+      if (!canCancelBooking(diffInHours)) {
         throw new BadRequestException(
           'Cancellations are not allowed within 2 hours of departure',
         );
       }
 
-      let refundPercentage = 0;
-      if (diffInHours >= 24) {
-        refundPercentage = 0.9;
-      } else if (diffInHours >= 6) {
-        refundPercentage = 0.5;
-      } else if (diffInHours >= 2) {
-        refundPercentage = 0.25;
-      }
+      const refundPercentage = getRefundPercentage(diffInHours);
 
       const totalAmount = new Prisma.Decimal(booking.totalAmount);
       const refundAmount = totalAmount.mul(refundPercentage);
@@ -469,6 +490,14 @@ export class BookingsService {
         refundAmount: refundAmount.toNumber(),
         booking: updatedBooking,
       };
+    }).then(async (result) => {
+      await this.notificationsService.notifyBookingUpdate({
+        userId,
+        bookingId,
+        status: BookingStatus.CANCELLED,
+        message: 'Your booking has been cancelled successfully.',
+      });
+      return result;
     });
   }
 
@@ -505,6 +534,14 @@ export class BookingsService {
           cancelledBy: adminUserId,
         },
       });
+    }).then(async (cancelledBooking) => {
+      await this.notificationsService.notifyBookingUpdate({
+        userId: cancelledBooking.userId,
+        bookingId: cancelledBooking.id,
+        status: BookingStatus.CANCELLED,
+        message: 'Your booking was cancelled by admin.',
+      });
+      return cancelledBooking;
     });
   }
 

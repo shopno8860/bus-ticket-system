@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { Seat } from '@prisma/client';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Seat, UserRole } from '@prisma/client';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
 import { CreateSeatsForBusDto } from './dto/create-seats-for-bus.dto';
 import { SeatsService } from './seats.service';
 
@@ -8,6 +11,8 @@ export class SeatsController {
   constructor(private readonly seatsService: SeatsService) {}
 
   @Post()
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   async createForBus(
     @Param('busId') busId: string,
     @Body() createSeatsForBusDto: CreateSeatsForBusDto,

@@ -104,7 +104,6 @@ const BookingPage = () => {
         seatIds: selectedSeats, // These are the database UUIDs
         passengerName: name,
         passengerPhone: phone,
-        userId: user.id,
       };
 
       console.log("Sending payload:", payload);

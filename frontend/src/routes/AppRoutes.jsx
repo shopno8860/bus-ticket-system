@@ -72,9 +72,23 @@ function AppRoutes() {
       />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/failed" element={<PaymentFailed />} />
-      <Route path="/booking/:id" element={<TicketPage />} />
+      <Route
+        path="/booking/:id"
+        element={
+          <ProtectedRoute>
+            <TicketPage />
+          </ProtectedRoute>
+        }
+      />
 
-      <Route path="/admin/*" element={<AdminRoutes />} />
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminRoutes />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

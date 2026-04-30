@@ -8,15 +8,22 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, token } = useAuth();
+  const { login, token, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in
   useEffect(() => {
-    if (token) {
-      navigate('/');
+    if (!token || authLoading || !user) {
+      return;
     }
-  }, [token, navigate]);
+
+    if (user.role === 'ADMIN') {
+      navigate('/admin/dashboard');
+      return;
+    }
+
+    navigate('/');
+  }, [token, user, authLoading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

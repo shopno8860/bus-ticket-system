@@ -29,15 +29,21 @@ export class BookingsController {
   }
 
   @Patch('confirm')
+  @UseGuards(AccessTokenGuard)
   async confirmBooking(
     @Body() confirmBookingDto: ConfirmBookingDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<Booking> {
-    return this.bookingsService.confirmBooking(confirmBookingDto);
+    return this.bookingsService.confirmBooking(confirmBookingDto, user.sub);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<any> {
-    return this.bookingsService.findOne(id);
+  @UseGuards(AccessTokenGuard)
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<any> {
+    return this.bookingsService.findOne(id, user.sub, user.role);
   }
 
   @Patch(':id/cancel')

@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,14 +11,27 @@ import {
   Refund,
   RefundStatus,
 } from '@prisma/client';
+import {
+  canCancelBooking,
+  getHoursBeforeDeparture,
+  getRefundPercentage,
+} from '../../common/policies/cancellation-policy';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RequestRefundDto } from './dto/request-refund.dto';
+import { AdminRefundsFilterDto } from './dto/admin-refunds-filter.dto';
 
 @Injectable()
 export class RefundsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
-  async requestRefund(requestRefundDto: RequestRefundDto): Promise<Refund> {
+  async requestRefund(
+    requestRefundDto: RequestRefundDto,
+    requesterUserId: string,
+  ): Promise<Refund> {
     const now = new Date();
 
     return this.prismaService.$transaction(async (transactionClient) => {
@@ -47,6 +61,11 @@ export class RefundsService {
       if (!booking) {
         throw new NotFoundException('Booking not found');
       }
+      if (booking.userId !== requesterUserId) {
+        throw new ForbiddenException(
+          'You are not authorized to request a refund for this booking',
+        );
+      }
 
       if (booking.status !== BookingStatus.CONFIRMED) {
         throw new ConflictException(
@@ -58,6 +77,11 @@ export class RefundsService {
         now,
         booking.trip.departureTime,
       );
+      if (!canCancelBooking(getHoursBeforeDeparture(now, booking.trip.departureTime))) {
+        throw new ConflictException(
+          'Refund requests are not allowed within 2 hours of departure',
+        );
+      }
       const refundAmount = new Prisma.Decimal(booking.totalAmount).mul(
         refundPercentage,
       );
@@ -76,7 +100,17 @@ export class RefundsService {
       });
 
       return refund;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
+      async (refund) => {
+        await this.notificationsService.notifyRefundUpdate({
+          userId: requesterUserId,
+          refundId: refund.id,
+          status: refund.status,
+          message: 'Refund request created successfully.',
+        });
+        return refund;
+      },
+    );
   }
 
   async approve(
@@ -118,7 +152,17 @@ export class RefundsService {
           adminNote,
         },
       });
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
+      async (refund) => {
+        await this.notificationsService.notifyRefundUpdate({
+          userId: refund.userId,
+          refundId: refund.id,
+          status: refund.status,
+          message: 'Refund approved by admin.',
+        });
+        return refund;
+      },
+    );
   }
 
   async reject(
@@ -148,6 +192,59 @@ export class RefundsService {
           adminNote,
         },
       });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
+      async (refund) => {
+        await this.notificationsService.notifyRefundUpdate({
+          userId: refund.userId,
+          refundId: refund.id,
+          status: refund.status,
+          message: 'Refund rejected by admin.',
+        });
+        return refund;
+      },
+    );
+  }
+
+  async findAllAdmin(filters: AdminRefundsFilterDto) {
+    const where: {
+      status?: RefundStatus;
+      createdAt?: { gte: Date; lt: Date };
+    } = {};
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+    if (filters.date) {
+      const startOfDay = new Date(filters.date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+      where.createdAt = { gte: startOfDay, lt: endOfDay };
+    }
+
+    return this.prismaService.refund.findMany({
+      where,
+      include: {
+        booking: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            role: true,
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            transactionId: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -155,18 +252,6 @@ export class RefundsService {
     requestTime: Date,
     departureTime: Date,
   ): number {
-    const diffInHours =
-      (departureTime.getTime() - requestTime.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours >= 24) {
-      return 0.9;
-    }
-    if (diffInHours >= 12) {
-      return 0.7;
-    }
-    if (diffInHours >= 6) {
-      return 0.5;
-    }
-    return 0;
+    return getRefundPercentage(getHoursBeforeDeparture(requestTime, departureTime));
   }
 }

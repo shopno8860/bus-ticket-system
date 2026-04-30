@@ -39,7 +39,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('accessToken', accessToken);
     setToken(accessToken);
     setUser(userData);
-    
+
+    if (userData?.role === 'ADMIN') {
+      navigate('/admin/dashboard');
+      return;
+    }
+
     navigate('/');
   };
 

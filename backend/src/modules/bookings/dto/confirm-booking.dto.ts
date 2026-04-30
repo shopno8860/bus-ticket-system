@@ -9,10 +9,6 @@ import {
 export class ConfirmBookingDto {
   @IsString()
   @IsNotEmpty()
-  userId: string;
-
-  @IsString()
-  @IsNotEmpty()
   tripId: string;
 
   @IsString()

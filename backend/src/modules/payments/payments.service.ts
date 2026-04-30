@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   BookingSeatStatus,
@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AdminPaymentsFilterDto } from './dto/admin-payments-filter.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
@@ -31,6 +32,7 @@ export class PaymentsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -41,7 +43,10 @@ export class PaymentsService {
    * the existing payment record is returned immediately — no duplicate is created
    * and no error is thrown.
    */
-  async create(createPaymentDto: CreatePaymentDto): Promise<SafePayment & { paymentUrl: string }> {
+  async create(
+    createPaymentDto: CreatePaymentDto,
+    requesterUserId: string,
+  ): Promise<SafePayment & { paymentUrl: string }> {
     return this.prismaService.$transaction(async (tx) => {
       // ── 1. Validate the booking ───────────────────────────────────────────
       const booking = await tx.booking.findUnique({
@@ -51,6 +56,11 @@ export class PaymentsService {
 
       if (!booking) {
         throw new NotFoundException('Booking not found');
+      }
+      if (booking.userId !== requesterUserId) {
+        throw new ForbiddenException(
+          'You are not authorized to pay for this booking',
+        );
       }
 
       // ── 2. Idempotency check ──────────────────────────────────────────────
@@ -102,7 +112,17 @@ export class PaymentsService {
         ...payment,
         paymentUrl,
       };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
+      async (result) => {
+        await this.notificationsService.notifyBookingUpdate({
+          userId: requesterUserId,
+          bookingId: result.bookingId,
+          status: result.status,
+          message: 'Payment initiation created for your booking.',
+        });
+        return result;
+      },
+    );
   }
 
   /**
@@ -145,7 +165,17 @@ export class PaymentsService {
       });
 
       return updatedPayment;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
+      async (updatedPayment) => {
+        await this.notificationsService.notifyBookingUpdate({
+          userId: updatedPayment.userId,
+          bookingId: updatedPayment.bookingId,
+          status: updatedPayment.status,
+          message: 'Payment successful. Booking confirmed.',
+        });
+        return updatedPayment;
+      },
+    );
   }
 
   /**
@@ -187,7 +217,17 @@ export class PaymentsService {
       });
 
       return updatedPayment;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(
+      async (updatedPayment) => {
+        await this.notificationsService.notifyBookingUpdate({
+          userId: updatedPayment.userId,
+          bookingId: updatedPayment.bookingId,
+          status: updatedPayment.status,
+          message: 'Payment failed/cancelled and booking was cancelled.',
+        });
+        return updatedPayment;
+      },
+    );
   }
 
   /**

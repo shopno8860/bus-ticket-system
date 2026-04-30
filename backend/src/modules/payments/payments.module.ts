@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../../prisma/prisma.module';
-import { PaymentsAdminController } from './payments.admin.controller';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [PaymentsController, PaymentsAdminController],
+  imports: [PrismaModule, NotificationsModule],
+  controllers: [PaymentsController],
   providers: [PaymentsService, RolesGuard],
   exports: [PaymentsService],
 })

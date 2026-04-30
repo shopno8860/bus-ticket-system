@@ -20,7 +20,7 @@ export function getBookingDetails(id) {
 }
 
 export function getMyBookings() {
-  return apiFetch(endpoints.bookings.my);
+  return apiFetch(endpoints.bookings.my).then((res) => res.items ?? res);
 }
 
 export function cancelBooking(id) {

@@ -5,8 +5,12 @@ import {
   Param,
   Post,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
-import { Bus } from '@prisma/client';
+import { Bus, UserRole } from '@prisma/client';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
 import { BusesService } from './buses.service';
 import { CreateBusDto } from './dto/create-bus.dto';
 
@@ -15,6 +19,8 @@ export class BusesController {
   constructor(private readonly busesService: BusesService) {}
 
   @Post()
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   async create(@Body() createBusDto: CreateBusDto): Promise<Bus> {
     return this.busesService.create(createBusDto);
   }
