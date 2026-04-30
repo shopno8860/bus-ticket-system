@@ -402,6 +402,28 @@ export class BookingsService {
             bus: true,
           },
         },
+        bookingSeats: {
+          include: {
+            seat: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: paymentSafeSelect,
+        },
+        refunds: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            reason: true,
+            createdAt: true,
+            processedAt: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
