@@ -76,6 +76,14 @@ const PaymentSuccess = () => {
   const seatNumbers = booking.bookingSeats
     .map(bs => bs.seat.seatNumber)
     .join(', ');
+  const seatCount = booking.bookingSeats?.length ?? 0;
+  const seatPrice = Number(trip?.price ?? 0);
+  const busType = trip?.bus?.busType;
+  const platformFeePerSeat = busType === 'AC' ? 70 : 40;
+  const insurancePerSeat = 10;
+  const seatTotal = seatCount * seatPrice;
+  const platformFee = seatCount * platformFeePerSeat;
+  const insuranceFee = seatCount * insurancePerSeat;
 
   // ✅ UI
   return (
@@ -122,7 +130,22 @@ const PaymentSuccess = () => {
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-500">Amount</span>
+            <span className="text-gray-500">Seat Total ({seatCount} × ৳{seatPrice})</span>
+            <span>৳{seatTotal}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-500">Platform Fee ({seatCount} × ৳{platformFeePerSeat})</span>
+            <span>৳{platformFee}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-500">Insurance ({seatCount} × ৳{insurancePerSeat})</span>
+            <span>৳{insuranceFee}</span>
+          </div>
+
+          <div className="flex justify-between pt-2 border-t">
+            <span className="text-gray-500">Total Amount</span>
             <span className="font-bold">৳{totalAmount}</span>
           </div>
 

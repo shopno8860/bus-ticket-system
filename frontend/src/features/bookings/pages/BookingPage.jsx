@@ -6,7 +6,7 @@ import { useAuth } from "../../auth/context/AuthContext";
 const BookingPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   // Safety check
   if (!state) {
@@ -79,9 +79,10 @@ const BookingPage = () => {
 
   // Price Calculation
   const feePerSeat = busType === "AC" ? 70 : 40;
+  const insurancePerSeat = 10;
   const seatTotal = selectedSeats.length * seatPrice;
   const platformFee = selectedSeats.length * feePerSeat;
-  const insuranceFee = 10;
+  const insuranceFee = selectedSeats.length * insurancePerSeat;
   const total = seatTotal + platformFee + insuranceFee;
 
   // Booking handler
@@ -91,7 +92,7 @@ const BookingPage = () => {
       return;
     }
 
-    if (!user) {
+    if (!user || !token) {
       alert("Please login to continue");
       navigate("/auth/login");
       return;
@@ -122,6 +123,11 @@ const BookingPage = () => {
 
     } catch (err) {
       console.error("Booking error details:", err);
+      if (err.status === 401) {
+        alert("Your session expired. Please login again.");
+        navigate("/auth/login");
+        return;
+      }
       alert(err.message || "Booking failed. Please try again.");
     } finally {
       setLoading(false);
@@ -233,12 +239,12 @@ const BookingPage = () => {
               </div>
 
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Platform Fee</span>
+                <span className="text-gray-500">Platform Fee ({selectedSeats.length} × ৳{feePerSeat})</span>
                 <span className="font-semibold text-gray-800">৳{platformFee}</span>
               </div>
 
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Insurance Fee</span>
+                <span className="text-gray-500">Insurance Fee ({selectedSeats.length} × ৳{insurancePerSeat})</span>
                 <span className="font-semibold text-gray-800">৳{insuranceFee}</span>
               </div>
 

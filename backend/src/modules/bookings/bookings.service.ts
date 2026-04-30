@@ -9,6 +9,7 @@ import {
   Booking,
   BookingSeatStatus,
   BookingStatus,
+  BusType,
   PaymentStatus,
   Prisma,
   RefundStatus,
@@ -283,8 +284,10 @@ export class BookingsService {
           // Calculate total amount including platform fees and insurance (Per seat)
           const seatCount = requestedSeatIds.length;
           const seatTotal = new Prisma.Decimal(trip.price).mul(seatCount);
-          const serviceCharge = 50 * seatCount;
-          const insurance = 20 * seatCount;
+          const platformFeePerSeat =
+            trip.bus.busType === BusType.AC ? 70 : 40;
+          const serviceCharge = platformFeePerSeat * seatCount;
+          const insurance = 10 * seatCount;
           const totalAmount = seatTotal.add(serviceCharge).add(insurance);
 
           console.log(

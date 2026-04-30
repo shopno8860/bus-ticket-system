@@ -44,10 +44,17 @@ const Ticket = ({ booking, ticketRef }) => {
   // =======================
   // ✅ FARE
   // =======================
-  const basePrice = Number(booking?.totalAmount ?? 0);
-  const serviceCharge = Number(booking?.serviceCharge ?? 40);
-  const insurance = Number(booking?.insurance ?? 10);
-  const total = basePrice + serviceCharge + insurance;
+  const seatCount = booking?.bookingSeats?.length ?? 0;
+  const seatPrice = Number(booking?.trip?.price ?? 0);
+  const platformFeePerSeat = busType === "AC" ? 70 : 40;
+  const insurancePerSeat = 10;
+  const seatTotal = seatCount > 0 && seatPrice > 0
+    ? seatCount * seatPrice
+    : Number(booking?.totalAmount ?? 0);
+  const platformFee = seatCount * platformFeePerSeat;
+  const insuranceFee = seatCount * insurancePerSeat;
+  const fallbackTotal = seatTotal + platformFee + insuranceFee;
+  const totalPayable = Number(booking?.totalAmount ?? fallbackTotal);
 
   // =======================
   // ✅ DYNAMIC LOGO
@@ -178,26 +185,26 @@ const Ticket = ({ booking, ticketRef }) => {
           {/* RIGHT */}
           <div className="space-y-4">
             <div className="border bg-[#eff6ff] rounded-md p-4">
-              <p className="font-bold text-green-600 mb-2">FARE DETAILS</p>
+              <p className="font-bold text-green-600 mb-2">PRICE DETAILS</p>
 
               <div className="flex justify-between">
-                <span>Ticket Price</span>
-                <span>BDT {basePrice}</span>
+                <span>Seat Total ({seatCount} × ৳{seatPrice})</span>
+                <span>৳{seatTotal}</span>
               </div>
 
-              <div className="flex justify-between">
-                <span>+ Service Charge</span>
-                <span>BDT {serviceCharge}</span>
+              <div className="flex justify-between mt-1">
+                <span>Platform Fee ({seatCount} × ৳{platformFeePerSeat})</span>
+                <span>৳{platformFee}</span>
               </div>
 
-              <div className="flex justify-between">
-                <span>+ Insurance</span>
-                <span>BDT {insurance}</span>
+              <div className="flex justify-between mt-1">
+                <span>Insurance ({seatCount} × ৳{insurancePerSeat})</span>
+                <span>৳{insuranceFee}</span>
               </div>
 
               <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
-                <span>Total</span>
-                <span>BDT {total}</span>
+                <span>Total Payable</span>
+                <span>৳{totalPayable}</span>
               </div>
             </div>
 
