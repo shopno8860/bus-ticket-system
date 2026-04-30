@@ -73,6 +73,18 @@ export class RefundsService {
         );
       }
 
+      const existingRefund = await transactionClient.refund.findFirst({
+        where: {
+          bookingId: booking.id,
+          status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
+        },
+        select: { id: true },
+      });
+
+      if (existingRefund) {
+        throw new ConflictException('A refund request already exists for this booking');
+      }
+
       const refundPercentage = this.calculateRefundPercentage(
         now,
         booking.trip.departureTime,
@@ -87,11 +99,16 @@ export class RefundsService {
       );
 
       const latestSuccessfulPayment = booking.payments[0];
+      if (!latestSuccessfulPayment) {
+        throw new ConflictException(
+          'No successful payment found for this booking refund',
+        );
+      }
 
       const refund = await transactionClient.refund.create({
         data: {
           bookingId: booking.id,
-          paymentId: latestSuccessfulPayment?.id ?? null,
+          paymentId: latestSuccessfulPayment.id,
           userId: booking.userId,
           reason: requestRefundDto.reason,
           amount: refundAmount,
@@ -132,15 +149,31 @@ export class RefundsService {
       }
 
       if (refund.paymentId) {
-        await tx.payment.update({
+        const paymentUpdateResult = await tx.payment.updateMany({
           where: { id: refund.paymentId },
-          data: { status: PaymentStatus.REFUNDED },
+          data: {
+            status: PaymentStatus.REFUNDED,
+            refundAmount: refund.amount,
+            refundStatus: 'PROCESSED',
+          },
         });
+
+        if (paymentUpdateResult.count === 0) {
+          throw new ConflictException('Linked payment was not found for this refund');
+        }
       }
 
-      await tx.booking.update({
+      const bookingUpdateResult = await tx.booking.updateMany({
         where: { id: refund.bookingId },
         data: { status: BookingStatus.CANCELLED },
+      });
+
+      if (bookingUpdateResult.count === 0) {
+        throw new NotFoundException('Linked booking not found for this refund');
+      }
+
+      await tx.bookingSeat.deleteMany({
+        where: { bookingId: refund.bookingId },
       });
 
       return tx.refund.update({
@@ -182,6 +215,11 @@ export class RefundsService {
       if (refund.status !== RefundStatus.PENDING) {
         throw new ConflictException('Only pending refunds can be rejected');
       }
+
+      await tx.booking.update({
+        where: { id: refund.bookingId },
+        data: { status: BookingStatus.CANCELLED },
+      });
 
       return tx.refund.update({
         where: { id: refundId },

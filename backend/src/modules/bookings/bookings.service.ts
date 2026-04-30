@@ -11,6 +11,7 @@ import {
   BookingStatus,
   PaymentStatus,
   Prisma,
+  RefundStatus,
   UserRole,
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
@@ -341,6 +342,17 @@ export class BookingsService {
           take: 1,
           select: paymentSafeSelect,
         },
+        refunds: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            createdAt: true,
+            processedAt: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -426,6 +438,18 @@ export class BookingsService {
         throw new ConflictException('Only confirmed bookings can be cancelled');
       }
 
+      const existingRefundRequest = await tx.refund.findFirst({
+        where: {
+          bookingId,
+          status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
+        },
+        select: { id: true, status: true },
+      });
+
+      if (existingRefundRequest) {
+        throw new ConflictException('A refund request already exists for this booking');
+      }
+
       const departureTime = new Date(booking.trip.departureTime);
       const diffInHours = getHoursBeforeDeparture(now, departureTime);
 
@@ -439,6 +463,13 @@ export class BookingsService {
 
       const totalAmount = new Prisma.Decimal(booking.totalAmount);
       const refundAmount = totalAmount.mul(refundPercentage);
+      const latestSuccessfulPayment = booking.payments[0];
+
+      if (!latestSuccessfulPayment) {
+        throw new ConflictException(
+          'No successful payment found for this booking refund',
+        );
+      }
 
       // Update Booking
       const updatedBooking = await tx.booking.update({
@@ -468,26 +499,29 @@ export class BookingsService {
         },
       });
 
-      // Update Payment
-      if (booking.payments.length > 0) {
-        await tx.payment.update({
-          where: { id: booking.payments[0].id },
-          data: {
-            refundAmount: refundAmount,
-            refundStatus: 'PROCESSED',
-            status: PaymentStatus.REFUNDED,
-          },
-        });
-      }
-
       // Delete bookingSeats to free them
       await tx.bookingSeat.deleteMany({
         where: { bookingId: bookingId },
       });
 
+      const createdRefundRequest = await tx.refund.create({
+        data: {
+          bookingId: booking.id,
+          paymentId: latestSuccessfulPayment.id,
+          userId: booking.userId,
+          reason: 'Cancelled by user',
+          amount: refundAmount,
+          status: RefundStatus.PENDING,
+        },
+      });
+
       return {
-        message: 'Booking cancelled successfully',
+        message: 'Booking cancelled and refund request sent to admin',
         refundAmount: refundAmount.toNumber(),
+        refundRequest: {
+          id: createdRefundRequest.id,
+          status: createdRefundRequest.status,
+        },
         booking: updatedBooking,
       };
     }).then(async (result) => {

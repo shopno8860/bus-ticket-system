@@ -68,6 +68,21 @@ const MyTickets = () => {
 
   useEffect(() => {
     fetchTickets();
+
+    const refreshInterval = setInterval(() => {
+      fetchTickets();
+    }, 15000);
+
+    const handleWindowFocus = () => {
+      fetchTickets();
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      clearInterval(refreshInterval);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
   }, []);
 
   const formatDate = (dateString) => {
@@ -126,7 +141,9 @@ const MyTickets = () => {
     try {
       setCancelling(true);
       await cancelBooking(cancelModal.booking.id);
-      setSuccessMessage("Ticket cancelled successfully. Refund processed.");
+      setSuccessMessage(
+        "Ticket cancelled successfully. Refund request sent to admin for approval.",
+      );
       setCancelModal({ open: false, booking: null });
       fetchTickets(); // Refresh the list
 
@@ -231,6 +248,9 @@ const MyTickets = () => {
       <div className="grid gap-6">
         {tickets.map((ticket) => {
           const isCancelled = ticket.status === "CANCELLED";
+          const latestRefund = ticket.refunds?.[0];
+          const isRefundApproved = latestRefund?.status === "APPROVED";
+          const isRefundPending = latestRefund?.status === "PENDING";
           const canCancel =
             ticket.status === "CONFIRMED" &&
             (new Date(ticket.trip?.departureTime) - new Date()) /
@@ -351,9 +371,19 @@ const MyTickets = () => {
                 <div className="flex flex-row lg:flex-col justify-between items-center lg:items-end gap-4 border-t lg:border-t-0 lg:border-l border-slate-50 pt-6 lg:pt-0 lg:pl-8 min-w-[140px]">
                   <div className="text-right">
                     {isCancelled ? (
-                      <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold">
-                        Refunded: {ticket.refundAmount || 0} BDT
-                      </div>
+                      isRefundApproved ? (
+                        <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold">
+                          Refunded: {latestRefund?.amount || ticket.refundAmount || 0} BDT
+                        </div>
+                      ) : isRefundPending ? (
+                        <div className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+                          Refund: Pending admin approval
+                        </div>
+                      ) : (
+                        <div className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">
+                          Refund: {latestRefund?.status || "Not requested"}
+                        </div>
+                      )
                     ) : (
                       <>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">

@@ -24,15 +24,12 @@ function RefundsPage() {
   }, []);
 
   const approve = async (id) => {
-    const note = prompt('Approve note (optional)') || '';
-    await approveAdminRefund(id, note);
+    await approveAdminRefund(id, '');
     await loadRefunds();
   };
 
   const reject = async (id) => {
-    const note = prompt('Reject reason/note');
-    if (!note) return;
-    await rejectAdminRefund(id, note);
+    await rejectAdminRefund(id, '');
     await loadRefunds();
   };
 
