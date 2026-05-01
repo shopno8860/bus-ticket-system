@@ -135,10 +135,43 @@ function TripCard({ trip }) {
 
               {showPolicyDetails && (
                 <div className="text-xs text-gray-600 font-medium leading-relaxed space-y-2">
-                  <p>Cancellation refund rules: 24h আগে 90%, 6h আগে 50%, 2h আগে 25%.</p>
-                  <p>Refund status final হয় admin approval-এর পর; approve না হওয়া পর্যন্ত pending থাকবে.</p>
-                  <p>Seat lock policy: selected seats সাধারণত 5 minutes hold থাকে payment/confirmation-এর আগে.</p>
-                  <p>Departure cutoff: departure time পার হয়ে গেলে booking/cancel applicable না.</p>
+                  <p className="text-sm font-bold text-gray-800">EasyTrip - Ticket Cancellation Policy</p>
+                  <p>
+                    <span className="font-semibold text-gray-800">1. Operator-Based Policy:</span>{' '}
+                    EasyTrip is a ticket booking platform. All cancellations and refunds are subject to the policies of
+                    the respective bus operator.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">2. Cancellation Time Limit:</span>{' '}
+                    Users may cancel tickets before the departure time. After departure, tickets cannot be canceled.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">3. Refund Rules:</span>{' '}
+                    Refund amount depends on the operator policy. Partial refund may apply depending on cancellation
+                    time: 24 hours before departure = 90%, 12 hours before departure = 50%, 6 hours before departure =
+                    25%. Some tickets may be non-refundable.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">4. Processing Time:</span>{' '}
+                    Refunds are processed within 3-7 working days after approval.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">5. Service Charge:</span>{' '}
+                    EasyTrip may deduct a small service charge during cancellation.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">6. No-Show Policy:</span>{' '}
+                    If a passenger does not arrive on time, the ticket may be treated as canceled without refund.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">7. Cancellation Method:</span>{' '}
+                    Users can cancel tickets from the "My Tickets" section.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">8. Exceptions:</span>{' '}
+                    In case of trip cancellation by operator, users may receive full or partial refund based on operator
+                    decision.
+                  </p>
                 </div>
               )}
             </div>

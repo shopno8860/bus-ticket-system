@@ -15,6 +15,17 @@ import { getMyBookings, cancelBooking } from "../services/bookingApi";
 import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
 
 const MyTickets = () => {
+  const cancellationPolicyItems = [
+    'EasyTrip is a booking platform. Cancellations and refunds depend on each bus operator policy.',
+    'Tickets can be cancelled only before departure. After departure, cancellation is not allowed.',
+    'Refund rules may vary by operator. Some tickets may be non-refundable.',
+    'Refund preview guideline: 24+ hours = 90%, 12+ hours = 50%, 6+ hours = 25%.',
+    'Refund is usually processed within 3-7 working days after approval.',
+    'A small service charge may be deducted during cancellation.',
+    'No-show passengers may be treated as cancelled without refund.',
+    'If operator cancels a trip, full or partial refund may apply as per operator decision.',
+  ];
+
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -438,6 +449,17 @@ const MyTickets = () => {
                 {formatDate(cancelModal.booking?.trip?.departureTime)}{" "}
                 {formatTime(cancelModal.booking?.trip?.departureTime)})
               </p>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+              <h4 className="text-sm font-black text-slate-800 mb-2">
+                EasyTrip Ticket Cancellation Policy
+              </h4>
+              <ul className="space-y-1.5 text-xs text-slate-600 list-disc pl-4 leading-relaxed">
+                {cancellationPolicyItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </div>
 
             <div className="modal-action">

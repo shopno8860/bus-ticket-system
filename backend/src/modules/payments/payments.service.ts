@@ -452,12 +452,22 @@ export class PaymentsService {
     return this.prismaService.payment.findMany({
       where,
       include: {
-        booking: true,
+        booking: {
+          include: {
+            trip: {
+              include: {
+                route: true,
+                bus: true,
+              },
+            },
+          },
+        },
         user: {
           select: {
             id: true,
             fullName: true,
             email: true,
+            phoneNumber: true,
             role: true,
           },
         },
