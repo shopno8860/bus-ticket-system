@@ -237,8 +237,8 @@ export class UsersService {
     >`SELECT COALESCE(SUM(
         COALESCE(bs.seat_count, 0) *
         CASE
-          WHEN bus."busType" = 'AC' THEN ${PLATFORM_FEE_PER_SEAT_AC}
-          ELSE ${PLATFORM_FEE_PER_SEAT_NON_AC}
+          WHEN bus."busType" = 'AC' THEN ${PLATFORM_FEE_PER_SEAT_AC}::int
+          ELSE ${PLATFORM_FEE_PER_SEAT_NON_AC}::int
         END
       ), 0)::numeric AS total
       FROM "Booking" b
@@ -316,8 +316,8 @@ export class UsersService {
        SUM(
          COALESCE(bs.seat_count, 0) *
          CASE
-           WHEN bus."busType" = 'AC' THEN ${PLATFORM_FEE_PER_SEAT_AC}
-           ELSE ${PLATFORM_FEE_PER_SEAT_NON_AC}
+           WHEN bus."busType" = 'AC' THEN ${PLATFORM_FEE_PER_SEAT_AC}::int
+           ELSE ${PLATFORM_FEE_PER_SEAT_NON_AC}::int
          END
        )::numeric AS total
        FROM successful_bookings sb
