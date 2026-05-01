@@ -5,11 +5,15 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
+  const corsOrigins = [
+    'http://localhost:5173',
+    'https://bus-ticket-system-beta.vercel.app',
+    ...(frontendUrl ? [frontendUrl] : []),
+  ];
+
   app.enableCors({
-    origin: [
-      'http://localhost:5173', // local frontend
-      'https://bus-ticket-system-beta.vercel.app/', // deployed frontend
-    ],
+    origin: corsOrigins,
     credentials: true,
   });
 

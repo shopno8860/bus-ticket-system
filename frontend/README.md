@@ -24,7 +24,8 @@ VITE_API_BASE_URL=http://localhost:3000
 ```
 
 - `VITE_API_BASE_URL`: Backend API base URL used by frontend API calls.
-- If not set, app falls back to `http://localhost:3000`.
+- In development, if not set, app falls back to `http://localhost:3000`.
+- In production, always set `VITE_API_BASE_URL` (for example your deployed backend URL).
 
 ## Installation
 
