@@ -1,10 +1,21 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { type UserResponse, UsersService } from './users.service';
@@ -34,6 +45,23 @@ export class UsersController {
     @Body() updateProfileDto: UpdateProfileDto,
   ): Promise<UserResponse> {
     return this.usersService.updateProfile(currentUser.sub, updateProfileDto);
+  }
+
+  @Patch('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    return this.usersService.changePassword(currentUser.sub, changePasswordDto);
+  }
+
+  @Delete('delete-account')
+  @HttpCode(HttpStatus.OK)
+  async deleteAccount(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<{ message: string }> {
+    return this.usersService.deleteAccount(currentUser.sub);
   }
 
   @Patch(':id/role')

@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { updateProfile } from '../services/userApi';
 import { showError, showSuccess } from '../../../utils/toastHelper';
+import Modal from '../../../components/Modal';
+import { useChangePassword } from '../hooks/useChangePassword';
+import { useDeleteAccount } from '../hooks/useDeleteAccount';
 
 const ProfileField = ({ label, value }) => (
   <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 transition-all hover:shadow-md">
@@ -95,7 +99,8 @@ const buildProfileData = (user, fallback) => ({
 });
 
 const ProfilePage = () => {
-  const { user, logout, updateUserProfile } = useAuth();
+  const { user, token, logout, updateUserProfile, clearAuthState } = useAuth();
+  const navigate = useNavigate();
 
   const fallbackUser = {
     name: 'Rakesh Al Yadin',
@@ -111,10 +116,40 @@ const ProfilePage = () => {
 
   const [profileData, setProfileData] = useState(() => buildProfileData(user, fallbackUser));
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [formData, setFormData] = useState(profileData);
   const [formErrors, setFormErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleUnauthorized = () => {
+    showError('Session expired. Please login again.');
+    logout();
+  };
+
+  const {
+    formData: passwordForm,
+    errors: passwordErrors,
+    isLoading: isChangingPassword,
+    handleChange: handlePasswordFieldChange,
+    submit: submitPasswordChange,
+    reset: resetPasswordForm,
+  } = useChangePassword({
+    onUnauthorized: handleUnauthorized,
+  });
+
+  const {
+    confirmationInput,
+    setConfirmationInput,
+    canConfirm,
+    isLoading: isDeletingAccount,
+    submit: submitDeleteAccount,
+    reset: resetDeleteAccount,
+    confirmationText,
+  } = useDeleteAccount({
+    onUnauthorized: handleUnauthorized,
+  });
 
   useEffect(() => {
     setProfileData(buildProfileData(user, fallbackUser));
@@ -138,6 +173,28 @@ const ProfilePage = () => {
     setIsModalOpen(false);
     setFormErrors({});
     setSubmitError('');
+  };
+
+  const openPasswordModal = () => {
+    resetPasswordForm();
+    setIsPasswordModalOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    if (isChangingPassword) return;
+    setIsPasswordModalOpen(false);
+    resetPasswordForm();
+  };
+
+  const openDeleteModal = () => {
+    resetDeleteAccount();
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeletingAccount) return;
+    setIsDeleteModalOpen(false);
+    resetDeleteAccount();
   };
 
   const handleInputChange = (event) => {
@@ -215,6 +272,52 @@ const ProfilePage = () => {
     }
   };
 
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    if (!token) {
+      handleUnauthorized();
+      return;
+    }
+
+    const result = await submitPasswordChange();
+    if (result.success) {
+      showSuccess('Password updated successfully');
+      closePasswordModal();
+      logout();
+      return;
+    }
+
+    if (result.code === 'UNAUTHORIZED') return;
+    if (result.code === 'INVALID_CURRENT_PASSWORD') {
+      showError('Current password is incorrect');
+      return;
+    }
+    if (result.code !== 'VALIDATION_FAILED') {
+      showError(result?.error?.message || 'Failed to update password. Please try again.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!token) {
+      handleUnauthorized();
+      return;
+    }
+
+    const result = await submitDeleteAccount();
+    if (result.success) {
+      showSuccess('Account deleted successfully');
+      clearAuthState();
+      closeDeleteModal();
+      navigate('/', { replace: true });
+      return;
+    }
+
+    if (result.code === 'UNAUTHORIZED') return;
+    if (result.code !== 'INVALID_CONFIRMATION') {
+      showError(result?.error?.message || 'Failed to delete account. Please try again.');
+    }
+  };
+
   const menuItems = [
     { id: 'profile', label: 'My Profile', icon: '👤', active: true },
     { id: 'password', label: 'Change Password', icon: '🔒' },
@@ -241,11 +344,15 @@ const ProfilePage = () => {
                 <ul className="space-y-2">
                   {menuItems.map((item) => (
                     <li key={item.id}>
-                      <button className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
-                        item.active 
-                          ? 'bg-[#16a34a] text-white shadow-lg shadow-[#16a34a]/20' 
-                          : `text-slate-600 hover:bg-slate-50 ${item.color || ''}`
-                      }`}>
+                      <button
+                        type="button"
+                        onClick={item.id === 'password' ? openPasswordModal : item.id === 'delete' ? openDeleteModal : undefined}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
+                          item.active
+                            ? 'bg-[#16a34a] text-white shadow-lg shadow-[#16a34a]/20'
+                            : `text-slate-600 hover:bg-slate-50 ${item.color || ''}`
+                        }`}
+                      >
                         <span className="text-xl">{item.icon}</span>
                         {item.label}
                       </button>
@@ -316,127 +423,234 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/45" onClick={closeModal}></div>
-          <div
-            className="relative bg-white w-full max-w-2xl rounded-[12px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
-            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black text-slate-800">Update Profile</h2>
-              <button
-                onClick={closeModal}
-                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-all"
-                disabled={isSaving}
-                aria-label="Close modal"
-              >
-                ✕
-              </button>
-            </div>
+      <Modal
+        isOpen={isModalOpen}
+        title="Update Profile"
+        subtitle="Update your personal details."
+        onClose={closeModal}
+        disableClose={isSaving}
+        maxWidthClass="max-w-2xl"
+        footer={
+          <div className="flex justify-end gap-4 pt-2">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-all"
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="update-profile-form"
+              disabled={isSaving}
+              className="px-6 py-2.5 rounded-xl text-white font-semibold transition-all hover:opacity-95 disabled:opacity-70 disabled:cursor-not-allowed min-w-[152px] flex items-center justify-center gap-2"
+              style={{ backgroundImage: 'linear-gradient(90deg, #0f2027, #203a43, #2c5364)' }}
+            >
+              {isSaving ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin"></span>
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+          </div>
+        }
+      >
+        <form id="update-profile-form" onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[65vh] overflow-y-auto pr-1">
+          <FormField
+            label="Name"
+            name="name"
+            value={formData.name}
+            onChange={handleInputChange}
+            error={formErrors.name}
+          />
+          <FormField
+            label="Email"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            disabled
+          />
+          <FormField
+            label="Phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handleInputChange}
+            error={formErrors.phone}
+          />
+          <FormField
+            label="Gender"
+            name="gender"
+            value={formData.gender}
+            onChange={handleInputChange}
+            as="select"
+            options={[
+              { value: 'MALE', label: 'Male' },
+              { value: 'FEMALE', label: 'Female' },
+              { value: 'OTHER', label: 'Other' },
+            ]}
+          />
+          <div className="md:col-span-2">
+            <FormField
+              label="Address"
+              name="address"
+              value={formData.address}
+              onChange={handleInputChange}
+              as="textarea"
+            />
+          </div>
+          <FormField
+            label="Date of Birth"
+            name="dob"
+            type="date"
+            value={formData.dob}
+            onChange={handleInputChange}
+            error={formErrors.dob}
+            max={maxDate}
+          />
+          <FormField
+            label="National ID"
+            name="nid"
+            value={formData.nid}
+            onChange={handleInputChange}
+          />
+          <FormField
+            label="Passport"
+            name="passport"
+            value={formData.passport}
+            onChange={handleInputChange}
+          />
+          <FormField
+            label="Visa"
+            name="visa"
+            value={formData.visa}
+            onChange={handleInputChange}
+          />
+          {submitError && <p className="md:col-span-2 text-sm text-red-600">{submitError}</p>}
+        </form>
+      </Modal>
 
-            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                label="Name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                error={formErrors.name}
-              />
-              <FormField
-                label="Email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                disabled
-              />
-              <FormField
-                label="Phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                error={formErrors.phone}
-              />
-              <FormField
-                label="Gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                as="select"
-                options={[
-                  { value: 'MALE', label: 'Male' },
-                  { value: 'FEMALE', label: 'Female' },
-                  { value: 'OTHER', label: 'Other' },
-                ]}
-              />
-              <div className="md:col-span-2">
-                <FormField
-                  label="Address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  as="textarea"
-                />
-              </div>
-              <FormField
-                label="Date of Birth"
-                name="dob"
-                type="date"
-                value={formData.dob}
-                onChange={handleInputChange}
-                error={formErrors.dob}
-                max={maxDate}
-              />
-              <FormField
-                label="National ID"
-                name="nid"
-                value={formData.nid}
-                onChange={handleInputChange}
-              />
-              <FormField
-                label="Passport"
-                name="passport"
-                value={formData.passport}
-                onChange={handleInputChange}
-              />
-              <FormField
-                label="Visa"
-                name="visa"
-                value={formData.visa}
-                onChange={handleInputChange}
-              />
+      <Modal
+        isOpen={isPasswordModalOpen}
+        title="Change Password"
+        subtitle="For your security, choose a strong and unique password."
+        onClose={closePasswordModal}
+        disableClose={isChangingPassword}
+        maxWidthClass="max-w-xl"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closePasswordModal}
+              disabled={isChangingPassword}
+              className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-all disabled:opacity-70"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="change-password-form"
+              disabled={isChangingPassword}
+              className="min-w-[168px] px-5 py-2.5 rounded-xl bg-[#0f172a] text-white font-semibold hover:bg-[#1e293b] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isChangingPassword ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin"></span>
+                  Updating...
+                </>
+              ) : (
+                'Update Password'
+              )}
+            </button>
+          </div>
+        }
+      >
+        <form id="change-password-form" onSubmit={handleChangePassword} className="space-y-4">
+          <FormField
+            label="Current Password"
+            name="currentPassword"
+            type="password"
+            value={passwordForm.currentPassword}
+            onChange={handlePasswordFieldChange}
+            error={passwordErrors.currentPassword}
+          />
+          <FormField
+            label="New Password"
+            name="newPassword"
+            type="password"
+            value={passwordForm.newPassword}
+            onChange={handlePasswordFieldChange}
+            error={passwordErrors.newPassword}
+          />
+          <FormField
+            label="Confirm New Password"
+            name="confirmPassword"
+            type="password"
+            value={passwordForm.confirmPassword}
+            onChange={handlePasswordFieldChange}
+            error={passwordErrors.confirmPassword}
+          />
+        </form>
+      </Modal>
 
-              {submitError && <p className="md:col-span-2 text-sm text-red-600">{submitError}</p>}
-
-              <div className="md:col-span-2 flex justify-end gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-all"
-                  disabled={isSaving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl text-white font-semibold transition-all hover:opacity-95 disabled:opacity-70 disabled:cursor-not-allowed min-w-[152px] flex items-center justify-center gap-2"
-                  style={{ backgroundImage: 'linear-gradient(90deg, #0f2027, #203a43, #2c5364)' }}
-                >
-                  {isSaving ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin"></span>
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isDeleteModalOpen}
+        title="Delete Account"
+        subtitle="This action is permanent."
+        onClose={closeDeleteModal}
+        disableClose={isDeletingAccount}
+        maxWidthClass="max-w-lg"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeDeleteModal}
+              disabled={isDeletingAccount}
+              className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-all disabled:opacity-70"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={!canConfirm || isDeletingAccount}
+              className="min-w-[168px] px-5 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isDeletingAccount ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin"></span>
+                  Deleting...
+                </>
+              ) : (
+                'Delete Account'
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            This action cannot be undone
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="delete-confirmation" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+              Type "{confirmationText}" to confirm
+            </label>
+            <input
+              id="delete-confirmation"
+              type="text"
+              value={confirmationInput}
+              onChange={(event) => setConfirmationInput(event.target.value)}
+              disabled={isDeletingAccount}
+              placeholder={confirmationText}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 disabled:bg-slate-100 disabled:text-slate-500"
+            />
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

@@ -75,12 +75,18 @@ export const AuthProvider = ({ children }) => {
     navigate('/auth/login', { replace: true });
   };
 
+  const clearAuthState = () => {
+    localStorage.removeItem('accessToken');
+    setToken(null);
+    setUser(null);
+  };
+
   const updateUserProfile = (nextUser) => {
     setUser(nextUser);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, register, loading, updateUserProfile }}>
+    <AuthContext.Provider value={{ user, token, login, logout, register, loading, updateUserProfile, clearAuthState }}>
       {children}
     </AuthContext.Provider>
   );

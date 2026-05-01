@@ -11,3 +11,16 @@ export function updateProfile(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function changePassword(payload) {
+  return apiFetch(endpoints.users.changePassword, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAccount() {
+  return apiFetch(endpoints.users.deleteAccount, {
+    method: 'DELETE',
+  });
+}

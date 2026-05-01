@@ -7,6 +7,8 @@ export const endpoints = {
   },
   users: {
     me: '/users/me',
+    changePassword: '/users/change-password',
+    deleteAccount: '/users/delete-account',
     adminStats: '/users/admin/stats',
   },
   buses: {

@@ -5,7 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { BookingStatus, Prisma, RefundStatus, UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -153,6 +155,61 @@ export class UsersService {
       select: userProfileSelect,
     });
     return updatedUser as unknown as UserResponse;
+  }
+
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        passwordHash: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const currentPasswordMatches = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.passwordHash,
+    );
+
+    if (!currentPasswordMatches) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, 10);
+
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: newPasswordHash,
+        refreshTokenHash: null,
+      },
+    });
+
+    return { message: 'Password updated successfully' };
+  }
+
+  async deleteAccount(userId: string): Promise<{ message: string }> {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.prismaService.user.delete({
+      where: { id: userId },
+    });
+
+    return { message: 'Account deleted successfully' };
   }
 
   async getDashboardStats(): Promise<DashboardStatsResponse> {
