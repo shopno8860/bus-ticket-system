@@ -92,6 +92,8 @@ function AppRoutes() {
       />
       <Route path="/payment/success" element={<><PageTitle title="Payment Success" /><PaymentSuccess /></>} />
       <Route path="/payment/failed" element={<><PageTitle title="Payment Failed" /><PaymentFailed /></>} />
+      <Route path="/payments/success" element={<><PageTitle title="Payment Success" /><PaymentSuccess /></>} />
+      <Route path="/payments/failed" element={<><PageTitle title="Payment Failed" /><PaymentFailed /></>} />
       <Route
         path="/booking/:id"
         element={
