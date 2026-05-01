@@ -213,13 +213,15 @@ export class UsersService {
   }
 
   async getDashboardStats(): Promise<DashboardStatsResponse> {
+    const PLATFORM_FEE_PER_SEAT_AC = 70;
+    const PLATFORM_FEE_PER_SEAT_NON_AC = 40;
+
     const [
       totalUsers,
       totalBuses,
       totalTrips,
       totalBookings,
       pendingRefunds,
-      paymentAggregate,
     ] = await Promise.all([
       this.prismaService.user.count(),
       this.prismaService.bus.count(),
@@ -228,11 +230,31 @@ export class UsersService {
       this.prismaService.refund.count({
         where: { status: RefundStatus.PENDING },
       }),
-      this.prismaService.payment.aggregate({
-        where: { status: { in: ['SUCCESS', 'REFUNDED'] } },
-        _sum: { amount: true },
-      }),
     ]);
+
+    const platformRevenueAggregate = await this.prismaService.$queryRaw<
+      Array<{ total: Prisma.Decimal | null }>
+    >`SELECT COALESCE(SUM(
+        COALESCE(bs.seat_count, 0) *
+        CASE
+          WHEN bus."busType" = 'AC' THEN ${PLATFORM_FEE_PER_SEAT_AC}
+          ELSE ${PLATFORM_FEE_PER_SEAT_NON_AC}
+        END
+      ), 0)::numeric AS total
+      FROM "Booking" b
+      JOIN "Trip" t ON t.id = b."tripId"
+      JOIN "Bus" bus ON bus.id = t."busId"
+      LEFT JOIN (
+        SELECT "bookingId", COUNT(*)::int AS seat_count
+        FROM "BookingSeat"
+        GROUP BY "bookingId"
+      ) bs ON bs."bookingId" = b.id
+      WHERE EXISTS (
+        SELECT 1
+        FROM "Payment" p
+        WHERE p."bookingId" = b.id
+          AND p.status IN ('SUCCESS', 'REFUNDED')
+      )`;
 
     const now = new Date();
     const dayKeys: string[] = [];
@@ -282,11 +304,32 @@ export class UsersService {
     const revenueCounts = new Map<string, number>();
     const revenueGroups = await this.prismaService.$queryRaw<
       Array<{ day: string; total: Prisma.Decimal | null }>
-    >`SELECT to_char("createdAt"::date, 'YYYY-MM-DD') AS day,
-       SUM(amount)::numeric AS total
-       FROM "Payment"
-       WHERE "createdAt" >= ${rangeStart}
-         AND status IN ('SUCCESS', 'REFUNDED')
+    >`WITH successful_bookings AS (
+        SELECT DISTINCT ON ("bookingId")
+          "bookingId",
+          "createdAt"
+        FROM "Payment"
+        WHERE status IN ('SUCCESS', 'REFUNDED')
+        ORDER BY "bookingId", "createdAt" ASC
+      )
+      SELECT to_char(sb."createdAt"::date, 'YYYY-MM-DD') AS day,
+       SUM(
+         COALESCE(bs.seat_count, 0) *
+         CASE
+           WHEN bus."busType" = 'AC' THEN ${PLATFORM_FEE_PER_SEAT_AC}
+           ELSE ${PLATFORM_FEE_PER_SEAT_NON_AC}
+         END
+       )::numeric AS total
+       FROM successful_bookings sb
+       JOIN "Booking" b ON b.id = sb."bookingId"
+       JOIN "Trip" t ON t.id = b."tripId"
+       JOIN "Bus" bus ON bus.id = t."busId"
+       LEFT JOIN (
+         SELECT "bookingId", COUNT(*)::int AS seat_count
+         FROM "BookingSeat"
+         GROUP BY "bookingId"
+       ) bs ON bs."bookingId" = b.id
+       WHERE sb."createdAt" >= ${rangeStart}
        GROUP BY day
        ORDER BY day ASC`;
     revenueGroups.forEach((row) => {
@@ -329,8 +372,8 @@ export class UsersService {
       totalBuses,
       totalTrips,
       totalBookings,
-      totalRevenue: paymentAggregate._sum.amount
-        ? paymentAggregate._sum.amount.toString()
+      totalRevenue: platformRevenueAggregate[0]?.total
+        ? platformRevenueAggregate[0].total.toString()
         : '0',
       pendingRefunds,
       bookingTrends: trendPoints.map(({ label, bookings }) => ({

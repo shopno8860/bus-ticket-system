@@ -58,7 +58,7 @@ export class BookingsService {
     lockExpiresAt: Date;
   }> {
     const now = new Date();
-    const lockExpiresAt = new Date(now.getTime() + 1 * 60 * 1000);
+    const lockExpiresAt = new Date(now.getTime() + 2 * 60 * 1000);
 
     try {
       return await this.prismaService.$transaction(
