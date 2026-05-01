@@ -33,6 +33,7 @@ import { CreateSeatsForBusDto } from '../seats/dto/create-seats-for-bus.dto';
 import { SeatsService } from '../seats/seats.service';
 import { CancelTripDto } from '../trips/dto/cancel-trip.dto';
 import { CreateTripDto } from '../trips/dto/create-trip.dto';
+import { AdminTripsFilterDto } from '../trips/dto/admin-trips-filter.dto';
 import { UpdateTripDto } from '../trips/dto/update-trip.dto';
 import { TripsService } from '../trips/trips.service';
 import { ChangeUserRoleDto } from '../users/dto/change-user-role.dto';
@@ -232,6 +233,11 @@ export class AdminController {
       payload: { reason: dto.reason },
     });
     return trip;
+  }
+
+  @Get('trips')
+  async getTrips(@Query() filters: AdminTripsFilterDto) {
+    return this.tripsService.findAllAdmin(filters);
   }
 
   @Post('buses')

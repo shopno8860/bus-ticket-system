@@ -114,8 +114,22 @@ export function deleteAdminRoute(id) {
   });
 }
 
-export function getAdminTrips() {
-  return apiFetch(endpoints.trips.search).then((res) => res.items ?? res);
+export function getAdminTrips(params = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      searchParams.set(key, String(value));
+    }
+  });
+  const queryString = searchParams.toString();
+  const url = queryString ? `${endpoints.admin.trips}?${queryString}` : endpoints.admin.trips;
+  return apiFetch(url).then((res) => ({
+    items: Array.isArray(res?.items) ? res.items : [],
+    total: Number(res?.total ?? 0),
+    page: Number(res?.page ?? 1),
+    limit: Number(res?.limit ?? 10),
+    totalPages: Number(res?.totalPages ?? 1),
+  }));
 }
 
 export function createAdminTrip(payload) {

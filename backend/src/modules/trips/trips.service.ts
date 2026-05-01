@@ -16,6 +16,7 @@ import {
   TripStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AdminTripsFilterDto } from './dto/admin-trips-filter.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { SearchTripsDto } from './dto/search-trips.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
@@ -23,6 +24,14 @@ import { UpdateTripDto } from './dto/update-trip.dto';
 @Injectable()
 export class TripsService {
   constructor(private readonly prismaService: PrismaService) {}
+
+  private parsePageNumber(value: string, fallback: number): number {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return fallback;
+    }
+    return parsed;
+  }
 
   private parseEnumList<T extends string>(
     rawValue: string | undefined,
@@ -232,6 +241,112 @@ export class TripsService {
       const availableSeats = Math.max(0, totalCapacity - reservedOrLocked);
       return { ...trip, availableSeats };
     });
+  }
+
+  async findAllAdmin(
+    filters: AdminTripsFilterDto,
+  ): Promise<{
+    items: Array<Trip & { availableSeats: number }>;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const now = new Date();
+    const page = this.parsePageNumber(filters.page ?? '1', 1);
+    const limit = Math.min(this.parsePageNumber(filters.limit ?? '10', 10), 100);
+    const skip = (page - 1) * limit;
+    const where: Prisma.TripWhereInput = {};
+
+    if (filters.route?.trim()) {
+      const routeText = filters.route.trim();
+      where.route = {
+        is: {
+          OR: [
+            { origin: { contains: routeText, mode: 'insensitive' } },
+            { destination: { contains: routeText, mode: 'insensitive' } },
+          ],
+        },
+      };
+    }
+
+    if (filters.departureDate) {
+      const startOfDay = this.parseLocalDate(filters.departureDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+      where.departureTime = {
+        gte: startOfDay,
+        lt: endOfDay,
+      };
+    }
+
+    if (filters.busOperator?.trim()) {
+      where.bus = {
+        is: {
+          operatorName: {
+            contains: filters.busOperator.trim(),
+            mode: 'insensitive',
+          },
+        },
+      };
+    }
+
+    if (filters.status) {
+      const status = filters.status as TripStatus;
+      if (Object.values(TripStatus).includes(status)) {
+        where.status = status;
+      }
+    }
+
+    const [total, trips] = await this.prismaService.$transaction([
+      this.prismaService.trip.count({ where }),
+      this.prismaService.trip.findMany({
+        where,
+        include: {
+          bus: true,
+          route: true,
+        },
+        orderBy: { departureTime: 'asc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const tripIds = trips.map((trip) => trip.id);
+    const seatCounts =
+      tripIds.length > 0
+        ? await this.prismaService.bookingSeat.groupBy({
+            by: ['tripId'],
+            where: {
+              tripId: { in: tripIds },
+              OR: [
+                { status: BookingSeatStatus.RESERVED },
+                { status: BookingSeatStatus.LOCKED, lockExpiresAt: { gt: now } },
+              ],
+            },
+            _count: { _all: true },
+          })
+        : [];
+
+    const countByTripId = new Map<string, number>(
+      seatCounts.map((row) => [row.tripId, row._count._all]),
+    );
+    const items = trips.map((trip) => {
+      const reservedOrLocked = countByTripId.get(trip.id) ?? 0;
+      return {
+        ...trip,
+        availableSeats: Math.max(0, trip.bus.seatCapacity - reservedOrLocked),
+      };
+    });
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOneById(id: string): Promise<Trip> {

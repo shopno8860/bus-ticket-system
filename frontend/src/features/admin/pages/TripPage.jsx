@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import {
   cancelAdminTrip,
@@ -20,15 +20,18 @@ const defaultTripForm = {
 };
 
 function TripPage() {
-  const { data, error, loading, execute } = useFetch(getAdminTrips);
+  const { data, error, loading, execute } = useFetch(getAdminTrips, { immediate: false });
   const { data: busData, loading: busLoading } = useFetch(getAdminBuses);
   const { data: routeData, loading: routeLoading } = useFetch(getAdminRoutes);
 
   const [filters, setFilters] = useState({
-    date: '',
-    routeId: '',
+    route: '',
+    departureDate: '',
+    busOperator: '',
     status: '',
   });
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
@@ -45,7 +48,9 @@ function TripPage() {
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
 
-  const trips = Array.isArray(data) ? data : [];
+  const trips = Array.isArray(data?.items) ? data.items : [];
+  const total = Number(data?.total ?? 0);
+  const totalPages = Math.max(1, Number(data?.totalPages ?? 1));
   const buses = Array.isArray(busData) ? busData : [];
   const routes = Array.isArray(routeData) ? routeData : [];
 
@@ -59,18 +64,29 @@ function TripPage() {
     return () => window.clearTimeout(toastTimerRef.current);
   }, []);
 
-  const filteredTrips = useMemo(() => {
-    return trips.filter((trip) => {
-      const tripRouteId = trip.routeId ?? trip.route?.id ?? '';
-      const tripDate = getDateValue(trip.departureTime);
-
-      if (filters.date && tripDate !== filters.date) return false;
-      if (filters.routeId && tripRouteId !== filters.routeId) return false;
-      if (filters.status && trip.status !== filters.status) return false;
-
-      return true;
+  useEffect(() => {
+    void execute({
+      page,
+      limit,
+      route: filters.route,
+      departureDate: filters.departureDate,
+      busOperator: filters.busOperator,
+      status: filters.status,
+    }).catch(() => {
+      // errors are kept in hook state
     });
-  }, [trips, filters.date, filters.routeId, filters.status]);
+  }, [execute, page, limit, filters.route, filters.departureDate, filters.busOperator, filters.status]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const handleFilterChange = (key, value) => {
+    setPage(1);
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   const openAddDrawer = () => {
     setEditingTrip(null);
@@ -157,7 +173,14 @@ function TripPage() {
         await createAdminTrip(payload);
         showToast('success', 'Trip created successfully.');
       }
-      await execute();
+      await execute({
+        page,
+        limit,
+        route: filters.route,
+        departureDate: filters.departureDate,
+        busOperator: filters.busOperator,
+        status: filters.status,
+      });
       closeFormDrawer();
     } catch (err) {
       const message = err?.message || 'Failed to save trip.';
@@ -193,7 +216,14 @@ function TripPage() {
     try {
       await cancelAdminTrip(tripToCancel.id, cancelReason.trim());
       showToast('success', 'Trip cancelled successfully.');
-      await execute();
+      await execute({
+        page,
+        limit,
+        route: filters.route,
+        departureDate: filters.departureDate,
+        busOperator: filters.busOperator,
+        status: filters.status,
+      });
       closeCancelModal();
     } catch (err) {
       const message = err?.message || 'Failed to cancel trip.';
@@ -222,34 +252,44 @@ function TripPage() {
 
       <section className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
-          <FilterField label="Date">
-            <input
-              type="date"
-              value={filters.date}
-              onChange={(event) => setFilters((prev) => ({ ...prev, date: event.target.value }))}
-              className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </FilterField>
-
           <FilterField label="Route">
             <select
-              value={filters.routeId}
-              onChange={(event) => setFilters((prev) => ({ ...prev, routeId: event.target.value }))}
+              value={filters.route}
+              onChange={(event) => handleFilterChange('route', event.target.value)}
               className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               <option value="">All routes</option>
               {routes.map((route) => (
-                <option key={route.id} value={route.id}>
+                <option key={route.id} value={`${route.origin} ${route.destination}`}>
                   {route.origin} {'->'} {route.destination}
                 </option>
               ))}
             </select>
           </FilterField>
 
+          <FilterField label="Departure Date">
+            <input
+              type="date"
+              value={filters.departureDate}
+              onChange={(event) => handleFilterChange('departureDate', event.target.value)}
+              className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </FilterField>
+
+          <FilterField label="Bus Operator">
+            <input
+              type="text"
+              value={filters.busOperator}
+              onChange={(event) => handleFilterChange('busOperator', event.target.value)}
+              placeholder="Search operator"
+              className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </FilterField>
+
           <FilterField label="Status">
             <select
               value={filters.status}
-              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+              onChange={(event) => handleFilterChange('status', event.target.value)}
               className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               <option value="">All status</option>
@@ -265,14 +305,16 @@ function TripPage() {
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         {loading || busLoading || routeLoading ? (
-          <div className="flex items-center justify-center px-4 py-12">
-            <IconSpinner />
+          <div className="space-y-2 p-4">
+            {Array.from({ length: limit }).map((_, index) => (
+              <div key={index} className="h-10 animate-pulse rounded bg-slate-100" />
+            ))}
           </div>
         ) : error ? (
           <div className="m-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error.message || 'Failed to load trips.'}
           </div>
-        ) : filteredTrips.length === 0 ? (
+        ) : trips.length === 0 ? (
           <div className="px-4 py-10 text-center">
             <p className="text-sm text-slate-500">No trips found</p>
           </div>
@@ -291,7 +333,7 @@ function TripPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTrips.map((trip) => (
+                {trips.map((trip) => (
                   <tr key={trip.id} className="border-b border-slate-100 text-sm transition hover:bg-slate-50">
                     <td className="px-3 py-2">
                       <p className="font-semibold text-slate-800">{trip.bus?.name ?? '-'}</p>
@@ -333,6 +375,30 @@ function TripPage() {
             </table>
           </div>
         )}
+      </section>
+
+      <section className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+        <p>
+          Showing page {page} of {totalPages} ({total} trips)
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Next
+          </button>
+        </div>
       </section>
 
       {isFormOpen ? (
@@ -568,16 +634,6 @@ function toDateTimeInput(value) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-function getDateValue(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function IconEdit() {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
@@ -595,15 +651,6 @@ function IconCancel() {
         d="M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15ZM6.28 6.28a.75.75 0 0 1 1.06 0L10 8.94l2.66-2.66a.75.75 0 1 1 1.06 1.06L11.06 10l2.66 2.66a.75.75 0 1 1-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 1 1-1.06-1.06L8.94 10 6.28 7.34a.75.75 0 0 1 0-1.06Z"
         clipRule="evenodd"
       />
-    </svg>
-  );
-}
-
-function IconSpinner() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 animate-spin text-slate-500">
-      <circle cx="12" cy="12" r="10" className="stroke-current opacity-25" strokeWidth="4" fill="none" />
-      <path className="fill-current opacity-90" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
     </svg>
   );
 }
