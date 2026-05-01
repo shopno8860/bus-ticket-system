@@ -372,7 +372,7 @@ export class PaymentsService {
     // Callbacks must point to publicly reachable backend in production.
     const backendBaseUrl =
       this.configService.get<string>('BACKEND_URL')?.replace(/\/$/, '') ||
-      this.configService.get<string>('API_BASE_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('VITE_API_BASE_URL')?.replace(/\/$/, '') ||
       'http://localhost:3000';
     data.append('success_url', `${backendBaseUrl}/payments/success`);
     data.append('fail_url', `${backendBaseUrl}/payments/fail`);
