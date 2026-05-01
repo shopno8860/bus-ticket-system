@@ -370,22 +370,14 @@ export class PaymentsService {
     data.append('tran_id', payment.transactionId);
 
     // Callbacks must point to publicly reachable backend in production.
-    // const backendBaseUrl =
-    //   this.configService.get<string>('BACKEND_URL')?.replace(/\/$/, '') ||
-    //   this.configService.get<string>('API_BASE_URL')?.replace(/\/$/, '') ||
-    //   this.configService.get<string>('VITE_API_BASE_URL')?.replace(/\/$/, '') ||
-    //   'http://localhost:3000';
-    // data.append('success_url', `${backendBaseUrl}/payments/success`);
-    // data.append('fail_url', `${backendBaseUrl}/payments/fail`);
-    // data.append('cancel_url', `${backendBaseUrl}/payments/cancel`);
-
-    const frontendUrl =
-  this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
-  'http://localhost:5173';
-
-data.append('success_url', `${frontendUrl}/payment-success`);
-data.append('fail_url', `${frontendUrl}/payment-fail`);
-data.append('cancel_url', `${frontendUrl}/payment-cancel`);
+    const backendBaseUrl =
+      this.configService.get<string>('BACKEND_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('API_BASE_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('VITE_API_BASE_URL')?.replace(/\/$/, '') ||
+      'http://localhost:3000';
+    data.append('success_url', `${backendBaseUrl}/payments/success`);
+    data.append('fail_url', `${backendBaseUrl}/payments/fail`);
+    data.append('cancel_url', `${backendBaseUrl}/payments/cancel`);
 
     // Customer Info
     data.append(
