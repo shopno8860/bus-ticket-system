@@ -1,10 +1,12 @@
 import AppRoutes from '../routes/AppRoutes';
 import '../index.css';
 import { Toaster } from 'react-hot-toast';
+import PageTitle from '../components/PageTitle';
 
 function App() {
   return (
     <>
+      <PageTitle />
       <AppRoutes />
       <Toaster
         position="top-right"

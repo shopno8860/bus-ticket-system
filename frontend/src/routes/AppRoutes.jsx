@@ -18,31 +18,38 @@ import PaymentSuccess from "../features/payments/pages/PaymentSuccess";
 import PaymentFailed from "../features/payments/pages/PaymentFailed";
 import MyTickets from "../features/bookings/pages/MyTickets";
 import TicketPage from "../pages/TicketPage";
+import PageTitle from "../components/PageTitle";
 
 function AppRoutes() {
   return (
     <Routes>
       {/* Auth Routes (No Navbar/Footer) */}
-      <Route path="/auth/login" element={<LoginPage />} />
-      <Route path="/auth/register" element={<RegisterPage />} />
-      <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-      <Route path="/auth/reset-password" element={<ResetPassword />} />
+      <Route path="/auth/login" element={<><PageTitle title="Login" /><LoginPage /></>} />
+      <Route path="/auth/register" element={<><PageTitle title="Register" /><RegisterPage /></>} />
+      <Route path="/auth/forgot-password" element={<><PageTitle title="Forgot Password" /><ForgotPassword /></>} />
+      <Route path="/auth/reset-password" element={<><PageTitle title="Reset Password" /><ResetPassword /></>} />
 
       {/* Main Routes (With Navbar/Footer) */}
       <Route element={<MainLayout />}>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<><PageTitle title="Home" /><Home /></>} />
         <Route
           path="/profile"
           element={
             <ProtectedRoute>
-              <ProfilePage />
+              <>
+                <PageTitle title="Profile" />
+                <ProfilePage />
+              </>
             </ProtectedRoute>
           }
         />
-        <Route path="/trips" element={<SearchResults />} />
+        <Route path="/trips" element={<><PageTitle title="Trips" /><SearchResults /></>} />
         <Route path="/seats/:tripId" element={
           <ProtectedRoute>
-            <SeatSelection />
+            <>
+              <PageTitle title="Seat Selection" />
+              <SeatSelection />
+            </>
           </ProtectedRoute>
         } />
         
@@ -51,7 +58,10 @@ function AppRoutes() {
           path="/booking" 
           element={
             <ProtectedRoute>
-              <BookingPage />
+              <>
+                <PageTitle title="Booking" />
+                <BookingPage />
+              </>
             </ProtectedRoute>
           } 
         />
@@ -59,28 +69,37 @@ function AppRoutes() {
           path="/my-tickets" 
           element={
             <ProtectedRoute>
-              <MyTickets />
+              <>
+                <PageTitle title="My Tickets" />
+                <MyTickets />
+              </>
             </ProtectedRoute>
           } 
         />
-        <Route path="/refund" element={<Refund />} />
+        <Route path="/refund" element={<><PageTitle title="Refund" /><Refund /></>} />
       </Route>
 
       <Route 
         path="/payment" 
         element={
           <ProtectedRoute>
-            <Payment />
+            <>
+              <PageTitle title="Payment" />
+              <Payment />
+            </>
           </ProtectedRoute>
         } 
       />
-      <Route path="/payment/success" element={<PaymentSuccess />} />
-      <Route path="/payment/failed" element={<PaymentFailed />} />
+      <Route path="/payment/success" element={<><PageTitle title="Payment Success" /><PaymentSuccess /></>} />
+      <Route path="/payment/failed" element={<><PageTitle title="Payment Failed" /><PaymentFailed /></>} />
       <Route
         path="/booking/:id"
         element={
           <ProtectedRoute>
-            <TicketPage />
+            <>
+              <PageTitle title="Ticket" />
+              <TicketPage />
+            </>
           </ProtectedRoute>
         }
       />
