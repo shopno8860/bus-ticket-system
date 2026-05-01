@@ -8,7 +8,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:5173', // local frontend
-      'https://your-frontend.vercel.app', // deployed frontend
+      'https://bus-ticket-system-beta.vercel.app/', // deployed frontend
     ],
     credentials: true,
   });
