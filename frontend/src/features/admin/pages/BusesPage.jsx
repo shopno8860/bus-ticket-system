@@ -245,7 +245,7 @@ function BusesPage() {
         <button
           type="button"
           onClick={openFormDrawer}
-          className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+          className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
         >
           Add Bus
         </button>
@@ -443,7 +443,7 @@ function BusesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#1e293b] disabled:opacity-60"
                 >
                   {submitting ? 'Saving...' : 'Save'}
                 </button>

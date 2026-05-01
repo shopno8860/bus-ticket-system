@@ -98,6 +98,15 @@ const buildProfileData = (user, fallback) => ({
   visa: user?.visaInfo || user?.visa || fallback.visa,
 });
 
+const getInitials = (name) => {
+  const value = String(name || '').trim();
+  if (!value) return 'U';
+  const parts = value.split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? '';
+  const second = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : '';
+  return `${first}${second}`.toUpperCase() || 'U';
+};
+
 const ProfilePage = () => {
   const { user, token, logout, updateUserProfile, clearAuthState } = useAuth();
   const navigate = useNavigate();
@@ -319,9 +328,9 @@ const ProfilePage = () => {
   };
 
   const menuItems = [
-    { id: 'profile', label: 'My Profile', icon: '👤', active: true },
-    { id: 'password', label: 'Change Password', icon: '🔒' },
-    { id: 'delete', label: 'Account Delete', icon: '🗑️', color: 'text-red-500' },
+    { id: 'profile', label: 'My Profile', active: true },
+    { id: 'password', label: 'Change Password' },
+    { id: 'delete', label: 'Account Delete', color: 'text-red-500' },
   ];
 
   return (
@@ -333,8 +342,8 @@ const ProfilePage = () => {
           <aside className="w-full lg:w-80 flex-shrink-0">
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden sticky top-24">
               <div className="p-8 text-center border-b border-slate-50">
-                <div className="w-24 h-24 rounded-full bg-[#16a34a]/10 mx-auto flex items-center justify-center text-4xl border-4 border-white shadow-lg">
-                  👤
+                <div className="w-24 h-24 rounded-full bg-[#16a34a]/10 mx-auto border-4 border-white shadow-lg flex items-center justify-center text-2xl font-black text-[#166534]">
+                  {getInitials(profileData.name)}
                 </div>
                 <h3 className="mt-4 font-black text-slate-800 text-xl">{profileData.name}</h3>
                 <p className="text-slate-400 text-sm font-medium">{profileData.email}</p>
@@ -347,13 +356,12 @@ const ProfilePage = () => {
                       <button
                         type="button"
                         onClick={item.id === 'password' ? openPasswordModal : item.id === 'delete' ? openDeleteModal : undefined}
-                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
+                        className={`w-full flex items-center px-6 py-4 rounded-2xl font-bold transition-all ${
                           item.active
                             ? 'bg-[#16a34a] text-white shadow-lg shadow-[#16a34a]/20'
                             : `text-slate-600 hover:bg-slate-50 ${item.color || ''}`
                         }`}
                       >
-                        <span className="text-xl">{item.icon}</span>
                         {item.label}
                       </button>
                     </li>
@@ -361,9 +369,8 @@ const ProfilePage = () => {
                   <li>
                     <button 
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50 transition-all"
+                      className="w-full flex items-center px-6 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-50 transition-all"
                     >
-                      <span className="text-xl">🚪</span>
                       Logout
                     </button>
                   </li>
@@ -381,11 +388,7 @@ const ProfilePage = () => {
               </div>
               <button
                 onClick={openModal}
-                className="text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                style={{
-                  backgroundImage: 'linear-gradient(90deg, #0f2027, #203a43, #2c5364)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                }}
+                className="btn bg-[#16a34a] hover:bg-[#15803d] text-white px-8 py-3.5 rounded-2xl border-none font-bold shadow-lg shadow-[#16a34a]/30 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -444,8 +447,7 @@ const ProfilePage = () => {
               type="submit"
               form="update-profile-form"
               disabled={isSaving}
-              className="px-6 py-2.5 rounded-xl text-white font-semibold transition-all hover:opacity-95 disabled:opacity-70 disabled:cursor-not-allowed min-w-[152px] flex items-center justify-center gap-2"
-              style={{ backgroundImage: 'linear-gradient(90deg, #0f2027, #203a43, #2c5364)' }}
+              className="btn bg-[#16a34a] hover:bg-[#15803d] border-none px-6 py-2.5 rounded-xl text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed min-w-[152px] flex items-center justify-center gap-2 shadow-lg shadow-[#16a34a]/30"
             >
               {isSaving ? (
                 <>

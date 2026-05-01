@@ -1,19 +1,22 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "../features/auth/context/AuthContext";
 import { showSuccess } from "../utils/toastHelper";
 
 const Navbar = () => {
   const { user, logout, token } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isLoggedIn = !!token;
   const handleLogout = () => {
     logout();
     showSuccess('Logged out');
+    setIsMobileMenuOpen(false);
   };
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50 h-16 md:h-20 flex items-center">
+    <nav className="bg-white shadow-md sticky top-0 z-50 flex items-center min-h-16 md:min-h-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex justify-between items-center h-full">
+        <div className="flex justify-between items-center h-16 md:h-20">
           
           {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center">
@@ -80,7 +83,13 @@ const Navbar = () => {
                   Login
                 </Link>
                 {/* Mobile Menu Icon */}
-                <button className="lg:hidden text-slate-600 p-1">
+                <button
+                  type="button"
+                  className="lg:hidden text-slate-600 p-1"
+                  onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                  aria-label="Toggle mobile menu"
+                  aria-expanded={isMobileMenuOpen}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                   </svg>
@@ -89,6 +98,51 @@ const Navbar = () => {
             )}
           </div>
         </div>
+
+        {isMobileMenuOpen ? (
+          <div className="lg:hidden border-t border-slate-100 py-3 space-y-2">
+            <Link
+              to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Home
+            </Link>
+            <Link
+              to="/my-tickets"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              My Tickets
+            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link
+                  to="/profile"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/auth/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-lg px-3 py-2 text-sm font-bold bg-[#16a34a] text-white hover:bg-[#15803d]"
+              >
+                Login
+              </Link>
+            )}
+          </div>
+        ) : null}
       </div>
     </nav>
   );

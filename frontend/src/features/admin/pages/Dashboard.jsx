@@ -190,25 +190,25 @@ function Dashboard() {
           <h2 className="mb-4 text-lg font-semibold text-slate-800">Quick Actions</h2>
           <div className="grid grid-cols-1 gap-3">
             <button
-              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+              className="rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#1e293b]"
               onClick={() => navigate('/admin/bus')}
             >
               Add Bus
             </button>
             <button
-              className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+              className="rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#1e293b]"
               onClick={() => navigate('/admin/trip')}
             >
               Create Trip
             </button>
             <button
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700"
+              className="rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#1e293b]"
               onClick={() => navigate('/admin/booking')}
             >
               View Bookings
             </button>
             <button
-              className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
+              className="rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#1e293b]"
               onClick={() => navigate('/admin/refund')}
             >
               View Refunds
