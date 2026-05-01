@@ -18,10 +18,9 @@ function PaymentPage() {
   const paymentQuery = useMemo(() => {
     const params = new URLSearchParams();
     if (filters.status) params.set('status', filters.status);
-    if (filters.method) params.set('method', filters.method);
     if (filters.date) params.set('date', filters.date);
     return params.toString();
-  }, [filters.status, filters.method, filters.date]);
+  }, [filters.status, filters.date]);
 
   const fetchPayments = useCallback(async () => {
     const path = paymentQuery ? `${endpoints.admin.payments}?${paymentQuery}` : endpoints.admin.payments;
@@ -37,14 +36,17 @@ function PaymentPage() {
   const payments = Array.isArray(paymentData) ? paymentData : [];
   const filteredPayments = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
-    if (!query) return payments;
-
     return payments.filter((payment) => {
+      const paymentMethod = String(payment.method ?? payment.paymentMethod ?? '').toUpperCase();
+      if (filters.method && paymentMethod !== filters.method) {
+        return false;
+      }
       const transactionId = String(payment.transactionId ?? '').toLowerCase();
       const phone = String(payment.user?.phoneNumber ?? payment.user?.phone ?? '').toLowerCase();
+      if (!query) return true;
       return transactionId.includes(query) || phone.includes(query);
     });
-  }, [payments, filters.search]);
+  }, [payments, filters.method, filters.search]);
 
   return (
     <div className="space-y-4 bg-slate-50 p-4">

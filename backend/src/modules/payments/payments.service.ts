@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   BookingSeatStatus,
   BookingStatus,
+  PaymentMethod,
   Prisma,
   PaymentStatus,
 } from '@prisma/client';
@@ -438,11 +439,16 @@ export class PaymentsService {
   async findAllAdmin(filters: AdminPaymentsFilterDto) {
     const where: {
       status?: PaymentStatus;
+      method?: PaymentMethod;
       createdAt?: { gte: Date; lt: Date };
     } = {};
 
     if (filters.status) {
       where.status = filters.status;
+    }
+
+    if (filters.method || filters.methos) {
+      where.method = filters.method ?? filters.methos;
     }
 
     if (filters.date) {
