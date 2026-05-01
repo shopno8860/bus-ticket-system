@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="EasyTrip favicon">
+  <defs>
+    <linearGradient id="easytrip-bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f2027" />
+      <stop offset="0.5" stop-color="#203a43" />
+      <stop offset="1" stop-color="#2c5364" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square app-icon background -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#easytrip-bg)" />
+
+  <!-- Bold minimal E, shaped for small-size legibility -->
+  <path
+    fill="#dffbff"
+    d="M164 128h198v52H219v52h125v50H219v52h143v50H164z"
+  />
+
+  <!-- Subtle travel/motion curve -->
+  <path
+    d="M122 364c34-12 68-19 104-20 58-1 112 14 164 44"
+    fill="none"
+    stroke="#b9f6ff"
+    stroke-width="20"
+    stroke-linecap="round"
+    opacity="0.9"
+  />
+</svg>
