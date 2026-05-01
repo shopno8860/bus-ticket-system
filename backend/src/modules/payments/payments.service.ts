@@ -369,11 +369,14 @@ export class PaymentsService {
     data.append('currency', 'BDT');
     data.append('tran_id', payment.transactionId);
 
-    // Callbacks - these MUST match the controller routes
-    const baseUrl = 'http://localhost:3000'; // Backend URL
-    data.append('success_url', `${baseUrl}/payments/success`);
-    data.append('fail_url', `${baseUrl}/payments/fail`);
-    data.append('cancel_url', `${baseUrl}/payments/cancel`);
+    // Callbacks must point to publicly reachable backend in production.
+    const backendBaseUrl =
+      this.configService.get<string>('BACKEND_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('API_BASE_URL')?.replace(/\/$/, '') ||
+      'http://localhost:3000';
+    data.append('success_url', `${backendBaseUrl}/payments/success`);
+    data.append('fail_url', `${backendBaseUrl}/payments/fail`);
+    data.append('cancel_url', `${backendBaseUrl}/payments/cancel`);
 
     // Customer Info
     data.append(
