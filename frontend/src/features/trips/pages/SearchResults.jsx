@@ -47,6 +47,8 @@ function SearchResults() {
 
   // Sort State
   const [sortBy, setSortBy] = useState('departure'); // 'departure', 'cheapest', 'expensive'
+  const [currentPage, setCurrentPage] = useState(1);
+  const tripsPerPage = 6;
 
   useEffect(() => {
     setSearchData({
@@ -128,6 +130,16 @@ function SearchResults() {
     return result;
   }, [allTrips, filters, sortBy]);
 
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredTrips.length / tripsPerPage)),
+    [filteredTrips.length],
+  );
+
+  const paginatedTrips = useMemo(() => {
+    const startIndex = (currentPage - 1) * tripsPerPage;
+    return filteredTrips.slice(startIndex, startIndex + tripsPerPage);
+  }, [filteredTrips, currentPage]);
+
   const availableOperators = useMemo(() => {
     const ops = allTrips.map(t => t.bus?.operatorName || t.bus?.name).filter(Boolean);
     return [...new Set(ops)];
@@ -154,6 +166,16 @@ function SearchResults() {
       maxPrice: ''
     });
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [from, to, date, filters, sortBy]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const displayDate = useMemo(() => {
     if (!date) return 'Not selected';
@@ -401,11 +423,37 @@ function SearchResults() {
                 </button>
               </div>
             ) : (
-              <div className="grid gap-8">
-                {filteredTrips.map((trip) => (
-                  <TripCard key={trip.id} trip={trip} />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-8">
+                  {paginatedTrips.map((trip) => (
+                    <TripCard key={trip.id} trip={trip} />
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                  <p className="text-sm font-semibold text-[#6b7280]">
+                    Page <span className="text-[#111827]">{currentPage}</span> of{' '}
+                    <span className="text-[#111827]">{totalPages}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="btn btn-sm bg-white border-gray-200 text-[#111827] hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="btn btn-sm bg-white border-gray-200 text-[#111827] hover:bg-[#f9fafb] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>

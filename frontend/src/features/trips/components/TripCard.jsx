@@ -35,44 +35,44 @@ function TripCard({ trip }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
-      <div className="p-5 md:p-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="p-3.5 md:p-3.5">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           
           {/* LEFT SECTION: Bus Info */}
-          <div className="flex-1 w-full text-center md:text-left space-y-1">
-            <h3 className="text-lg font-bold text-gray-900 leading-tight">
+          <div className="flex-1 w-full text-center md:text-left space-y-0.5">
+            <h3 className="text-base font-bold text-gray-900 leading-tight">
               {trip.bus?.operatorName || trip.bus?.name || 'Super Express'}
             </h3>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
               {trip.bus?.busType === 'AC'
                 ? 'Luxury AC Coach'
                 : trip.bus?.busType === 'SLEEPER'
                   ? 'Sleeper Coach'
                   : 'Economy Non-AC'}
             </p>
-            <div className="flex gap-2 justify-center md:justify-start mt-2">
-              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+            <div className="flex gap-1.5 justify-center md:justify-start mt-1.5">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
                 {trip.bus?.busType || 'N/A'}
               </span>
-              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
                 {trip.bus?.busClass || 'N/A'}
               </span>
             </div>
-            <p className="text-xs text-gray-400 font-medium">
+            <p className="text-[11px] text-gray-400 font-medium">
               {(trip.boardingPoint || trip.route?.origin)} ➔ {(trip.droppingPoint || trip.route?.destination)}
             </p>
           </div>
 
           {/* MIDDLE SECTION: Timeline */}
-          <div className="flex-[1.5] w-full py-4 md:py-0 border-y md:border-y-0 border-gray-50">
-            <div className="flex justify-between items-center gap-4 px-2">
+          <div className="flex-[1.5] w-full py-1.5 md:py-0 border-y md:border-y-0 border-gray-50">
+            <div className="flex justify-between items-center gap-3 px-1">
               <div className="text-center">
-                <div className="text-xl font-bold text-gray-800">{formatTime(trip.departureTime)}</div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{trip.route?.origin}</div>
+                <div className="text-base font-bold text-gray-800">{formatTime(trip.departureTime)}</div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">{trip.route?.origin}</div>
               </div>
 
               <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full mb-1">
+                <div className="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full mb-1">
                   {calculateDuration(trip.departureTime, trip.arrivalTime)}
                 </div>
                 <div className="w-full flex items-center gap-1">
@@ -83,23 +83,23 @@ function TripCard({ trip }) {
               </div>
 
               <div className="text-center">
-                <div className="text-xl font-bold text-gray-800">{formatTime(trip.arrivalTime)}</div>
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{trip.route?.destination}</div>
+                <div className="text-base font-bold text-gray-800">{formatTime(trip.arrivalTime)}</div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">{trip.route?.destination}</div>
               </div>
             </div>
           </div>
 
           {/* RIGHT SECTION: Price & Action */}
-          <div className="flex-1 w-full text-center md:text-right space-y-3">
+          <div className="flex-1 w-full text-center md:text-right space-y-1.5">
             <div>
-              <div className="text-2xl font-bold text-gray-900">৳{trip.price}</div>
-              <p className="text-xs font-semibold text-gray-500 italic">
+              <div className="text-xl font-bold text-gray-900">৳{trip.price}</div>
+              <p className="text-[11px] font-semibold text-gray-500 italic">
                 {trip.availableSeats || 20} Seats Available
               </p>
             </div>
             <button 
               onClick={handleBookTicket}
-              className="btn bg-[#16a34a] hover:bg-[#15803d] text-white w-full h-12 rounded-lg border-none font-bold tracking-wide shadow-sm transition-all active:scale-95"
+              className="btn btn-sm bg-[#16a34a] hover:bg-[#15803d] text-white w-full h-9 min-h-0 rounded-lg border-none font-bold text-[11px] tracking-wide shadow-sm transition-all active:scale-95"
             >
               BOOK TICKET
             </button>
@@ -108,11 +108,11 @@ function TripCard({ trip }) {
       </div>
 
       {/* Extra Links (Cancellation, Policy, etc.) - Scaled down for cleanliness */}
-      <div className="bg-gray-50/50 border-t border-gray-100 px-6 py-2.5 flex flex-wrap gap-x-6 gap-y-2">
+      <div className="bg-gray-50/50 border-t border-gray-100 px-3.5 py-1.5 flex flex-wrap gap-x-4 gap-y-1">
         {['Cancellation Policy', 'Boarding Point', 'Dropping Point', 'Amenities'].map(label => (
           <button 
             key={label}
-            className="text-[10px] font-bold text-gray-400 hover:text-green-600 uppercase tracking-wider transition-colors"
+            className="text-[9px] font-bold text-gray-400 hover:text-green-600 uppercase tracking-wider transition-colors"
             onClick={() => setActiveTab(activeTab === label ? null : label)}
           >
             {label}
@@ -122,20 +122,20 @@ function TripCard({ trip }) {
 
       {/* Expandable Content area (Simplified) */}
       {activeTab && (
-        <div className="p-5 border-t border-gray-100 bg-gray-50/50 animate-in fade-in slide-in-from-top-2">
+        <div className="p-3 border-t border-gray-100 bg-gray-50/50 animate-in fade-in slide-in-from-top-2">
           {activeTab === 'Cancellation Policy' ? (
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => setShowPolicyDetails((prev) => !prev)}
-                className="text-xs font-bold uppercase tracking-wider text-green-700 hover:text-green-800"
+                className="text-[11px] font-bold uppercase tracking-wider text-green-700 hover:text-green-800"
               >
                 {showPolicyDetails ? 'Hide Policy' : 'Show Policy'}
               </button>
 
               {showPolicyDetails && (
-                <div className="text-xs text-gray-600 font-medium leading-relaxed space-y-2">
-                  <p className="text-sm font-bold text-gray-800">EasyTrip - Ticket Cancellation Policy</p>
+                <div className="text-[11px] text-gray-600 font-medium leading-relaxed space-y-1.5">
+                  <p className="text-xs font-bold text-gray-800">EasyTrip - Ticket Cancellation Policy</p>
                   <p>
                     <span className="font-semibold text-gray-800">1. Operator-Based Policy:</span>{' '}
                     EasyTrip is a ticket booking platform. All cancellations and refunds are subject to the policies of
@@ -176,7 +176,7 @@ function TripCard({ trip }) {
               )}
             </div>
           ) : (
-            <p className="text-xs text-gray-500 font-medium leading-relaxed">
+            <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
               {activeTab === 'Amenities' && "Water Bottle, Blanket, Pillow, Reading Light."}
               {activeTab === 'Boarding Point' && `${trip.boardingPoint || trip.route?.origin} Central Bus Terminal`}
               {activeTab === 'Dropping Point' && `${trip.droppingPoint || trip.route?.destination} Junction Counter`}
