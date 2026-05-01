@@ -31,6 +31,7 @@ export class PaymentsController {
   private frontendBaseUrl(): string {
     return (
       this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('VITE_FRONTEND_URL')?.replace(/\/$/, '') ||
       'http://localhost:5173'
     );
   }
