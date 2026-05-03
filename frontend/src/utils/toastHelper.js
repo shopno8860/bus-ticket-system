@@ -35,3 +35,8 @@ export const showInfo = (msg, options = {}) =>
     className: premiumToastClass,
     ...options,
   });
+
+/** Dismiss a toast by the id returned from loading/success helpers. */
+export const dismissToast = (toastId) => {
+  if (toastId != null) toast.dismiss(toastId);
+};

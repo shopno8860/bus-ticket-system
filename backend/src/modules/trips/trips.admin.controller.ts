@@ -74,21 +74,32 @@ export class TripsAdminController {
 
   @Post('seed-and-generate')
   async seedAndGenerate(
-    @Body() body: { forceCreate?: boolean; daysAhead?: number } = {},
+    @Body()
+    body: {
+      forceCreate?: boolean;
+      daysAhead?: number;
+      /** When true, deletes all existing trips first, then rebuilds the schedule. */
+      replaceAllTrips?: boolean;
+    } = {},
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<{
     routesCreated: number;
     busesCreated: number;
+    deletedTrips: number;
     createdTrips: number;
   }> {
     console.log('admin_action', {
       actorUserId: currentUser.sub,
       action: 'seed_and_generate_trips',
+      replaceAllTrips: body.replaceAllTrips ?? false,
       timestamp: new Date().toISOString(),
     });
 
     const { routesCreated, busesCreated } =
       await this.tripGeneratorService.seedRoutesAndBuses();
+    const deletedTrips = body.replaceAllTrips
+      ? await this.tripGeneratorService.deleteAllTrips()
+      : 0;
     const createdTrips = await this.tripGeneratorService.createTripsForUpcomingDays(
       body.daysAhead ?? 3,
       {
@@ -99,6 +110,7 @@ export class TripsAdminController {
     return {
       routesCreated,
       busesCreated,
+      deletedTrips,
       createdTrips,
     };
   }

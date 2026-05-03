@@ -359,7 +359,12 @@ export class UsersService {
         user: refund.user.fullName,
         action: 'Refund Requested',
         date: refund.createdAt.toISOString(),
-        status: refund.status === RefundStatus.PENDING ? 'Pending' : 'Success',
+        status:
+          refund.status === RefundStatus.PENDING
+            ? 'Pending'
+            : refund.status === RefundStatus.APPROVED
+              ? 'Success'
+              : 'Warning',
       }),
     );
 

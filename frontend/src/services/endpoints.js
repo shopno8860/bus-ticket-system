@@ -54,6 +54,7 @@ export const endpoints = {
     refunds: '/admin/refunds',
     approveRefund: (id) => `/admin/refunds/${id}/approve`,
     rejectRefund: (id) => `/admin/refunds/${id}/reject`,
+    syncSslRefund: (id) => `/admin/refunds/${id}/ssl-sync`,
     trips: '/admin/trips',
     updateTrip: (id) => `/admin/trips/${id}`,
     cancelTrip: (id) => `/admin/trips/${id}/cancel`,

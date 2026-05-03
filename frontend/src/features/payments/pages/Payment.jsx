@@ -1,7 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPayment } from '../services/paymentApi';
-import { showError, showLoading, showSuccess } from '../../../utils/toastHelper';
+import {
+  dismissToast,
+  showError,
+  showInfo,
+  showLoading,
+} from '../../../utils/toastHelper';
 
 const Payment = () => {
   const { state } = useLocation();
@@ -35,7 +40,8 @@ const Payment = () => {
         });
 
         if (response?.paymentUrl) {
-          showSuccess('Payment successful', { id: loadingToastId });
+          dismissToast(loadingToastId);
+          showInfo('Redirecting to the payment page…', { duration: 2500 });
           // Hard-redirect to the payment gateway
           window.location.href = response.paymentUrl;
         } else {
@@ -48,7 +54,8 @@ const Payment = () => {
         // The backend now returns the existing paymentUrl in that case,
         // so this branch should rarely be reached — but handle it gracefully.
         if (status === 409 && err?.data?.paymentUrl) {
-          showSuccess('Payment successful', { id: loadingToastId });
+          dismissToast(loadingToastId);
+          showInfo('Redirecting to the payment page…', { duration: 2500 });
           window.location.href = err.data.paymentUrl;
           return;
         }

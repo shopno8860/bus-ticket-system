@@ -161,39 +161,51 @@ async function main() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const existingTrips = await prisma.trip.findMany({
-    where: {
-      departureTime: {
-        gte: today,
-        lt: tomorrow,
-      },
-    },
-    select: {
-      routeId: true,
-      busId: true,
-      departureTime: true,
-    },
-  });
+  const removedTrips = await prisma.trip.deleteMany({});
+  console.log(`Deleted existing trips: ${removedTrips.count}`);
 
-  const existingTripKeys = new Set(
-    existingTrips.map(
-      (trip) => `${trip.routeId}::${trip.busId}::${trip.departureTime.toISOString()}`,
-    ),
-  );
+  const scheduleSlots: Array<{
+    hour: number;
+    minute: number;
+    matches: (b: { busType: BusType; busClass: BusClass }) => boolean;
+  }> = [
+    {
+      hour: 7,
+      minute: 0,
+      matches: (b) => b.busType === BusType.NON_AC,
+    },
+    {
+      hour: 10,
+      minute: 0,
+      matches: (b) =>
+        b.busType === BusType.AC && b.busClass === BusClass.ECONOMY,
+    },
+    {
+      hour: 15,
+      minute: 0,
+      matches: (b) =>
+        b.busType === BusType.AC && b.busClass === BusClass.BUSINESS,
+    },
+    {
+      hour: 19,
+      minute: 0,
+      matches: (b) => b.busType === BusType.NON_AC,
+    },
+    {
+      hour: 23,
+      minute: 0,
+      matches: (b) => b.busType === BusType.SLEEPER,
+    },
+  ];
 
   const tripsToCreate: any[] = [];
-  for (let hour = 7; hour <= 23; hour += 2) {
+  for (const slot of scheduleSlots) {
     for (const route of allRoutes) {
-      for (const bus of allBuses) {
+      const slotBuses = allBuses.filter(slot.matches);
+      for (const bus of slotBuses) {
         const departureTime = new Date(today);
-        departureTime.setHours(hour, 0, 0, 0);
-        const key = `${route.id}::${bus.id}::${departureTime.toISOString()}`;
-        if (existingTripKeys.has(key)) {
-          continue;
-        }
+        departureTime.setHours(slot.hour, slot.minute, 0, 0);
         const arrivalTime = new Date(departureTime);
         arrivalTime.setHours(arrivalTime.getHours() + 6);
         const price = getTicketPrice(bus.busType, bus.busClass);

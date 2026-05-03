@@ -1,10 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getBookingDetails } from '../../bookings/services/bookingApi';
 import { generatePDFBlob } from '../../../utils/pdf';
 import Ticket from '../../../components/ticket/Ticket';
 import { sendConfirmationEmailWithTicket } from '../services/paymentApi';
 import { showSuccess } from '../../../utils/toastHelper';
+
+/** Dedupes ticket email across React Strict Mode remounts (refs reset; this persists). */
+const ticketEmailInFlight = new Map();
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -15,14 +18,16 @@ const PaymentSuccess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [emailNotice, setEmailNotice] = useState('');
-  const emailSentRef = useRef(false);
-  const toastShownRef = useRef(false);
+
+  const toastStorageKey = bookingId ? `easytrip-payment-success-toast:${bookingId}` : null;
+  const emailStorageKey = bookingId ? `easytrip-ticket-email-sent:${bookingId}` : null;
 
   useEffect(() => {
-    if (toastShownRef.current) return;
-    toastShownRef.current = true;
+    if (!toastStorageKey || typeof sessionStorage === 'undefined') return;
+    if (sessionStorage.getItem(toastStorageKey)) return;
+    sessionStorage.setItem(toastStorageKey, '1');
     showSuccess('Payment successful');
-  }, []);
+  }, [toastStorageKey]);
 
   useEffect(() => {
     if (!bookingId) {
@@ -47,30 +52,47 @@ const PaymentSuccess = () => {
   }, [bookingId]);
 
   useEffect(() => {
-    if (!booking || emailSentRef.current) return;
+    if (!booking || !emailStorageKey) return;
 
-    const sendTicketEmail = async () => {
-      try {
-        // Wait for the hidden ticket DOM to paint before capture.
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        const blob = await generatePDFBlob('ticket');
-        const ticketFile = new File(
-          [blob],
-          `Ticket-${booking.bookingReference || booking.id}.pdf`,
-          { type: 'application/pdf' },
-        );
+    const s = typeof sessionStorage !== 'undefined' ? sessionStorage : null;
+    if (s?.getItem(emailStorageKey) === '1') {
+      setEmailNotice('Ticket was sent to your email with the same PDF.');
+      return;
+    }
 
-        await sendConfirmationEmailWithTicket(booking.id, ticketFile);
-        emailSentRef.current = true;
-        setEmailNotice('Ticket was sent to your email with the same PDF.');
-      } catch (sendError) {
+    const bid = booking.id;
+    let sendPromise = ticketEmailInFlight.get(bid);
+    if (!sendPromise) {
+      sendPromise = (async () => {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          const blob = await generatePDFBlob('ticket');
+          const ticketFile = new File(
+            [blob],
+            `Ticket-${booking.bookingReference || booking.id}.pdf`,
+            { type: 'application/pdf' },
+          );
+          await sendConfirmationEmailWithTicket(bid, ticketFile);
+          s?.setItem(emailStorageKey, '1');
+        } finally {
+          ticketEmailInFlight.delete(bid);
+        }
+      })();
+      ticketEmailInFlight.set(bid, sendPromise);
+    }
+
+    sendPromise
+      .then(() => {
+        if (s?.getItem(emailStorageKey) === '1') {
+          setEmailNotice('Ticket was sent to your email with the same PDF.');
+        }
+      })
+      .catch((sendError) => {
         console.error('Failed to send ticket email:', sendError);
+        s?.removeItem(emailStorageKey);
         setEmailNotice('Could not send ticket email automatically.');
-      }
-    };
-
-    sendTicketEmail();
-  }, [booking]);
+      });
+  }, [booking, emailStorageKey]);
 
   // 🔄 Loading
   if (loading) {

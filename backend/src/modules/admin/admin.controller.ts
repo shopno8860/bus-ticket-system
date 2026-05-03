@@ -181,6 +181,29 @@ export class AdminController {
     return rejected;
   }
 
+  @Post('refunds/:id/ssl-sync')
+  async syncSslRefund(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<{
+    refund: Refund;
+    sslLive: Record<string, unknown>;
+    outcome: string;
+  }> {
+    const result = await this.refundsService.adminSyncSslRefundStatus(
+      id,
+      currentUser.sub,
+    );
+    await this.auditLogService.logAction({
+      actorUserId: currentUser.sub,
+      action: 'sync_ssl_refund',
+      targetType: 'refund',
+      targetId: id,
+      payload: { outcome: result.outcome },
+    });
+    return result;
+  }
+
   @Post('trips')
   async createTrip(
     @Body() dto: CreateTripDto,

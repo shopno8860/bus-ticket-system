@@ -5,7 +5,7 @@ import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 import { showError, showSuccess } from '../../../utils/toastHelper';
 
-const REFUND_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
+const REFUND_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED'];
 
 function RefundPage() {
   const [filters, setFilters] = useState({
@@ -20,6 +20,7 @@ function RefundPage() {
   const [adminNote, setAdminNote] = useState('');
   const [actionError, setActionError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [sslSyncing, setSslSyncing] = useState(false);
 
   const refundQuery = useMemo(() => {
     const params = new URLSearchParams();
@@ -59,6 +60,46 @@ function RefundPage() {
     setRejectTarget(null);
     setAdminNote('');
     setActionError('');
+  };
+
+  const runSslSync = async () => {
+    if (!selectedRefund?.id) return;
+    setSslSyncing(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(
+        `${config.apiBaseUrl}${endpoints.admin.syncSslRefund(selectedRefund.id)}`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        },
+      );
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        /* ignore */
+      }
+      if (!res.ok) {
+        const msg =
+          typeof data?.message === 'string'
+            ? data.message
+            : data?.message?.message ||
+              data?.message?.reason ||
+              data?.reason ||
+              'SSL sync failed';
+        throw new Error(msg);
+      }
+      await refetch();
+      if (data?.refund) setSelectedRefund(data.refund);
+      showSuccess(data?.outcome || 'SSL snapshot updated');
+    } catch (err) {
+      showError(err?.message || 'SSL sync failed');
+    } finally {
+      setSslSyncing(false);
+    }
   };
 
   const runRefundAction = async (type) => {
@@ -292,6 +333,29 @@ function RefundPage() {
               />
               <DetailRow label="Reason" value={selectedRefund.reason ?? '-'} />
               <DetailRow label="Status" value={selectedRefund.status ?? 'UNKNOWN'} />
+              <DetailRow
+                label="SSL refund ref (sslRefundRefId)"
+                value={selectedRefund.sslRefundRefId ?? '-'}
+              />
+              <DetailRow
+                label="SSL gateway status (our DB)"
+                value={selectedRefund.sslGatewayStatus ?? '-'}
+              />
+              <p className="rounded-md bg-slate-100 p-2 text-xs text-slate-600">
+                SSL মার্চেন্ট প্যানেলের <strong>Approval status</strong> আমাদের অ্যাপ বদলাতে পারে না। নিচের
+                বাটনে SSL API থেকে লেটেস্ট স্ট্যাটাস এনে <strong>আমাদের ডাটাবেস</strong> আপডেট হবে (রিফান্ড
+                <code className="mx-0.5">refunded</code> হলে বুকিং/পেমেন্ট ফাইনালাইজ হবে)।
+              </p>
+              {selectedRefund.sslRefundRefId ? (
+                <button
+                  type="button"
+                  disabled={sslSyncing}
+                  onClick={runSslSync}
+                  className="w-full rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {sslSyncing ? 'SSL sync…' : 'Refresh from SSL (ssl-sync)'}
+                </button>
+              ) : null}
               <DetailRow label="Admin Note" value={selectedRefund.adminNote ?? '-'} />
               <DetailRow
                 label="Processed By"
@@ -351,6 +415,7 @@ function StatusBadge({ status }) {
     PENDING: 'bg-amber-100 text-amber-700',
     APPROVED: 'bg-emerald-100 text-emerald-700',
     REJECTED: 'bg-rose-100 text-rose-700',
+    FAILED: 'bg-orange-100 text-orange-800',
   };
 
   return (

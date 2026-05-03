@@ -8,11 +8,42 @@ import { PrismaService } from '../../prisma/prisma.service';
 @Injectable()
 export class TripGeneratorService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TripGeneratorService.name);
-  private readonly firstHour = 7;
-  private readonly lastHour = 23;
-  private readonly intervalHours = 2;
+  /** Fixed daily departures: hour (local) → bus category for that slot. */
+  private readonly scheduleSlots: ReadonlyArray<{
+    hour: number;
+    minute: number;
+    matches: (bus: { busType: BusType; busClass: BusClass }) => boolean;
+  }> = [
+    {
+      hour: 7,
+      minute: 0,
+      matches: (b) => b.busType === BusType.NON_AC,
+    },
+    {
+      hour: 10,
+      minute: 0,
+      matches: (b) =>
+        b.busType === BusType.AC && b.busClass === BusClass.ECONOMY,
+    },
+    {
+      hour: 15,
+      minute: 0,
+      matches: (b) =>
+        b.busType === BusType.AC && b.busClass === BusClass.BUSINESS,
+    },
+    {
+      hour: 19,
+      minute: 0,
+      matches: (b) => b.busType === BusType.NON_AC,
+    },
+    {
+      hour: 23,
+      minute: 0,
+      matches: (b) => b.busType === BusType.SLEEPER,
+    },
+  ];
   private readonly tripDurationHours = 6;
-  private readonly defaultGenerationDays = 3;
+  private readonly defaultGenerationDays = 5;
   private readonly fallbackRoutes: Prisma.RouteCreateManyInput[] = [
     { origin: 'Dhaka', destination: 'Gaibandha' },
     { origin: 'Gaibandha', destination: 'Dhaka' },
@@ -79,6 +110,19 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * Removes every trip. Cascades delete bookings, booking seats, payments, and refunds.
+   */
+  async deleteAllTrips(): Promise<number> {
+    const result = await this.prismaService.trip.deleteMany({});
+    if (result.count > 0) {
+      this.logger.warn(
+        `Deleted ${result.count} trips (related bookings and payments removed by cascade).`,
+      );
+    }
+    return result.count;
+  }
+
   async seedRoutesAndBuses(): Promise<{
     routesCreated: number;
     busesCreated: number;
@@ -137,7 +181,6 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     await this.seedRoutesAndBuses();
     await this.ensureRequiredDataExists();
 
-    const timeSlots = this.generateTimeSlots();
     const [allRoutes, allBuses] = await Promise.all([
       this.prismaService.route.findMany({
         select: { id: true, origin: true, destination: true },
@@ -155,7 +198,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
 
     this.logger.debug(`Routes: ${routes.length}`);
     this.logger.debug(`Buses: ${buses.length}`);
-    this.logger.debug(`TimeSlots: ${timeSlots.length}`);
+    this.logger.debug(`Schedule slots: ${this.scheduleSlots.length}`);
 
     if (routes.length === 0 || buses.length === 0) {
       this.logger.warn(
@@ -173,10 +216,15 @@ export class TripGeneratorService implements OnApplicationBootstrap {
       `Trip generation loop starts for ${this.formatLocalDate(targetDate)}`,
     );
 
-    for (const hour of timeSlots) {
+    for (const slot of this.scheduleSlots) {
       for (const route of routes) {
-        for (const bus of buses) {
-          const departureTime = this.buildDepartureTime(dayStart, hour);
+        const slotBuses = buses.filter(slot.matches);
+        for (const bus of slotBuses) {
+          const departureTime = this.buildDepartureTime(
+            dayStart,
+            slot.hour,
+            slot.minute,
+          );
 
           if (!forceCreate) {
             const existingTrip = await this.prismaService.trip.findFirst({
@@ -262,19 +310,15 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     return 800;
   }
 
-  private generateTimeSlots(): number[] {
-    const slots: number[] = [];
-    for (let hour = this.firstHour; hour <= this.lastHour; hour += this.intervalHours) {
-      slots.push(hour);
-    }
-    return slots;
-  }
-
-  private buildDepartureTime(dayStart: Date, hour: number): Date {
+  private buildDepartureTime(
+    dayStart: Date,
+    hour: number,
+    minute = 0,
+  ): Date {
     const year = dayStart.getFullYear();
     const month = dayStart.getMonth();
     const day = dayStart.getDate();
-    return new Date(year, month, day, hour, 0, 0, 0);
+    return new Date(year, month, day, hour, minute, 0, 0);
   }
 
   private async ensureRequiredDataExists(): Promise<void> {

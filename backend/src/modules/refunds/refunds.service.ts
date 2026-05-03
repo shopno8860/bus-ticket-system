@@ -164,6 +164,8 @@ export class RefundsService {
             id: true,
             status: true,
             bankTranId: true,
+            amount: true,
+            refundAmount: true,
           },
         },
       },
@@ -181,16 +183,24 @@ export class RefundsService {
       );
     }
 
+    if (snapshot.payment?.amount != null) {
+      if (snapshot.amount.gt(snapshot.payment.amount)) {
+        throw new BadRequestException(
+          'Refund amount cannot exceed the paid amount for this transaction',
+        );
+      }
+    }
+
     let sslResult: SslRefundInitResult | null = null;
     let refundTransId: string | undefined;
 
     const storeReady =
       Boolean(this.sslCommerzRefundService.getStoreId()) &&
       Boolean(this.sslCommerzRefundService.getStorePass());
-    const canCallSsl =
-      Boolean(snapshot.payment?.bankTranId) && storeReady;
+    const bankTranIdTrimmed = snapshot.payment?.bankTranId?.trim() ?? '';
+    const canCallSsl = bankTranIdTrimmed.length > 0 && storeReady;
 
-    if (canCallSsl && snapshot.payment?.bankTranId) {
+    if (canCallSsl) {
       refundTransId = `rfd_${randomBytes(12).toString('hex')}`;
       const refeId = `${snapshot.id}_${Date.now()}`.slice(0, 50);
       const reason =
@@ -199,23 +209,13 @@ export class RefundsService {
         'Admin approved refund';
 
       sslResult = await this.sslCommerzRefundService.initiateRefund({
-        bankTranId: snapshot.payment.bankTranId,
+        bankTranId: bankTranIdTrimmed,
         amount: snapshot.amount.toNumber(),
         reason,
         refundTransId,
         refeId,
       });
-
-      if (
-        sslResult.normalizedStatus === 'FAILED' ||
-        sslResult.normalizedStatus === 'UNKNOWN'
-      ) {
-        throw new BadRequestException({
-          message: 'SSLCommerz refund failed; refund was not approved',
-          reason: sslResult.errorReason ?? sslResult.normalizedStatus,
-        });
-      }
-    } else if (snapshot.paymentId && !snapshot.payment?.bankTranId) {
+    } else if (snapshot.paymentId && !bankTranIdTrimmed) {
       this.logger.warn(
         `Refund ${refundId}: approving without bankTranId — payment marked refunded in DB only (no SSL gateway call).`,
       );
@@ -224,6 +224,123 @@ export class RefundsService {
     const sslJson = sslResult
       ? (sslResult.raw as unknown as Prisma.InputJsonValue)
       : undefined;
+
+    const mergedFailureNote = RefundsService.mergeAdminNoteWithSsl(
+      adminNote,
+      sslResult?.errorReason,
+    );
+
+    if (
+      sslResult &&
+      (sslResult.normalizedStatus === 'FAILED' ||
+        sslResult.normalizedStatus === 'UNKNOWN')
+    ) {
+      const gatewayLabel = [
+        sslResult.apiConnect && `APIConnect=${sslResult.apiConnect}`,
+        sslResult.sslStatus && `status=${sslResult.sslStatus}`,
+        sslResult.approvalStatus && `approval=${sslResult.approvalStatus}`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      await this.prismaService.refund.update({
+        where: { id: refundId },
+        data: {
+          status: RefundStatus.FAILED,
+          processedAt: new Date(),
+          processedBy: adminUserId,
+          sslRefundRefId: sslResult.refundRefId ?? null,
+          refundTransId: refundTransId ?? null,
+          sslGatewayStatus:
+            sslResult.sslStatus ??
+            sslResult.approvalStatus ??
+            sslResult.normalizedStatus,
+          sslRawResponse: sslJson,
+          bankTranId: (bankTranIdTrimmed || snapshot.payment?.bankTranId) ?? null,
+          adminNote: mergedFailureNote ?? undefined,
+        },
+      });
+
+      this.logger.warn(
+        `Refund ${refundId} marked FAILED after SSL outcome (${gatewayLabel || sslResult.normalizedStatus})`,
+      );
+
+      throw new BadRequestException({
+        message:
+          'SSLCommerz did not confirm the refund; booking was not cancelled',
+        reason: sslResult.errorReason ?? sslResult.normalizedStatus,
+      });
+    }
+
+    if (sslResult?.normalizedStatus === 'PROCESSING') {
+      return this.prismaService
+        .$transaction(
+          async (tx) => {
+            const refund = await tx.refund.findUnique({
+              where: { id: refundId },
+            });
+            if (!refund) {
+              throw new NotFoundException('Refund not found');
+            }
+            if (refund.status !== RefundStatus.PENDING) {
+              throw new ConflictException('Only pending refunds can be approved');
+            }
+
+            if (refund.paymentId) {
+              const paymentUpdateResult = await tx.payment.updateMany({
+                where: {
+                  id: refund.paymentId,
+                  status: { not: PaymentStatus.REFUNDED },
+                },
+                data: {
+                  refundAmount: refund.amount,
+                  refundStatus: 'SSL_PROCESSING',
+                },
+              });
+              if (paymentUpdateResult.count === 0) {
+                throw new ConflictException(
+                  'Linked payment was not found or already refunded',
+                );
+              }
+            }
+
+            const processingNote =
+              adminNote?.trim() || snapshot.adminNote?.trim();
+            return tx.refund.update({
+              where: { id: refundId },
+              data: {
+                status: RefundStatus.PENDING,
+                sslRefundRefId: sslResult.refundRefId ?? null,
+                refundTransId: refundTransId ?? null,
+                sslGatewayStatus: 'PROCESSING',
+                sslRawResponse: sslJson,
+                bankTranId: bankTranIdTrimmed || null,
+                ...(processingNote ? { adminNote: processingNote } : {}),
+              },
+            });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+        .then(async (refund) => {
+          await this.notificationsService.notifyRefundUpdate({
+            userId: refund.userId,
+            refundId: refund.id,
+            status: refund.status,
+            message:
+              'Refund submitted to SSLCommerz; gateway is processing. Booking stays active until the refund settles.',
+          });
+          return refund;
+        });
+    }
+
+    const finalizeAsRefundedAtGateway =
+      !sslResult || sslResult.normalizedStatus === 'SUCCESS';
+
+    if (sslResult && !finalizeAsRefundedAtGateway) {
+      throw new ConflictException(
+        'Unexpected SSL gateway state during refund approval',
+      );
+    }
 
     return this.prismaService
       .$transaction(
@@ -255,28 +372,14 @@ export class RefundsService {
             let paymentUpdateResult: { count: number };
 
             if (sslResult) {
-              if (sslResult.normalizedStatus === 'SUCCESS') {
-                paymentUpdateResult = await tx.payment.updateMany({
-                  where: { id: refund.paymentId },
-                  data: {
-                    ...baseData,
-                    status: PaymentStatus.REFUNDED,
-                    refundStatus: 'SUCCESS',
-                  },
-                });
-              } else if (sslResult.normalizedStatus === 'PROCESSING') {
-                paymentUpdateResult = await tx.payment.updateMany({
-                  where: { id: refund.paymentId },
-                  data: {
-                    ...baseData,
-                    refundStatus: 'SSL_PROCESSING',
-                  },
-                });
-              } else {
-                throw new ConflictException(
-                  'Unexpected SSL gateway status during refund approval',
-                );
-              }
+              paymentUpdateResult = await tx.payment.updateMany({
+                where: { id: refund.paymentId },
+                data: {
+                  ...baseData,
+                  status: PaymentStatus.REFUNDED,
+                  refundStatus: 'SUCCESS',
+                },
+              });
             } else {
               paymentUpdateResult = await tx.payment.updateMany({
                 where: { id: refund.paymentId },
@@ -322,14 +425,14 @@ export class RefundsService {
               status: RefundStatus.APPROVED,
               processedAt: new Date(),
               processedBy: adminUserId,
-              adminNote,
+              ...(adminNote !== undefined ? { adminNote } : {}),
               ...(sslResult
                 ? {
                     sslRefundRefId: sslResult.refundRefId ?? null,
                     refundTransId: refundTransId ?? null,
-                    sslGatewayStatus: sslResult.normalizedStatus,
+                    sslGatewayStatus: sslResult.sslStatus ?? 'SUCCESS',
                     sslRawResponse: sslJson,
-                    bankTranId: snapshot.payment?.bankTranId ?? null,
+                    bankTranId: bankTranIdTrimmed || null,
                   }
                 : {}),
             },
@@ -353,6 +456,294 @@ export class RefundsService {
 
         return refund;
       });
+  }
+
+  /**
+   * Calls SSLCommerz refund **query** API (`refund_ref_id`), updates `sslRawResponse`,
+   * and when SSL reports `refunded`, finalizes a pending refund (payment REFUNDED,
+   * booking cancelled). When SSL reports cancelled/failed while payment is
+   * `SSL_PROCESSING`, marks refund FAILED. SSL merchant UI is unchanged; this syncs **our** DB.
+   */
+  async adminSyncSslRefundStatus(
+    refundId: string,
+    adminUserId: string,
+  ): Promise<{
+    refund: Refund;
+    sslLive: Record<string, unknown>;
+    outcome: string;
+  }> {
+    const row = await this.prismaService.refund.findUnique({
+      where: { id: refundId },
+      include: {
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            refundStatus: true,
+            amount: true,
+          },
+        },
+        booking: { select: { id: true, status: true } },
+      },
+    });
+
+    if (!row) {
+      throw new NotFoundException('Refund not found');
+    }
+
+    const refId = row.sslRefundRefId?.trim();
+    if (!refId) {
+      throw new BadRequestException(
+        'No sslRefundRefId on this refund. Run approve first so SSL returns a refund reference.',
+      );
+    }
+
+    const sslLive = await this.sslCommerzRefundService.queryRefundStatus(refId);
+    const parsed =
+      this.sslCommerzRefundService.interpretRefundQueryResponse(sslLive);
+    const liveJson = sslLive as unknown as Prisma.InputJsonValue;
+
+    if (parsed.normalizedStatus === 'SUCCESS') {
+      if (row.status === RefundStatus.APPROVED) {
+        const refund = await this.prismaService.refund.update({
+          where: { id: refundId },
+          data: {
+            sslRawResponse: liveJson,
+            sslGatewayStatus: parsed.sslStatus ?? 'refunded',
+          },
+        });
+        return {
+          refund,
+          sslLive,
+          outcome:
+            'Already approved locally; refreshed SSL snapshot only. SSL dashboard may still show its own labels.',
+        };
+      }
+
+      if (row.status !== RefundStatus.PENDING) {
+        throw new ConflictException(
+          'SSL reports refunded but this refund is not pending locally; resolve manually.',
+        );
+      }
+
+      if (row.booking?.status !== BookingStatus.CONFIRMED) {
+        const refund = await this.prismaService.refund.update({
+          where: { id: refundId },
+          data: {
+            sslRawResponse: liveJson,
+            sslGatewayStatus: parsed.sslStatus ?? 'refunded',
+          },
+        });
+        return {
+          refund,
+          sslLive,
+          outcome:
+            'SSL reports refunded but booking is not CONFIRMED; stored snapshot only.',
+        };
+      }
+
+      if (!row.paymentId || row.payment?.status !== PaymentStatus.SUCCESS) {
+        const refund = await this.prismaService.refund.update({
+          where: { id: refundId },
+          data: {
+            sslRawResponse: liveJson,
+            sslGatewayStatus: parsed.sslStatus ?? 'refunded',
+          },
+        });
+        return {
+          refund,
+          sslLive,
+          outcome:
+            'SSL reports refunded but payment is not SUCCESS; stored snapshot only.',
+        };
+      }
+
+      const refund = await this.prismaService.$transaction(
+        async (tx) => {
+          const r = await tx.refund.findUnique({ where: { id: refundId } });
+          if (!r || r.status !== RefundStatus.PENDING) {
+            throw new ConflictException('Refund is no longer pending');
+          }
+
+          const pay = await tx.payment.findUnique({
+            where: { id: r.paymentId! },
+            select: { status: true },
+          });
+          if (pay?.status === PaymentStatus.REFUNDED) {
+            return tx.refund.update({
+              where: { id: refundId },
+              data: {
+                sslRawResponse: liveJson,
+                sslGatewayStatus: parsed.sslStatus ?? 'refunded',
+              },
+            });
+          }
+
+          const payUp = await tx.payment.updateMany({
+            where: {
+              id: r.paymentId!,
+              status: PaymentStatus.SUCCESS,
+            },
+            data: {
+              refundAmount: r.amount,
+              status: PaymentStatus.REFUNDED,
+              refundStatus: 'SUCCESS',
+            },
+          });
+          if (payUp.count === 0) {
+            throw new ConflictException(
+              'Payment was not SUCCESS; cannot finalize refund from SSL query',
+            );
+          }
+
+          const bu = await tx.booking.updateMany({
+            where: {
+              id: r.bookingId,
+              status: BookingStatus.CONFIRMED,
+            },
+            data: {
+              status: BookingStatus.CANCELLED,
+              cancelledAt: new Date(),
+              cancelReason: 'Refund settled via SSLCommerz (admin sync)',
+              cancelledBy: adminUserId,
+              refundAmount: r.amount,
+            },
+          });
+          if (bu.count === 0) {
+            throw new ConflictException(
+              'Booking was not CONFIRMED; cannot finalize refund from SSL query',
+            );
+          }
+
+          await tx.bookingSeat.deleteMany({
+            where: { bookingId: r.bookingId },
+          });
+
+          return tx.refund.update({
+            where: { id: refundId },
+            data: {
+              status: RefundStatus.APPROVED,
+              processedAt: new Date(),
+              processedBy: adminUserId,
+              sslRawResponse: liveJson,
+              sslGatewayStatus: parsed.sslStatus ?? 'refunded',
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+
+      await this.notificationsService.notifyRefundUpdate({
+        userId: refund.userId,
+        refundId: refund.id,
+        status: refund.status,
+        message: 'Refund finalized after SSL reported refunded.',
+      });
+      void this.sendRefundApprovedEmail({
+        userId: refund.userId,
+        bookingId: refund.bookingId,
+        refundAmount: refund.amount.toString(),
+      });
+
+      return {
+        refund,
+        sslLive,
+        outcome:
+          'SSL reported refunded — payment marked REFUNDED and booking cancelled in our system.',
+      };
+    }
+
+    if (parsed.normalizedStatus === 'FAILED') {
+      if (
+        row.status === RefundStatus.PENDING &&
+        row.payment?.refundStatus === 'SSL_PROCESSING'
+      ) {
+        const refund = await this.prismaService.$transaction(
+          async (tx) => {
+            if (row.paymentId) {
+              await tx.payment.updateMany({
+                where: { id: row.paymentId },
+                data: { refundStatus: 'SSL_REFUND_CANCELLED' },
+              });
+            }
+            const failedNote = RefundsService.mergeAdminNoteWithSsl(
+              row.adminNote ?? undefined,
+              parsed.errorReason,
+            );
+            return tx.refund.update({
+              where: { id: refundId },
+              data: {
+                status: RefundStatus.FAILED,
+                processedAt: new Date(),
+                processedBy: adminUserId,
+                sslRawResponse: liveJson,
+                sslGatewayStatus: parsed.sslStatus ?? 'cancelled',
+                ...(failedNote ? { adminNote: failedNote } : {}),
+              },
+            });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+
+        await this.notificationsService.notifyRefundUpdate({
+          userId: refund.userId,
+          refundId: refund.id,
+          status: refund.status,
+          message:
+            'SSL cancelled or failed the refund; local refund marked FAILED (booking unchanged).',
+        });
+
+        return {
+          refund,
+          sslLive,
+          outcome:
+            'SSL cancelled/failed this refund — marked FAILED locally; booking was not cancelled.',
+        };
+      }
+
+      const refund = await this.prismaService.refund.update({
+        where: { id: refundId },
+        data: {
+          sslRawResponse: liveJson,
+          sslGatewayStatus: parsed.sslStatus ?? parsed.normalizedStatus,
+        },
+      });
+      return {
+        refund,
+        sslLive,
+        outcome:
+          'Stored latest SSL query snapshot. No automatic local status change for this combination.',
+      };
+    }
+
+    const refund = await this.prismaService.refund.update({
+      where: { id: refundId },
+      data: {
+        sslRawResponse: liveJson,
+        sslGatewayStatus: parsed.sslStatus ?? parsed.normalizedStatus,
+      },
+    });
+
+    return {
+      refund,
+      sslLive,
+      outcome:
+        parsed.normalizedStatus === 'PROCESSING'
+          ? 'SSL still processing; try sync again later.'
+          : 'SSL status unclear; snapshot stored.',
+    };
+  }
+
+  private static mergeAdminNoteWithSsl(
+    adminNote?: string,
+    sslReason?: string,
+  ): string | undefined {
+    const a = adminNote?.trim();
+    const r = sslReason?.trim();
+    if (!a && !r) return undefined;
+    if (!r) return a;
+    if (!a) return `[SSL] ${r}`;
+    return `${a} | [SSL] ${r}`;
   }
 
   private async sendRefundApprovedEmail(params: {
