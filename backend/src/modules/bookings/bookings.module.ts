@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RolesGuard } from '../../auth/guards/roles.guard';
-import { MailModule } from '../../mail/mail.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { RefundsModule } from '../refunds/refunds.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { BookingsController } from './bookings.controller';
 import { SeatLockCleanupService } from './seat-lock-cleanup.service';
@@ -10,7 +8,7 @@ import { BookingsService } from './bookings.service';
 import { TicketPdfService } from './ticket-pdf.service';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, MailModule, RefundsModule],
+  imports: [PrismaModule, NotificationsModule],
   controllers: [BookingsController],
   providers: [BookingsService, RolesGuard, SeatLockCleanupService, TicketPdfService],
   exports: [BookingsService, TicketPdfService],

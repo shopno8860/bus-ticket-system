@@ -109,10 +109,10 @@ npm run lint
 ## Module Overview
 
 - `auth`: login/register/token refresh/forgot-reset password
-- `bookings`: booking creation, confirmation, cancellation, seat lock workflow
+- `bookings`: booking creation, confirmation, **user cancel sends a pending refund request** (ticket stays confirmed until admin approves the refund), seat lock workflow
 - `buses`: bus, route, trip, seat related management
 - `payments`: payment initiation and callback/verification flows
-- `refunds`: refund request and admin review actions; `POST /refund/:bookingId` and `GET /refund/status/:refundRefId` for SSLCommerz gateway refunds
+- `refunds`: user refund request (`POST /refunds`) and admin approve/reject; on approve, SSLCommerz refund runs when `bankTranId` and store credentials exist. `GET /refund/status/:refundRefId` returns stored + live gateway status for the owner.
 - `admin`: admin-level reporting and operations
 
 ## Notes

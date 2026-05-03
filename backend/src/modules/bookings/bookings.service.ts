@@ -13,13 +13,17 @@ import {
   BusType,
   PaymentStatus,
   Prisma,
+  RefundStatus,
   UserRole,
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import { MailService } from '../../mail/mail.service';
+import {
+  canCancelBooking,
+  getHoursBeforeDeparture,
+  getRefundPercentage,
+} from '../../common/policies/cancellation-policy';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { RefundsService } from '../refunds/refunds.service';
 import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -46,8 +50,6 @@ export class BookingsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
-    private readonly mailService: MailService,
-    private readonly refundsService: RefundsService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<{
@@ -503,11 +505,137 @@ export class BookingsService {
   }
 
   async cancel(bookingId: string, userId: string): Promise<any> {
-    return this.refundsService.initiateSslRefundForBooking(
-      bookingId,
-      userId,
-      'Cancelled by user',
-    );
+    const now = new Date();
+
+    return this.prismaService
+      .$transaction(async (tx) => {
+        const booking = await tx.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            trip: true,
+            payments: {
+              where: { status: PaymentStatus.SUCCESS },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: paymentSafeSelect,
+            },
+          },
+        });
+
+        if (!booking) {
+          throw new NotFoundException('Booking not found');
+        }
+
+        if (booking.userId !== userId) {
+          throw new ForbiddenException(
+            'You are not authorized to cancel this booking',
+          );
+        }
+
+        if (booking.status !== BookingStatus.CONFIRMED) {
+          throw new ConflictException(
+            'Only confirmed bookings can be cancelled',
+          );
+        }
+
+        const existingRefundRequest = await tx.refund.findFirst({
+          where: {
+            bookingId,
+            status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
+          },
+          select: { id: true, status: true },
+        });
+
+        if (existingRefundRequest) {
+          throw new ConflictException(
+            'A refund request already exists for this booking',
+          );
+        }
+
+        const departureTime = new Date(booking.trip.departureTime);
+        const diffInHours = getHoursBeforeDeparture(now, departureTime);
+
+        if (!canCancelBooking(diffInHours)) {
+          throw new BadRequestException(
+            'Cancellations are not allowed within 2 hours of departure',
+          );
+        }
+
+        const refundPercentage = getRefundPercentage(diffInHours);
+
+        const totalAmount = new Prisma.Decimal(booking.totalAmount);
+        const refundAmount = totalAmount.mul(refundPercentage);
+        const latestSuccessfulPayment = booking.payments[0];
+
+        if (!latestSuccessfulPayment) {
+          throw new ConflictException(
+            'No successful payment found for this booking refund',
+          );
+        }
+
+        const createdRefundRequest = await tx.refund.create({
+          data: {
+            bookingId: booking.id,
+            paymentId: latestSuccessfulPayment.id,
+            userId: booking.userId,
+            reason: 'Cancellation requested by user (pending admin approval)',
+            amount: refundAmount,
+            status: RefundStatus.PENDING,
+          },
+        });
+
+        const bookingAfter = await tx.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            trip: {
+              include: {
+                route: true,
+                bus: true,
+              },
+            },
+            bookingSeats: {
+              include: {
+                seat: true,
+              },
+            },
+            payments: {
+              select: paymentSafeSelect,
+            },
+          },
+        });
+
+        if (!bookingAfter) {
+          throw new NotFoundException('Booking not found');
+        }
+
+        return {
+          message:
+            'Cancellation request sent to admin. Your ticket stays active until the request is approved.',
+          refundAmount: refundAmount.toNumber(),
+          refundRequest: {
+            id: createdRefundRequest.id,
+            status: createdRefundRequest.status,
+          },
+          booking: bookingAfter,
+        };
+      })
+      .then(async (result) => {
+        await this.notificationsService.notifyBookingUpdate({
+          userId,
+          bookingId,
+          status: BookingStatus.CONFIRMED,
+          message:
+            'Your cancellation request was submitted. An admin will review it.',
+        });
+        await this.notificationsService.notifyRefundUpdate({
+          userId,
+          refundId: result.refundRequest.id,
+          status: RefundStatus.PENDING,
+          message:
+            'A cancellation / refund request is pending admin approval.',
+        });
+        return result;
+      });
   }
 
   async cancelByAdmin(
