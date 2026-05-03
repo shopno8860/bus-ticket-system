@@ -47,7 +47,19 @@ Optional payment gateway variables (used in payment flow):
 STORE_ID=""
 STORE_PASSWORD=""
 SSLCOMMERZ_URL=""
+BACKEND_URL="http://localhost:3000"
 ```
+
+SSLCommerz refunds and order validation (sandbox or live) also support:
+
+```env
+SSL_STORE_ID=""
+SSL_STORE_PASS=""
+SSL_BASE_URL="https://sandbox.sslcommerz.com"
+SSL_REFUND_URL="https://sandbox.sslcommerz.com/validator/api/merchantTransIDvalidationAPI.php"
+```
+
+If `SSL_STORE_ID` / `SSL_STORE_PASS` are unset, the backend falls back to `STORE_ID` / `STORE_PASSWORD`. If `SSL_REFUND_URL` is unset, the refund client builds the URL from `SSL_BASE_URL` or from the origin of `SSLCOMMERZ_URL`. Successful payment callbacks should include `val_id` when possible so the server can validate the order and persist `bankTranId` for API refunds.
 
 ## Installation
 
@@ -100,7 +112,7 @@ npm run lint
 - `bookings`: booking creation, confirmation, cancellation, seat lock workflow
 - `buses`: bus, route, trip, seat related management
 - `payments`: payment initiation and callback/verification flows
-- `refunds`: refund request and admin review actions
+- `refunds`: refund request and admin review actions; `POST /refund/:bookingId` and `GET /refund/status/:refundRefId` for SSLCommerz gateway refunds
 - `admin`: admin-level reporting and operations
 
 ## Notes

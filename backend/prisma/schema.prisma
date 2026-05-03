@@ -276,6 +276,8 @@ model Payment {
   refundStatus  String?
 
   transactionId String?       @unique
+  valId         String?
+  bankTranId    String?
 
   booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -302,6 +304,12 @@ model Refund {
   processedAt DateTime?
   processedBy String?
   adminNote   String?
+
+  bankTranId        String?
+  sslRefundRefId    String?
+  refundTransId     String?  @unique
+  sslGatewayStatus  String?
+  sslRawResponse    Json?
 
   booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   payment     Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)

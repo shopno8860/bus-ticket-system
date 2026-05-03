@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -29,6 +30,8 @@ const paymentSafeSelect = {
   refundAmount: true,
   refundStatus: true,
   transactionId: true,
+  valId: true,
+  bankTranId: true,
   createdAt: true,
 } satisfies Prisma.PaymentSelect;
 
@@ -149,8 +152,32 @@ export class PaymentsService {
   /**
    * Handles successful payment callback from SSLCommerz.
    * Marks payment as SUCCESS and booking as CONFIRMED.
+   * When `sslPayload` includes `val_id` and store credentials are set, validates
+   * with SSL order validation API and persists `bankTranId` for refunds.
    */
-  async handlePaymentSuccess(tranId: string) {
+  async handlePaymentSuccess(
+    tranId: string,
+    sslPayload?: Record<string, unknown>,
+  ) {
+    const paymentRow = await this.prismaService.payment.findUnique({
+      where: { transactionId: tranId },
+      select: {
+        ...paymentSafeSelect,
+        booking: true,
+      },
+    });
+
+    if (!paymentRow) throw new NotFoundException('Payment record not found');
+
+    let bankMeta: { bankTranId?: string; valId?: string } = {};
+    if (paymentRow.status !== PaymentStatus.SUCCESS) {
+      bankMeta = await this.resolveBankTranFromSslPayload(
+        tranId,
+        paymentRow.amount,
+        sslPayload,
+      );
+    }
+
     return this.prismaService
       .$transaction(
         async (tx) => {
@@ -175,6 +202,8 @@ export class PaymentsService {
                 refundAmount: payment.refundAmount,
                 refundStatus: payment.refundStatus,
                 transactionId: payment.transactionId,
+                valId: payment.valId,
+                bankTranId: payment.bankTranId,
                 createdAt: payment.createdAt,
               },
               shouldSendEmail: false,
@@ -184,7 +213,13 @@ export class PaymentsService {
           // 1. Update Payment
           const updatedPayment = await tx.payment.update({
             where: { id: payment.id },
-            data: { status: PaymentStatus.SUCCESS },
+            data: {
+              status: PaymentStatus.SUCCESS,
+              ...(bankMeta.bankTranId !== undefined
+                ? { bankTranId: bankMeta.bankTranId }
+                : {}),
+              ...(bankMeta.valId !== undefined ? { valId: bankMeta.valId } : {}),
+            },
             select: paymentSafeSelect,
           });
 
@@ -484,6 +519,133 @@ export class PaymentsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  private getValidationServerUrl(): string {
+    const base = this.configService
+      .get<string>('SSL_BASE_URL')
+      ?.replace(/\/$/, '')
+      ?.trim();
+    if (base) {
+      return `${base}/validator/api/validationserverAPI.php`;
+    }
+    const sslUrl = this.configService.get<string>('SSLCOMMERZ_URL')?.trim();
+    if (sslUrl) {
+      try {
+        const u = new URL(sslUrl);
+        return `${u.origin}/validator/api/validationserverAPI.php`;
+      } catch {
+        this.logger.warn(
+          'SSLCOMMERZ_URL is not a valid URL; using sandbox validation API host.',
+        );
+      }
+    }
+    return 'https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php';
+  }
+
+  private pickPayloadString(
+    payload: Record<string, unknown> | undefined,
+    ...keys: string[]
+  ): string | undefined {
+    if (!payload) return undefined;
+    for (const k of keys) {
+      const v = payload[k];
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        return String(v).trim();
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Resolves bank transaction id for refunds. If `val_id` is present and store
+   * credentials exist, validates the order with SSL before trusting amounts/tran_id.
+   */
+  private async resolveBankTranFromSslPayload(
+    tranId: string,
+    paymentAmount: Prisma.Decimal,
+    sslPayload?: Record<string, unknown>,
+  ): Promise<{ bankTranId?: string; valId?: string }> {
+    if (!sslPayload || Object.keys(sslPayload).length === 0) {
+      return {};
+    }
+
+    const valId = this.pickPayloadString(sslPayload, 'val_id', 'valId');
+    const bodyBankTran = this.pickPayloadString(
+      sslPayload,
+      'bank_tran_id',
+      'bankTranId',
+    );
+
+    const storeId =
+      this.configService.get<string>('SSL_STORE_ID')?.trim() ||
+      this.configService.get<string>('STORE_ID')?.trim();
+    const storePass =
+      this.configService.get<string>('SSL_STORE_PASS')?.trim() ||
+      this.configService.get<string>('STORE_PASSWORD')?.trim();
+
+    if (valId && storeId && storePass) {
+      const url = new URL(this.getValidationServerUrl());
+      url.searchParams.set('val_id', valId);
+      url.searchParams.set('store_id', storeId);
+      url.searchParams.set('store_passwd', storePass);
+      url.searchParams.set('format', 'json');
+
+      let raw: Record<string, unknown>;
+      try {
+        const response = await fetch(url.toString(), { method: 'GET' });
+        const text = await response.text();
+        const parsed: unknown = JSON.parse(text);
+        raw =
+          typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : {};
+      } catch (e) {
+        this.logger.error(
+          'SSL order validation request failed',
+          e instanceof Error ? e.stack : String(e),
+        );
+        throw new BadGatewayException(
+          'SSLCommerz order validation failed (network or parse error)',
+        );
+      }
+
+      const status = String(raw.status ?? '').toUpperCase();
+      if (status !== 'VALID') {
+        throw new BadGatewayException(
+          `SSLCommerz order validation failed: status=${String(raw.status)}`,
+        );
+      }
+
+      const respTran = this.pickPayloadString(raw, 'tran_id', 'tranId');
+      if (respTran && respTran !== tranId) {
+        throw new BadGatewayException(
+          'SSLCommerz validation tran_id does not match payment transaction',
+        );
+      }
+
+      const respAmount = this.pickPayloadString(raw, 'amount', 'Amount');
+      if (respAmount) {
+        const dec = new Prisma.Decimal(respAmount);
+        if (!dec.equals(paymentAmount)) {
+          throw new BadGatewayException(
+            'SSLCommerz validation amount does not match payment amount',
+          );
+        }
+      }
+
+      const bankTran = this.pickPayloadString(raw, 'bank_tran_id', 'bankTranId');
+      return {
+        bankTranId: bankTran,
+        valId,
+      };
+    }
+
+    if (bodyBankTran) {
+      return { bankTranId: bodyBankTran, valId: valId ?? undefined };
+    }
+
+    return {};
   }
 
   private generateTransactionId(): string {

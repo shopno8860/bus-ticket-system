@@ -13,18 +13,13 @@ import {
   BusType,
   PaymentStatus,
   Prisma,
-  RefundStatus,
   UserRole,
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import {
-  canCancelBooking,
-  getHoursBeforeDeparture,
-  getRefundPercentage,
-} from '../../common/policies/cancellation-policy';
 import { MailService } from '../../mail/mail.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RefundsService } from '../refunds/refunds.service';
 import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -39,6 +34,8 @@ const paymentSafeSelect = {
   refundAmount: true,
   refundStatus: true,
   transactionId: true,
+  valId: true,
+  bankTranId: true,
   createdAt: true,
 } satisfies Prisma.PaymentSelect;
 
@@ -50,6 +47,7 @@ export class BookingsService {
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
+    private readonly refundsService: RefundsService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<{
@@ -505,171 +503,11 @@ export class BookingsService {
   }
 
   async cancel(bookingId: string, userId: string): Promise<any> {
-    const now = new Date();
-
-    return this.prismaService
-      .$transaction(async (tx) => {
-        const booking = await tx.booking.findUnique({
-          where: { id: bookingId },
-          include: {
-            trip: true,
-            payments: {
-              where: { status: PaymentStatus.SUCCESS },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-              select: paymentSafeSelect,
-            },
-          },
-        });
-
-        if (!booking) {
-          throw new NotFoundException('Booking not found');
-        }
-
-        if (booking.userId !== userId) {
-          throw new ForbiddenException(
-            'You are not authorized to cancel this booking',
-          );
-        }
-
-        if (booking.status !== BookingStatus.CONFIRMED) {
-          throw new ConflictException(
-            'Only confirmed bookings can be cancelled',
-          );
-        }
-
-        const existingRefundRequest = await tx.refund.findFirst({
-          where: {
-            bookingId,
-            status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
-          },
-          select: { id: true, status: true },
-        });
-
-        if (existingRefundRequest) {
-          throw new ConflictException(
-            'A refund request already exists for this booking',
-          );
-        }
-
-        const departureTime = new Date(booking.trip.departureTime);
-        const diffInHours = getHoursBeforeDeparture(now, departureTime);
-
-        if (!canCancelBooking(diffInHours)) {
-          throw new BadRequestException(
-            'Cancellations are not allowed within 2 hours of departure',
-          );
-        }
-
-        const refundPercentage = getRefundPercentage(diffInHours);
-
-        const totalAmount = new Prisma.Decimal(booking.totalAmount);
-        const refundAmount = totalAmount.mul(refundPercentage);
-        const latestSuccessfulPayment = booking.payments[0];
-
-        if (!latestSuccessfulPayment) {
-          throw new ConflictException(
-            'No successful payment found for this booking refund',
-          );
-        }
-
-        // Update Booking
-        const updatedBooking = await tx.booking.update({
-          where: { id: bookingId },
-          data: {
-            status: BookingStatus.CANCELLED,
-            cancelledAt: now,
-            refundAmount: refundAmount,
-            cancelReason: 'Cancelled by user',
-            cancelledBy: userId,
-          },
-          include: {
-            trip: {
-              include: {
-                route: true,
-                bus: true,
-              },
-            },
-            bookingSeats: {
-              include: {
-                seat: true,
-              },
-            },
-            payments: {
-              select: paymentSafeSelect,
-            },
-          },
-        });
-
-        // Delete bookingSeats to free them
-        await tx.bookingSeat.deleteMany({
-          where: { bookingId: bookingId },
-        });
-
-        const createdRefundRequest = await tx.refund.create({
-          data: {
-            bookingId: booking.id,
-            paymentId: latestSuccessfulPayment.id,
-            userId: booking.userId,
-            reason: 'Cancelled by user',
-            amount: refundAmount,
-            status: RefundStatus.PENDING,
-          },
-        });
-
-        return {
-          message: 'Booking cancelled and refund request sent to admin',
-          refundAmount: refundAmount.toNumber(),
-          refundRequest: {
-            id: createdRefundRequest.id,
-            status: createdRefundRequest.status,
-          },
-          booking: updatedBooking,
-        };
-      })
-      .then(async (result) => {
-        await this.notificationsService.notifyBookingUpdate({
-          userId,
-          bookingId,
-          status: BookingStatus.CANCELLED,
-          message: 'Your booking has been cancelled successfully.',
-        });
-        void this.sendBookingCancelledEmail({
-          userId: result.booking.userId,
-          bookingReference: result.booking.bookingReference,
-        });
-        return result;
-      });
-  }
-
-  private async sendBookingCancelledEmail(params: {
-    userId: string;
-    bookingReference: string;
-  }): Promise<void> {
-    try {
-      const user = await this.prismaService.user.findUnique({
-        where: { id: params.userId },
-        select: { email: true, fullName: true },
-      });
-
-      if (!user?.email) {
-        this.logger.warn(
-          `Skipped booking cancellation email due to missing user email. userId=${params.userId}`,
-        );
-        return;
-      }
-
-      await this.mailService.sendBookingCancellationEmail({
-        to: user.email,
-        customerName: user.fullName ?? 'Customer',
-        bookingReference: params.bookingReference,
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to send booking cancellation email for userId=${params.userId}`,
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
+    return this.refundsService.initiateSslRefundForBooking(
+      bookingId,
+      userId,
+      'Cancelled by user',
+    );
   }
 
   async cancelByAdmin(

@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
   UploadedFile,
   UseGuards,
@@ -13,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '@prisma/client';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
@@ -61,7 +62,10 @@ export class PaymentsController {
     }
 
     try {
-      const payment = await this.paymentsService.handlePaymentSuccess(tran_id);
+      const payment = await this.paymentsService.handlePaymentSuccess(
+        tran_id,
+        body && typeof body === 'object' ? (body as Record<string, unknown>) : undefined,
+      );
       return res.redirect(this.frontendSuccessUrl(payment.bookingId));
     } catch {
       return res.redirect(this.frontendFailedUrl());
@@ -71,6 +75,7 @@ export class PaymentsController {
   @Get('success')
   async successGet(
     @Query('tran_id') tranId: string | undefined,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     if (!tranId) {
@@ -78,7 +83,14 @@ export class PaymentsController {
     }
 
     try {
-      const payment = await this.paymentsService.handlePaymentSuccess(tranId);
+      const sslPayload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(req.query)) {
+        sslPayload[k] = Array.isArray(v) ? v[0] : v;
+      }
+      const payment = await this.paymentsService.handlePaymentSuccess(
+        tranId,
+        sslPayload,
+      );
       return res.redirect(this.frontendSuccessUrl(payment.bookingId));
     } catch {
       return res.redirect(this.frontendFailedUrl());
