@@ -35,11 +35,11 @@ import { CreateBookingDto } from './dto/create-booking.dto';
  * passenger cancellation (pending refund), admin cancellation, and expiry of unpaid holds.
  */
 
-/** Max seats one user may commit (PENDING or CONFIRMED) per purchase calendar day (Asia/Dhaka), by `booking.createdAt`. */
-const MAX_TICKET_SEATS_PER_USER_PER_PURCHASE_DAY = 4;
+/** Max seats one user may commit (PENDING or CONFIRMED) per trip departure calendar day (Asia/Dhaka), by `trip.departureTime`. */
+const MAX_TICKET_SEATS_PER_USER_PER_TRAVEL_DAY = 4;
 
 const DAILY_TICKET_LIMIT_MESSAGE =
-  'You already booked 4 ticket please come back next day to purchase ticket';
+  'You already have 4 seats booked for trips on this travel date. You can book seats for other dates.';
 
 const paymentSafeSelect = {
   id: true,
@@ -313,24 +313,27 @@ export class BookingsService {
             );
           }
 
-          const { start: purchaseDayStart, end: purchaseDayEnd } =
-            this.getDhakaCalendarDayUtcBounds(now);
-          const seatsAlreadyBookedToday = await transactionClient.bookingSeat.count({
-            where: {
-              bookingId: { not: null },
-              booking: {
-                userId,
-                status: {
-                  in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+          const { start: travelDayStart, end: travelDayEnd } =
+            this.getDhakaCalendarDayUtcBounds(trip.departureTime);
+          const seatsAlreadyBookedForTravelDay =
+            await transactionClient.bookingSeat.count({
+              where: {
+                bookingId: { not: null },
+                booking: {
+                  userId,
+                  status: {
+                    in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+                  },
+                  trip: {
+                    departureTime: { gte: travelDayStart, lt: travelDayEnd },
+                  },
                 },
-                createdAt: { gte: purchaseDayStart, lt: purchaseDayEnd },
               },
-            },
-          });
+            });
 
           if (
-            seatsAlreadyBookedToday + requestedSeatIds.length >
-            MAX_TICKET_SEATS_PER_USER_PER_PURCHASE_DAY
+            seatsAlreadyBookedForTravelDay + requestedSeatIds.length >
+            MAX_TICKET_SEATS_PER_USER_PER_TRAVEL_DAY
           ) {
             throw new BadRequestException(DAILY_TICKET_LIMIT_MESSAGE);
           }
