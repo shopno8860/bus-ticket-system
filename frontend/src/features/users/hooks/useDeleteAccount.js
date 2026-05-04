@@ -3,6 +3,10 @@ import { deleteAccount } from '../services/userApi';
 
 const CONFIRMATION_TEXT = 'DELETE';
 
+/**
+ * Type-to-confirm (`DELETE`) then calls `deleteAccount` API.
+ * @param {{ onUnauthorized?: () => void }} [options]
+ */
 export function useDeleteAccount({ onUnauthorized } = {}) {
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

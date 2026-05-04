@@ -30,6 +30,11 @@ import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
+/**
+ * Booking domain service: temporary seat locks, PENDING→CONFIRMED flow, payment windows,
+ * passenger cancellation (pending refund), admin cancellation, and expiry of unpaid holds.
+ */
+
 /** Max seats one user may commit (PENDING or paid) per trip departure calendar day (Asia/Dhaka). */
 const MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY = 4;
 
@@ -71,6 +76,7 @@ export class BookingsService {
     return { start, end };
   }
 
+  /** Lock seats for a trip; creates a PENDING booking and returns lock expiry. */
   async create(createBookingDto: CreateBookingDto): Promise<{
     tripId: string;
     seatIds: string[];
@@ -209,6 +215,7 @@ export class BookingsService {
     }
   }
 
+  /** Attach authenticated user to a lock, enforce limits, set payment deadline. */
   async confirmBooking(
     confirmBookingDto: ConfirmBookingDto,
     userId: string,
@@ -410,6 +417,7 @@ export class BookingsService {
     }
   }
 
+  /** Booking detail with trip, seats, latest payment; owner or ADMIN. */
   async findOne(id: string, requesterUserId: string, requesterRole: UserRole) {
     const booking = await this.prismaService.booking.findUnique({
       where: { id },
@@ -448,6 +456,7 @@ export class BookingsService {
     return booking;
   }
 
+  /** All bookings for the signed-in user, newest first. */
   async findMyBookings(userId: string) {
     return this.prismaService.booking.findMany({
       where: {
@@ -488,6 +497,7 @@ export class BookingsService {
     });
   }
 
+  /** Admin booking table with optional filters (user, route, status, dates). */
   async findAllAdmin(filters: AdminBookingsFilterDto) {
     const where: Prisma.BookingWhereInput = {};
 
@@ -557,6 +567,7 @@ export class BookingsService {
     });
   }
 
+  /** Passenger cancellation: creates PENDING refund; ticket stays confirmed until admin approves. */
   async cancel(bookingId: string, userId: string): Promise<any> {
     const now = new Date();
 
@@ -691,6 +702,7 @@ export class BookingsService {
       });
   }
 
+  /** Immediate cancel by admin; clears seats and notifies passenger. */
   async cancelByAdmin(
     bookingId: string,
     reason: string,

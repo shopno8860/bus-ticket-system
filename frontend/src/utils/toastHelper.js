@@ -1,5 +1,7 @@
 import toast from 'react-hot-toast';
 
+/** Styled wrappers around `react-hot-toast` with de-duplicated ids. */
+
 const buildToastId = (msg) =>
   `toast-${String(msg)
     .trim()
@@ -9,6 +11,7 @@ const buildToastId = (msg) =>
 const premiumToastClass = 'custom-toast custom-toast--rgb';
 const errorToastClass = 'custom-toast custom-toast--error';
 
+/** @param {string} msg */
 export const showSuccess = (msg, options = {}) =>
   toast.success(msg, {
     id: buildToastId(msg),
@@ -16,6 +19,7 @@ export const showSuccess = (msg, options = {}) =>
     ...options,
   });
 
+/** @param {string} msg */
 export const showError = (msg, options = {}) =>
   toast.error(msg, {
     id: buildToastId(msg),
@@ -23,12 +27,14 @@ export const showError = (msg, options = {}) =>
     ...options,
   });
 
+/** @returns {string} toast id for later `dismissToast` */
 export const showLoading = (msg, options = {}) =>
   toast.loading(msg, {
     id: buildToastId(msg),
     ...options,
   });
 
+/** @param {string} msg */
 export const showInfo = (msg, options = {}) =>
   toast(msg, {
     id: buildToastId(msg),

@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+/** Rasterizes DOM (html2canvas) into a multi-page A4 jsPDF document. */
 async function renderPdfFromElement(elementId) {
   const element = document.getElementById(elementId);
   if (!element) {
@@ -80,6 +81,7 @@ export const downloadPDF = async (elementId, filename = 'ticket.pdf') => {
   }
 };
 
+/** Same pipeline as `downloadPDF` but returns a `Blob` (e.g. for upload). */
 export const generatePDFBlob = async (elementId) => {
   const pdf = await renderPdfFromElement(elementId);
   return pdf.output('blob');

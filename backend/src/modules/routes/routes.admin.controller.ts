@@ -6,6 +6,11 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Route, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -15,6 +20,8 @@ import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user
 import { UpdateRouteDto } from './dto/update-route.dto';
 import { RoutesService } from './routes.service';
 
+@ApiTags('Routes (admin)')
+@ApiBearerAuth('JWT')
 @Controller('routes')
 @UseGuards(AccessTokenGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -22,6 +29,7 @@ export class RoutesAdminController {
   constructor(private readonly routesService: RoutesService) {}
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update route' })
   async update(
     @Param('id') id: string,
     @Body() updateRouteDto: UpdateRouteDto,
@@ -37,6 +45,7 @@ export class RoutesAdminController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete route' })
   async remove(
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthenticatedUser,

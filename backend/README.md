@@ -97,6 +97,10 @@ npm run start:prod
 
 Default API URL: `http://localhost:3000`
 
+## Interactive API docs (Swagger)
+
+With the server running, open [http://localhost:3000/api/docs](http://localhost:3000/api/docs) for the OpenAPI UI. Raw JSON: `http://localhost:3000/api/docs-json`. Authenticated routes: click **Authorize**, enter `Bearer <accessToken>` or just the token depending on the UI, after `POST /auth/login`.
+
 ## Testing and Code Quality
 
 ```bash

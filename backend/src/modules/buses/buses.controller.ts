@@ -7,6 +7,11 @@ import {
   NotFoundException,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Bus, UserRole } from '@prisma/client';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
@@ -14,6 +19,8 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { BusesService } from './buses.service';
 import { CreateBusDto } from './dto/create-bus.dto';
 
+/** Public bus catalog; create restricted to ADMIN. */
+@ApiTags('Buses')
 @Controller('buses')
 export class BusesController {
   constructor(private readonly busesService: BusesService) {}
@@ -21,16 +28,20 @@ export class BusesController {
   @Post()
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Create bus (ADMIN)' })
   async create(@Body() createBusDto: CreateBusDto): Promise<Bus> {
     return this.busesService.create(createBusDto);
   }
 
   @Get()
+  @ApiOperation({ summary: 'List all buses' })
   async findAll(): Promise<Bus[]> {
     return this.busesService.findAll();
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Bus by id with seats' })
   async findOneById(@Param('id') id: string): Promise<Bus> {
     const bus = await this.busesService.findOneById(id);
 

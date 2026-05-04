@@ -6,6 +6,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Trip, UserRole } from '@prisma/client';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -18,6 +23,9 @@ import { TripGeneratorService } from './trip-generator.service';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { TripsService } from './trips.service';
 
+/** Admin CRUD on trips plus schedule generation helpers. */
+@ApiTags('Trips (admin)')
+@ApiBearerAuth('JWT')
 @Controller('trips')
 @UseGuards(AccessTokenGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -28,6 +36,7 @@ export class TripsAdminController {
   ) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a scheduled trip' })
   async create(
     @Body() createTripDto: CreateTripDto,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -43,6 +52,7 @@ export class TripsAdminController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update trip fields' })
   async update(
     @Param('id') id: string,
     @Body() updateTripDto: UpdateTripDto,
@@ -58,6 +68,7 @@ export class TripsAdminController {
   }
 
   @Patch(':id/cancel')
+  @ApiOperation({ summary: 'Cancel a trip with reason' })
   async cancel(
     @Param('id') id: string,
     @Body() cancelTripDto: CancelTripDto,
@@ -73,6 +84,10 @@ export class TripsAdminController {
   }
 
   @Post('seed-and-generate')
+  @ApiOperation({
+    summary: 'Seed demo routes/buses and generate upcoming trips',
+    description: 'Optional replaceAllTrips wipes trips first.',
+  })
   async seedAndGenerate(
     @Body()
     body: {
@@ -116,6 +131,7 @@ export class TripsAdminController {
   }
 
   @Post('generate-daily')
+  @ApiOperation({ summary: 'Cron-style: generate trips for the daily window' })
   async generateDaily(
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<{ date: string; createdTrips: number }> {
@@ -128,6 +144,7 @@ export class TripsAdminController {
   }
 
   @Post('generate-for-date/today')
+  @ApiOperation({ summary: 'Generate trips for today (Asia/Dhaka calendar day)' })
   async generateForToday(
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<{ date: string; createdTrips: number }> {

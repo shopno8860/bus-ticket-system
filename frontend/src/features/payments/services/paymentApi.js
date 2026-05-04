@@ -2,6 +2,10 @@ import { apiFetch } from '../../../services/api';
 import { config } from '../../../config';
 import { endpoints } from '../../../services/endpoints';
 
+/**
+ * POST /payments — start SSLCommerz session (Bearer required).
+ * @param {object} payload - CreatePaymentDto (bookingId, …)
+ */
 export function createPayment(payload) {
   return apiFetch(endpoints.payments.create, {
     method: 'POST',
@@ -9,6 +13,12 @@ export function createPayment(payload) {
   });
 }
 
+/**
+ * POST /payments/:bookingId/send-confirmation-email — multipart ticket PDF.
+ * @param {string} bookingId
+ * @param {File|Blob} ticketFile - Field name `ticketPdf` on the wire
+ * @returns {Promise<{ message?: string }>}
+ */
 export async function sendConfirmationEmailWithTicket(bookingId, ticketFile) {
   const token = localStorage.getItem('accessToken');
   const formData = new FormData();

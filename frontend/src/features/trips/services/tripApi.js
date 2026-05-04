@@ -1,10 +1,20 @@
 import { config } from '../../../config';
 
+/**
+ * Public trip search/detail using raw `fetch` (no auth). Maps UI filter names to backend query params.
+ * @see GET /trips , GET /trips/:id
+ */
 export const tripApi = {
+  /**
+   * @param {string} [from] - origin city
+   * @param {string} [to] - destination city
+   * @param {string} [date] - ISO or display date string accepted by backend
+   * @param {object} [filters] - busTypes, busClasses, boardingPoint, droppingPoint, minPrice, maxPrice
+   * @returns {Promise<object[]>}
+   */
   getTrips: async (from, to, date, filters = {}) => {
     const query = new URLSearchParams();
-    
-    // Mapping frontend fields to backend fields (origin, destination, date)
+
     if (from) query.append('origin', from);
     if (to) query.append('destination', to);
     if (date) query.append('date', date);
@@ -32,6 +42,10 @@ export const tripApi = {
     return Array.isArray(data) ? data : (data.trips || data.data || []);
   },
 
+  /**
+   * @param {string} tripId
+   * @returns {Promise<object>} Trip with nested bus, route, seats
+   */
   getTripDetails: async (tripId) => {
     const url = `${config.apiBaseUrl}/trips/${tripId}`;
 

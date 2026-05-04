@@ -7,6 +7,10 @@ const initialState = {
   confirmPassword: '',
 };
 
+/**
+ * Local form state + validation + `changePassword` API call for profile settings.
+ * @param {{ onUnauthorized?: () => void }} [options]
+ */
 export function useChangePassword({ onUnauthorized } = {}) {
   const [formData, setFormData] = useState(initialState);
   const [errors, setErrors] = useState({});

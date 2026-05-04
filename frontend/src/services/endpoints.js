@@ -1,3 +1,7 @@
+/**
+ * Relative API paths for the EasyTrip backend (same origin as `config.apiBaseUrl`).
+ * Prefer these over string literals so renames stay centralized.
+ */
 export const endpoints = {
   auth: {
     login: '/auth/login',
@@ -27,7 +31,8 @@ export const endpoints = {
     details: (id) => `/trips/${id}`,
   },
   seats: {
-    byBus: (busId) => `/seats/bus/${busId}`,
+    /** @returns {string} GET /buses/:busId/seats */
+    byBus: (busId) => `/buses/${busId}/seats`,
   },
   bookings: {
     lock: '/bookings',

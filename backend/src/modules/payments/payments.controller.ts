@@ -12,6 +12,12 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '@prisma/client';
 import type { Request, Response } from 'express';
@@ -22,6 +28,8 @@ import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentsService } from './payments.service';
 
+/** SSLCommerz session creation, gateway callbacks (redirect), and ticket email upload. */
+@ApiTags('Payments')
 @Controller(['payments', 'payment'])
 export class PaymentsController {
   constructor(
@@ -61,6 +69,11 @@ export class PaymentsController {
 
   @Post()
   @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({
+    summary: 'Start SSLCommerz payment',
+    description: 'Returns gateway redirect URL and session data for the booking.',
+  })
   async create(
     @Body() createPaymentDto: CreatePaymentDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -69,6 +82,10 @@ export class PaymentsController {
   }
 
   @Post('success')
+  @ApiOperation({
+    summary: 'SSLCommerz success callback (POST)',
+    description: 'Server-side redirect to frontend success or seat selection with error query.',
+  })
   async success(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
@@ -96,6 +113,10 @@ export class PaymentsController {
   }
 
   @Get('success')
+  @ApiOperation({
+    summary: 'SSLCommerz success callback (GET)',
+    description: 'Same as POST success; some gateways use GET with query params.',
+  })
   async successGet(
     @Query('tran_id') tranId: string | undefined,
     @Req() req: Request,
@@ -130,6 +151,7 @@ export class PaymentsController {
   }
 
   @Post('fail')
+  @ApiOperation({ summary: 'SSLCommerz fail callback (POST)', description: 'Redirects to frontend with payment=failed.' })
   async fail(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
@@ -153,6 +175,7 @@ export class PaymentsController {
   }
 
   @Get('fail')
+  @ApiOperation({ summary: 'SSLCommerz fail callback (GET)' })
   async failGet(@Query('tran_id') tranId: string | undefined, @Res() res: Response) {
     if (!tranId) {
       return res.redirect(
@@ -172,6 +195,7 @@ export class PaymentsController {
   }
 
   @Post('cancel')
+  @ApiOperation({ summary: 'SSLCommerz cancel callback (POST)', description: 'User aborted payment at gateway.' })
   async cancel(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
@@ -195,6 +219,7 @@ export class PaymentsController {
   }
 
   @Get('cancel')
+  @ApiOperation({ summary: 'SSLCommerz cancel callback (GET)' })
   async cancelGet(
     @Query('tran_id') tranId: string | undefined,
     @Res() res: Response,
@@ -219,6 +244,12 @@ export class PaymentsController {
   @Post(':bookingId/send-confirmation-email')
   @UseGuards(AccessTokenGuard)
   @UseInterceptors(FileInterceptor('ticketPdf'))
+  @ApiBearerAuth('JWT')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Email booking confirmation with uploaded ticket PDF',
+    description: 'Multipart field name: ticketPdf (binary PDF).',
+  })
   async sendConfirmationEmail(
     @Param('bookingId') bookingId: string,
     @CurrentUser() user: AuthenticatedUser,

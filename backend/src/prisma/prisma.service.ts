@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
+/** Application-wide Prisma client with pg adapter; connects on init and disconnects on destroy. */
 @Injectable()
 export class PrismaService
   extends PrismaClient

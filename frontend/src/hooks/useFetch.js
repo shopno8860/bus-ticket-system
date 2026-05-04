@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
+/**
+ * Wraps an async function with loading/error/data state; optionally runs once on mount.
+ *
+ * @template T
+ * @param {(...args: unknown[]) => Promise<T>} asyncFn
+ * @param {{ immediate?: boolean }} [options] - `immediate: true` (default) calls `execute()` on mount
+ * @returns {{ data: T|null, error: Error|null, loading: boolean, execute: (...args: unknown[]) => Promise<T> }}
+ */
 export function useFetch(asyncFn, options = { immediate: true }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);

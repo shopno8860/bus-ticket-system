@@ -1,9 +1,22 @@
 import { config } from '../config';
 
+/**
+ * Read JWT access token from browser storage (set after login/register).
+ * @returns {string|null}
+ */
 function getAuthToken() {
   return localStorage.getItem('accessToken');
 }
 
+/**
+ * JSON `fetch` wrapper: prefixes `config.apiBaseUrl`, attaches Bearer token when present,
+ * parses JSON errors, and returns `null` for HTTP 204.
+ *
+ * @param {string} path - Relative path (e.g. from `endpoints`)
+ * @param {RequestInit} [options] - Standard fetch options; body often `JSON.stringify(...)`
+ * @returns {Promise<unknown>} Parsed JSON body, or `null` if no content
+ * @throws {Error} With `status` and `data` when `response.ok` is false
+ */
 export async function apiFetch(path, options = {}) {
   const token = getAuthToken();
 

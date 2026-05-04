@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
+/** Parses env minutes into a finite positive value capped at 60. */
 function clampPositiveMinutes(raw: string | undefined, fallback: number): number {
   const n = Number(raw ?? fallback);
   if (!Number.isFinite(n) || n <= 0) return fallback;

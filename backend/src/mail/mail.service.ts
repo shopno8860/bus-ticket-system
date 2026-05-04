@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
 
+/** SMTP-backed transactional emails (reset password, booking, refund notices). */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -57,6 +58,7 @@ export class MailService {
     return this.transporter;
   }
 
+  /** Low-level send; no-ops when SMTP is not configured. */
   async sendMail(params: {
     to: string;
     subject: string;
@@ -78,6 +80,7 @@ export class MailService {
     });
   }
 
+  /** Password reset link email. */
   async sendResetPasswordEmail(
     email: string,
     resetLink: string,
@@ -98,6 +101,7 @@ export class MailService {
     });
   }
 
+  /** Ticket / receipt email after successful payment. */
   async sendBookingConfirmationEmail(params: {
     to: string;
     customerName: string;
@@ -132,6 +136,7 @@ export class MailService {
     });
   }
 
+  /** Notify passenger when a booking is cancelled. */
   async sendBookingCancellationEmail(params: {
     to: string;
     customerName: string;
@@ -148,6 +153,7 @@ export class MailService {
     });
   }
 
+  /** Notify passenger when a refund is approved/processed. */
   async sendRefundApprovedEmail(params: {
     to: string;
     customerName: string;

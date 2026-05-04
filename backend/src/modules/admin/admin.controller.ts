@@ -9,6 +9,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Refund, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -40,6 +45,12 @@ import { ChangeUserRoleDto } from '../users/dto/change-user-role.dto';
 import { type UserResponse, UsersService } from '../users/users.service';
 import { AuditLogService } from './audit-log.service';
 
+/**
+ * Unified admin API used by the dashboard: users, bookings, payments, refunds,
+ * trips, buses, routes, seats — each action writes an audit log where applicable.
+ */
+@ApiTags('Admin')
+@ApiBearerAuth('JWT')
 @Controller('admin')
 @UseGuards(AccessTokenGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -57,17 +68,20 @@ export class AdminController {
   ) {}
 
   @Get('dashboard/stats')
+  @ApiOperation({ summary: 'Dashboard KPIs and charts data' })
   async getDashboardStats() {
     return this.usersService.getDashboardStats();
   }
 
   @Get('users')
+  @ApiOperation({ summary: 'Paginated user list (client-side slice of full list)' })
   async getUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
     const users = await this.usersService.findAll();
     return this.paginate(users, page, limit);
   }
 
   @Patch('users/:id/role')
+  @ApiOperation({ summary: 'Change user role with audit log' })
   async changeUserRole(
     @Param('id') id: string,
     @Body() dto: ChangeUserRoleDto,
@@ -89,6 +103,7 @@ export class AdminController {
   }
 
   @Get('bookings')
+  @ApiOperation({ summary: 'Filtered bookings, paginated' })
   async getBookings(
     @Query() filters: AdminBookingsFilterDto,
     @Query('page') page = '1',
@@ -99,6 +114,7 @@ export class AdminController {
   }
 
   @Patch('bookings/:id/cancel')
+  @ApiOperation({ summary: 'Force-cancel booking as admin' })
   async cancelBooking(
     @Param('id') id: string,
     @Body() dto: CancelBookingDto,
@@ -120,6 +136,7 @@ export class AdminController {
   }
 
   @Get('payments')
+  @ApiOperation({ summary: 'Filtered payments, paginated' })
   async getPayments(
     @Query() filters: AdminPaymentsFilterDto,
     @Query('page') page = '1',
@@ -130,6 +147,7 @@ export class AdminController {
   }
 
   @Get('refunds')
+  @ApiOperation({ summary: 'Filtered refunds, paginated' })
   async getRefunds(
     @Query() filters: AdminRefundsFilterDto,
     @Query('page') page = '1',
@@ -140,6 +158,7 @@ export class AdminController {
   }
 
   @Patch('refunds/:id/approve')
+  @ApiOperation({ summary: 'Approve refund (may trigger SSLCommerz refund API)' })
   async approveRefund(
     @Param('id') id: string,
     @Body() dto: ReviewRefundDto,
@@ -161,6 +180,7 @@ export class AdminController {
   }
 
   @Patch('refunds/:id/reject')
+  @ApiOperation({ summary: 'Reject refund request' })
   async rejectRefund(
     @Param('id') id: string,
     @Body() dto: ReviewRefundDto,
@@ -182,6 +202,7 @@ export class AdminController {
   }
 
   @Post('refunds/:id/ssl-sync')
+  @ApiOperation({ summary: 'Re-query SSLCommerz for refund status and persist outcome' })
   async syncSslRefund(
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -205,6 +226,7 @@ export class AdminController {
   }
 
   @Post('trips')
+  @ApiOperation({ summary: 'Create trip (audit logged)' })
   async createTrip(
     @Body() dto: CreateTripDto,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -221,6 +243,7 @@ export class AdminController {
   }
 
   @Patch('trips/:id')
+  @ApiOperation({ summary: 'Update trip (audit logged)' })
   async updateTrip(
     @Param('id') id: string,
     @Body() dto: UpdateTripDto,
@@ -238,6 +261,7 @@ export class AdminController {
   }
 
   @Patch('trips/:id/cancel')
+  @ApiOperation({ summary: 'Cancel trip (audit logged)' })
   async cancelTrip(
     @Param('id') id: string,
     @Body() dto: CancelTripDto,
@@ -259,11 +283,13 @@ export class AdminController {
   }
 
   @Get('trips')
+  @ApiOperation({ summary: 'Admin trip listing with filters' })
   async getTrips(@Query() filters: AdminTripsFilterDto) {
     return this.tripsService.findAllAdmin(filters);
   }
 
   @Post('buses')
+  @ApiOperation({ summary: 'Create bus (audit logged)' })
   async createBus(
     @Body() dto: CreateBusDto,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -280,6 +306,7 @@ export class AdminController {
   }
 
   @Patch('buses/:id')
+  @ApiOperation({ summary: 'Update bus (audit logged)' })
   async updateBus(
     @Param('id') id: string,
     @Body() dto: UpdateBusDto,
@@ -297,6 +324,7 @@ export class AdminController {
   }
 
   @Delete('buses/:id')
+  @ApiOperation({ summary: 'Delete bus (audit logged)' })
   async deleteBus(
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -312,6 +340,7 @@ export class AdminController {
   }
 
   @Post('routes')
+  @ApiOperation({ summary: 'Create route (audit logged)' })
   async createRoute(
     @Body() dto: CreateRouteDto,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -328,6 +357,7 @@ export class AdminController {
   }
 
   @Patch('routes/:id')
+  @ApiOperation({ summary: 'Update route (audit logged)' })
   async updateRoute(
     @Param('id') id: string,
     @Body() dto: UpdateRouteDto,
@@ -345,6 +375,7 @@ export class AdminController {
   }
 
   @Delete('routes/:id')
+  @ApiOperation({ summary: 'Delete route (audit logged)' })
   async deleteRoute(
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -360,6 +391,7 @@ export class AdminController {
   }
 
   @Post('buses/:busId/seats')
+  @ApiOperation({ summary: 'Generate seat grid for a bus (audit logged)' })
   async createSeatsForBus(
     @Param('busId') busId: string,
     @Body() dto: CreateSeatsForBusDto,
