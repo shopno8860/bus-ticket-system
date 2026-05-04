@@ -235,6 +235,8 @@ const MyTickets = () => {
       <div className="grid gap-6">
         {tickets.map((ticket) => {
           const isCancelled = ticket.status === "CANCELLED";
+          const canViewTicket = ticket.status === "CONFIRMED";
+          const listMuted = !canViewTicket;
           const latestRefund = ticket.refunds?.[0];
           const isRefundApproved = latestRefund?.status === "APPROVED";
           const isRefundPending = latestRefund?.status === "PENDING";
@@ -248,22 +250,22 @@ const MyTickets = () => {
             <div
               key={ticket.id}
               onClick={() => {
-                if (!isCancelled) {
+                if (canViewTicket) {
                   navigate(`/booking/${ticket.id}`);
                 }
               }}
-              className={`group bg-white border ${isCancelled ? "border-slate-200 opacity-75 cursor-default" : "border-slate-100 cursor-pointer"} rounded-2xl shadow-sm hover:shadow-xl hover:border-[#16a34a]/20 transition-all duration-300 overflow-hidden flex flex-col md:flex-row`}
+              className={`group bg-white border ${canViewTicket ? "border-slate-100 cursor-pointer" : "border-slate-200 opacity-75 cursor-default"} rounded-2xl shadow-sm hover:shadow-xl hover:border-[#16a34a]/20 transition-all duration-300 overflow-hidden flex flex-col md:flex-row`}
             >
               {/* Left Status Bar */}
               <div
-                className={`w-full md:w-2 ${isCancelled ? "bg-slate-300" : "bg-[#16a34a]"} group-hover:w-3 transition-all duration-300 h-2 md:h-auto`}
+                className={`w-full md:w-2 ${canViewTicket ? "bg-[#16a34a]" : "bg-slate-300"} group-hover:w-3 transition-all duration-300 h-2 md:h-auto`}
               ></div>
 
               <div className="flex-1 p-6 md:p-8 flex flex-col lg:flex-row gap-8">
                 {/* Route Info */}
                 <div className="flex-1">
                   <div
-                    className={`flex items-center gap-3 ${isCancelled ? "text-slate-400" : "text-[#16a34a]"} mb-4`}
+                    className={`flex items-center gap-3 ${listMuted ? "text-slate-400" : "text-[#16a34a]"} mb-4`}
                   >
                     <FaBus className="text-sm" />
                     <span className="text-xs font-black uppercase tracking-widest">
@@ -277,7 +279,7 @@ const MyTickets = () => {
                         From
                       </p>
                       <p
-                        className={`text-xl font-black ${isCancelled ? "text-slate-400" : "text-slate-800"}`}
+                        className={`text-xl font-black ${listMuted ? "text-slate-400" : "text-slate-800"}`}
                       >
                         {ticket.trip?.route?.origin}
                       </p>
@@ -288,7 +290,7 @@ const MyTickets = () => {
                         To
                       </p>
                       <p
-                        className={`text-xl font-black ${isCancelled ? "text-slate-400" : "text-slate-800"}`}
+                        className={`text-xl font-black ${listMuted ? "text-slate-400" : "text-slate-800"}`}
                       >
                         {ticket.trip?.route?.destination}
                       </p>
@@ -306,7 +308,7 @@ const MyTickets = () => {
                       </span>
                     </div>
                     <p
-                      className={`font-bold ${isCancelled ? "text-slate-400" : "text-slate-700"}`}
+                      className={`font-bold ${listMuted ? "text-slate-400" : "text-slate-700"}`}
                     >
                       {formatDate(ticket.trip?.departureTime)}
                     </p>
@@ -319,7 +321,7 @@ const MyTickets = () => {
                       </span>
                     </div>
                     <p
-                      className={`font-bold ${isCancelled ? "text-slate-400" : "text-slate-700"}`}
+                      className={`font-bold ${listMuted ? "text-slate-400" : "text-slate-700"}`}
                     >
                       {formatTime(ticket.trip?.departureTime)}
                     </p>
@@ -332,7 +334,7 @@ const MyTickets = () => {
                       </span>
                     </div>
                     <p
-                      className={`font-bold ${isCancelled ? "text-slate-400" : "text-slate-700"}`}
+                      className={`font-bold ${listMuted ? "text-slate-400" : "text-slate-700"}`}
                     >
                       {ticket.bookingSeats?.length > 0
                         ? ticket.bookingSeats
@@ -344,14 +346,26 @@ const MyTickets = () => {
                   <div>
                     <div className="flex items-center gap-2 text-slate-400 mb-1">
                       <div
-                        className={`w-2 h-2 rounded-full ${isCancelled ? "bg-red-500" : "bg-[#16a34a]"}`}
+                        className={`w-2 h-2 rounded-full ${
+                          isCancelled
+                            ? "bg-red-500"
+                            : listMuted
+                              ? "bg-slate-400"
+                              : "bg-[#16a34a]"
+                        }`}
                       ></div>
                       <span className="text-[10px] font-bold uppercase">
                         Status
                       </span>
                     </div>
                     <p
-                      className={`font-bold ${isCancelled ? "text-red-500" : "text-[#16a34a]"} text-sm uppercase tracking-tight`}
+                      className={`font-bold text-sm uppercase tracking-tight ${
+                        isCancelled
+                          ? "text-red-500"
+                          : listMuted
+                            ? "text-slate-500"
+                            : "text-[#16a34a]"
+                      }`}
                     >
                       {ticket.status}
                     </p>
@@ -388,14 +402,20 @@ const MyTickets = () => {
                   </div>
                   <div className="flex flex-col w-full gap-2 mt-auto">
                     <button
+                      type="button"
+                      title={
+                        canViewTicket
+                          ? undefined
+                          : "Ticket view is available only after successful payment"
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!isCancelled) {
+                        if (canViewTicket) {
                           navigate(`/booking/${ticket.id}`);
                         }
                       }}
-                      disabled={isCancelled}
-                      className={`w-full btn btn-sm font-bold rounded-lg transition-all ${isCancelled ? "bg-slate-100 text-slate-400 border-none cursor-not-allowed" : "bg-[#16a34a] text-white hover:bg-[#15803d] border-none"}`}
+                      disabled={!canViewTicket}
+                      className={`w-full btn btn-sm font-bold rounded-lg transition-all ${canViewTicket ? "bg-[#16a34a] text-white hover:bg-[#15803d] border-none" : "bg-slate-100 text-slate-400 border-none cursor-not-allowed"}`}
                     >
                       View Ticket
                     </button>

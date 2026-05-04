@@ -8,61 +8,53 @@ import {
   showLoading,
 } from '../../../utils/toastHelper';
 
-const formatTime = (totalSeconds) => {
-  if (totalSeconds === null || totalSeconds === undefined) return '00:00';
-  const secs = Math.max(0, Math.floor(totalSeconds));
-  const mins = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-};
+function resolvePaymentDeadlineMs(state, booking) {
+  const hold = state?.seatHoldExpiresAt;
+  if (typeof hold === 'number' && Number.isFinite(hold)) {
+    return hold;
+  }
+  if (booking?.paymentExpiresAt) {
+    return new Date(booking.paymentExpiresAt).getTime();
+  }
+  return null;
+}
 
 const Payment = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
 
   const [error, setError] = useState(null);
-  const [timeLeftSec, setTimeLeftSec] = useState(null);
 
   const hasInitiated = useRef(false);
 
   const booking = state?.booking;
   const tripId = state?.tripId ?? booking?.tripId;
+  const seatHoldExpiresAt = state?.seatHoldExpiresAt;
 
-  // Countdown for payment window (server paymentExpiresAt)
+  // No on-screen counter: redirect to seat selection when booking-page seat hold ends (seatHoldExpiresAt), else paymentExpiresAt
   useEffect(() => {
-    if (!booking?.paymentExpiresAt || !tripId) return undefined;
+    if (!tripId || !booking) return undefined;
 
-    const deadline = new Date(booking.paymentExpiresAt).getTime();
+    const deadlineMs = resolvePaymentDeadlineMs({ seatHoldExpiresAt }, booking);
+    if (deadlineMs == null || !Number.isFinite(deadlineMs)) return undefined;
 
-    const tick = () => {
-      const left = Math.floor((deadline - Date.now()) / 1000);
-      if (left <= 0) {
-        setTimeLeftSec(0);
-        return false;
-      }
-      setTimeLeftSec(left);
-      return true;
-    };
-
-    if (!tick()) {
-      showError('Time expired for payment');
+    const msLeft = deadlineMs - Date.now();
+    if (msLeft <= 0) {
+      showError('Your seat hold expired. Please select seats again.');
       navigate(`/seats/${tripId}`, { replace: true });
       return undefined;
     }
 
-    const id = setInterval(() => {
-      if (!tick()) {
-        clearInterval(id);
-        showError('Time expired for payment');
-        navigate(`/seats/${tripId}`, { replace: true });
-      }
-    }, 1000);
+    const id = setTimeout(() => {
+      showError('Your seat hold expired. Please select seats again.');
+      navigate(`/seats/${tripId}`, { replace: true });
+    }, msLeft);
 
-    return () => clearInterval(id);
-  }, [booking, navigate, tripId]);
+    return () => clearTimeout(id);
+  }, [booking?.id, booking?.paymentExpiresAt, navigate, tripId, seatHoldExpiresAt]);
 
   useEffect(() => {
-    if (!state?.booking) {
+    if (!booking) {
       navigate('/', { replace: true });
       return;
     }
@@ -77,9 +69,14 @@ const Payment = () => {
       return;
     }
 
-    const deadline = new Date(booking.paymentExpiresAt).getTime();
-    if (deadline <= Date.now()) {
-      showError('Time expired for payment');
+    const deadlineMs = resolvePaymentDeadlineMs({ seatHoldExpiresAt }, booking);
+    if (deadlineMs == null || !Number.isFinite(deadlineMs)) {
+      setError('This booking has no payment window. Please select seats again.');
+      return;
+    }
+
+    if (deadlineMs <= Date.now()) {
+      showError('Your seat hold expired. Please select seats again.');
       navigate(`/seats/${tripId}`, { replace: true });
       return;
     }
@@ -90,7 +87,7 @@ const Payment = () => {
     const initiatePayment = async () => {
       const loadingToastId = showLoading('Processing payment...');
       try {
-        const { id } = state.booking;
+        const { id } = booking;
 
         const response = await createPayment({
           bookingId: id,
@@ -131,7 +128,7 @@ const Payment = () => {
     };
 
     initiatePayment();
-  }, [state, navigate, booking, tripId]);
+  }, [booking, navigate, tripId, seatHoldExpiresAt]);
 
   if (error) {
     return (
@@ -158,28 +155,13 @@ const Payment = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 gap-6">
-      {timeLeftSec !== null && tripId ? (
-        <div
-          className={`flex items-center gap-3 rounded-2xl border px-5 py-3 shadow-sm ${
-            timeLeftSec < 60
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-gray-200 bg-white text-gray-800'
-          }`}
-        >
-          <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-            Pay within
-          </span>
-          <span className="font-mono text-2xl font-black tabular-nums">
-            {formatTime(timeLeftSec)}
-          </span>
-        </div>
-      ) : null}
       <div className="text-center space-y-5">
         <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto" />
         <h2 className="text-2xl font-bold text-gray-900">Redirecting to Payment</h2>
         <p className="text-gray-500 text-sm max-w-sm mx-auto">
-          Please wait while we secure your connection. If you do not pay before the timer ends, your
-          seats will be released.
+          Please wait while we connect you to the payment page. If your seat hold from the booking
+          step runs out before payment is completed, this booking will be cancelled and you will need
+          to select seats again.
         </p>
       </div>
     </div>

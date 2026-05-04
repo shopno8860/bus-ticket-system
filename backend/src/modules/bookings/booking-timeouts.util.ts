@@ -24,7 +24,7 @@ export function paymentWindowMs(config: ConfigService): number {
   return (
     clampPositiveMinutes(
       config.get<string>('BOOKING_PAYMENT_TIMEOUT_MINUTES'),
-      5,
+      2,
     ) *
     60 *
     1000

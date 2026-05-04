@@ -120,12 +120,29 @@ const BookingPage = () => {
 
       console.log("Booking success:", res);
 
-      // Clear timer persistence
-      localStorage.removeItem(`lock_expiry_${tripId}`);
+      const storageKey = `lock_expiry_${tripId}`;
+      let seatHoldExpiresAtMs = null;
+      const stored = localStorage.getItem(storageKey);
+      if (stored != null && stored !== "") {
+        const n = Number(stored);
+        if (Number.isFinite(n)) seatHoldExpiresAtMs = n;
+      }
+      if (seatHoldExpiresAtMs == null && lockExpiresAt) {
+        seatHoldExpiresAtMs = new Date(lockExpiresAt).getTime();
+      }
+      if (seatHoldExpiresAtMs == null) {
+        seatHoldExpiresAtMs = Date.now() + 2 * 60 * 1000;
+      }
+
+      localStorage.removeItem(storageKey);
       showSuccess("Booking confirmed");
 
       navigate("/payment", {
-        state: { booking: res, tripId: res.tripId },
+        state: {
+          booking: res,
+          tripId: res.tripId,
+          seatHoldExpiresAt: seatHoldExpiresAtMs,
+        },
       });
 
     } catch (err) {
