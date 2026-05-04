@@ -104,7 +104,7 @@ export class UsersController {
     }>;
     recentActivity: Array<{
       user: string;
-      action: 'Booked' | 'Cancelled' | 'Refund Requested';
+      action: 'Booked' | 'Cancelled' | 'Expired' | 'Refund Requested';
       date: string;
       status: 'Success' | 'Warning' | 'Pending';
     }>;

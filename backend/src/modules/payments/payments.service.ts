@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -50,6 +51,38 @@ export class PaymentsService {
     private readonly mailService: MailService,
   ) {}
 
+  async getTripIdByTranId(
+    tranId: string | undefined | null,
+  ): Promise<string | undefined> {
+    const id = tranId?.trim();
+    if (!id) return undefined;
+    const row = await this.prismaService.payment.findUnique({
+      where: { transactionId: id },
+      select: {
+        booking: { select: { tripId: true } },
+      },
+    });
+    return row?.booking?.tripId;
+  }
+
+  private assertBookingPaymentWindowOpen(params: {
+    status: BookingStatus;
+    paymentExpiresAt: Date | null;
+    now: Date;
+  }): void {
+    if (params.status !== BookingStatus.PENDING) {
+      throw new BadRequestException('This booking is not awaiting payment');
+    }
+    if (
+      !params.paymentExpiresAt ||
+      params.paymentExpiresAt.getTime() <= params.now.getTime()
+    ) {
+      throw new BadRequestException(
+        'The payment window for this booking has expired. Please select seats again.',
+      );
+    }
+  }
+
   /**
    * Creates a payment for a booking.
    *
@@ -68,7 +101,13 @@ export class PaymentsService {
           // ── 1. Validate the booking ───────────────────────────────────────────
           const booking = await tx.booking.findUnique({
             where: { id: createPaymentDto.bookingId },
-            select: { id: true, userId: true, totalAmount: true, status: true },
+            select: {
+              id: true,
+              userId: true,
+              totalAmount: true,
+              status: true,
+              paymentExpiresAt: true,
+            },
           });
 
           if (!booking) {
@@ -79,6 +118,13 @@ export class PaymentsService {
               'You are not authorized to pay for this booking',
             );
           }
+
+          const now = new Date();
+          this.assertBookingPaymentWindowOpen({
+            status: booking.status,
+            paymentExpiresAt: booking.paymentExpiresAt,
+            now,
+          });
 
           // ── 2. Idempotency check ──────────────────────────────────────────────
           // If a payment already exists for this booking, return it as-is.
@@ -95,12 +141,21 @@ export class PaymentsService {
               'Existing payment found, initiating SSLCommerz session for transaction:',
               existingPayment.transactionId,
             );
+            const bookingForGateway = await tx.booking.findUnique({
+              where: { id: existingPayment.bookingId },
+              include: { user: true },
+            });
+            if (!bookingForGateway) {
+              throw new NotFoundException('Booking not found');
+            }
+            this.assertBookingPaymentWindowOpen({
+              status: bookingForGateway.status,
+              paymentExpiresAt: bookingForGateway.paymentExpiresAt,
+              now,
+            });
             const paymentUrl = await this.initiateSSLCommerzPayment({
               ...existingPayment,
-              booking: await tx.booking.findUnique({
-                where: { id: existingPayment.bookingId },
-                include: { user: true },
-              }),
+              booking: bookingForGateway,
             });
             return {
               ...existingPayment,
@@ -126,8 +181,19 @@ export class PaymentsService {
             select: paymentSafeSelect,
           });
 
+          const bookingForGateway = await tx.booking.findUnique({
+            where: { id: booking.id },
+            include: { user: true },
+          });
+          if (!bookingForGateway) {
+            throw new NotFoundException('Booking not found');
+          }
+
           // ── 4. Initiate SSLCommerz Session ────────────────────────────────────
-          const paymentUrl = await this.initiateSSLCommerzPayment(payment);
+          const paymentUrl = await this.initiateSSLCommerzPayment({
+            ...payment,
+            booking: bookingForGateway,
+          });
 
           // ── 4. Confirm the booking (REMOVED: should be done in success callback) ──
 
@@ -171,6 +237,12 @@ export class PaymentsService {
 
     let bankMeta: { bankTranId?: string; valId?: string } = {};
     if (paymentRow.status !== PaymentStatus.SUCCESS) {
+      const gateNow = new Date();
+      this.assertBookingPaymentWindowOpen({
+        status: paymentRow.booking.status,
+        paymentExpiresAt: paymentRow.booking.paymentExpiresAt,
+        now: gateNow,
+      });
       bankMeta = await this.resolveBankTranFromSslPayload(
         tranId,
         paymentRow.amount,
@@ -210,6 +282,13 @@ export class PaymentsService {
             };
           }
 
+          const now = new Date();
+          this.assertBookingPaymentWindowOpen({
+            status: payment.booking.status,
+            paymentExpiresAt: payment.booking.paymentExpiresAt,
+            now,
+          });
+
           // 1. Update Payment
           const updatedPayment = await tx.payment.update({
             where: { id: payment.id },
@@ -226,7 +305,7 @@ export class PaymentsService {
           // 2. Update Booking
           await tx.booking.update({
             where: { id: payment.bookingId },
-            data: { status: BookingStatus.CONFIRMED },
+            data: { status: BookingStatus.CONFIRMED, paymentExpiresAt: null },
           });
 
           // 3. Promote Seats to RESERVED
@@ -355,12 +434,18 @@ export class PaymentsService {
             data: {
               status: BookingStatus.CANCELLED,
               cancelReason: `Payment ${status.toLowerCase()}`,
+              paymentExpiresAt: null,
             },
           });
 
-          // 3. Release Seats
-          await tx.bookingSeat.deleteMany({
+          // 3. Release Seats (keep rows for recycle; same as lock expiry)
+          await tx.bookingSeat.updateMany({
             where: { bookingId: payment.bookingId },
+            data: {
+              status: BookingSeatStatus.CANCELLED,
+              bookingId: null,
+              lockExpiresAt: null,
+            },
           });
 
           return updatedPayment;

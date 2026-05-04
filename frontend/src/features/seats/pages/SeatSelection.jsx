@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { tripApi } from "../../trips/services/tripApi";
 import { lockSeats } from "../../bookings/services/bookingApi";
 import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
@@ -7,9 +7,43 @@ import { showError, showLoading, showSuccess } from "../../../utils/toastHelper"
 const SeatSelection = () => {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tripData, setTripData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSeats, setSelectedSeats] = useState([]);
+
+  useEffect(() => {
+    const payment = searchParams.get("payment");
+    if (!payment || !tripId) return undefined;
+
+    const dedupeKey = `pay-return:${tripId}:${payment}`;
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(dedupeKey)) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("payment");
+      setSearchParams(next, { replace: true });
+      return undefined;
+    }
+    try {
+      sessionStorage.setItem(dedupeKey, "1");
+    } catch {
+      // ignore
+    }
+
+    if (payment === "time_expired") {
+      showError("Time expired for payment");
+    } else if (payment === "failed") {
+      showError("Payment failed");
+    } else if (payment === "cancelled") {
+      showError("Payment was cancelled");
+    } else if (payment === "no_session") {
+      showError("Payment session was not found");
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("payment");
+    setSearchParams(next, { replace: true });
+    return undefined;
+  }, [searchParams, setSearchParams, tripId]);
 
   useEffect(() => {
     let isMounted = true;

@@ -33,7 +33,7 @@ type DashboardTrendPoint = {
 };
 type DashboardRecentActivity = {
   user: string;
-  action: 'Booked' | 'Cancelled' | 'Refund Requested';
+  action: 'Booked' | 'Cancelled' | 'Expired' | 'Refund Requested';
   date: string;
   status: 'Success' | 'Warning' | 'Pending';
 };
@@ -347,10 +347,17 @@ export class UsersService {
       (booking) => ({
         user: booking.user.fullName,
         action:
-          booking.status === BookingStatus.CANCELLED ? 'Cancelled' : 'Booked',
+          booking.status === BookingStatus.CANCELLED
+            ? 'Cancelled'
+            : booking.status === BookingStatus.EXPIRED
+              ? 'Expired'
+              : 'Booked',
         date: booking.createdAt.toISOString(),
         status:
-          booking.status === BookingStatus.CANCELLED ? 'Warning' : 'Success',
+          booking.status === BookingStatus.CANCELLED ||
+          booking.status === BookingStatus.EXPIRED
+            ? 'Warning'
+            : 'Success',
       }),
     );
 

@@ -4,13 +4,20 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { BookingsController } from './bookings.controller';
 import { SeatLockCleanupService } from './seat-lock-cleanup.service';
+import { BookingPaymentExpiryService } from './booking-payment-expiry.service';
 import { BookingsService } from './bookings.service';
 import { TicketPdfService } from './ticket-pdf.service';
 
 @Module({
   imports: [PrismaModule, NotificationsModule],
   controllers: [BookingsController],
-  providers: [BookingsService, RolesGuard, SeatLockCleanupService, TicketPdfService],
+  providers: [
+    BookingsService,
+    RolesGuard,
+    SeatLockCleanupService,
+    BookingPaymentExpiryService,
+    TicketPdfService,
+  ],
   exports: [BookingsService, TicketPdfService],
 })
 export class BookingsModule {}

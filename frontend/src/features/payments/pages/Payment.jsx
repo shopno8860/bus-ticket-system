@@ -8,24 +8,82 @@ import {
   showLoading,
 } from '../../../utils/toastHelper';
 
+const formatTime = (totalSeconds) => {
+  if (totalSeconds === null || totalSeconds === undefined) return '00:00';
+  const secs = Math.max(0, Math.floor(totalSeconds));
+  const mins = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
+
 const Payment = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
 
   const [error, setError] = useState(null);
+  const [timeLeftSec, setTimeLeftSec] = useState(null);
 
-  // Guard ref: ensures initiatePayment() runs only once even in React Strict Mode
-  // (which mounts → unmounts → remounts every component in development).
   const hasInitiated = useRef(false);
 
+  const booking = state?.booking;
+  const tripId = state?.tripId ?? booking?.tripId;
+
+  // Countdown for payment window (server paymentExpiresAt)
   useEffect(() => {
-    // Redirect immediately if no booking data was passed
+    if (!booking?.paymentExpiresAt || !tripId) return undefined;
+
+    const deadline = new Date(booking.paymentExpiresAt).getTime();
+
+    const tick = () => {
+      const left = Math.floor((deadline - Date.now()) / 1000);
+      if (left <= 0) {
+        setTimeLeftSec(0);
+        return false;
+      }
+      setTimeLeftSec(left);
+      return true;
+    };
+
+    if (!tick()) {
+      showError('Time expired for payment');
+      navigate(`/seats/${tripId}`, { replace: true });
+      return undefined;
+    }
+
+    const id = setInterval(() => {
+      if (!tick()) {
+        clearInterval(id);
+        showError('Time expired for payment');
+        navigate(`/seats/${tripId}`, { replace: true });
+      }
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [booking, navigate, tripId]);
+
+  useEffect(() => {
     if (!state?.booking) {
       navigate('/', { replace: true });
       return;
     }
 
-    // Prevent a second call from the Strict Mode double-mount
+    if (!tripId) {
+      setError('Missing trip information. Please start again from seat selection.');
+      return;
+    }
+
+    if (!booking?.paymentExpiresAt) {
+      setError('This booking has no payment window. Please select seats again.');
+      return;
+    }
+
+    const deadline = new Date(booking.paymentExpiresAt).getTime();
+    if (deadline <= Date.now()) {
+      showError('Time expired for payment');
+      navigate(`/seats/${tripId}`, { replace: true });
+      return;
+    }
+
     if (hasInitiated.current) return;
     hasInitiated.current = true;
 
@@ -42,7 +100,11 @@ const Payment = () => {
         if (response?.paymentUrl) {
           dismissToast(loadingToastId);
           showInfo('Redirecting to the payment page…', { duration: 2500 });
-          // Hard-redirect to the payment gateway
+          try {
+            sessionStorage.setItem('sslcommerz_pending_trip_id', tripId);
+          } catch {
+            // ignore
+          }
           window.location.href = response.paymentUrl;
         } else {
           throw new Error('No payment URL received from server.');
@@ -50,12 +112,14 @@ const Payment = () => {
       } catch (err) {
         const status = err?.status ?? err?.response?.status;
 
-        // 409 means a payment already exists for this booking.
-        // The backend now returns the existing paymentUrl in that case,
-        // so this branch should rarely be reached — but handle it gracefully.
         if (status === 409 && err?.data?.paymentUrl) {
           dismissToast(loadingToastId);
           showInfo('Redirecting to the payment page…', { duration: 2500 });
+          try {
+            sessionStorage.setItem('sslcommerz_pending_trip_id', tripId);
+          } catch {
+            // ignore
+          }
           window.location.href = err.data.paymentUrl;
           return;
         }
@@ -67,9 +131,8 @@ const Payment = () => {
     };
 
     initiatePayment();
-  }, [state, navigate]);
+  }, [state, navigate, booking, tripId]);
 
-  // ── Error state ──────────────────────────────────────────────────────────────
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -82,23 +145,42 @@ const Payment = () => {
           <h2 className="text-2xl font-bold text-gray-900">Payment Failed</h2>
           <p className="text-gray-500 text-sm leading-relaxed">{error}</p>
           <button
-            onClick={() => navigate('/', { replace: true })}
+            type="button"
+            onClick={() => navigate(tripId ? `/seats/${tripId}` : '/trips', { replace: true })}
             className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold text-sm transition-all"
           >
-            Back to Home
+            Back to seat selection
           </button>
         </div>
       </div>
     );
   }
 
-  // ── Loading / redirecting state ───────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 gap-6">
+      {timeLeftSec !== null && tripId ? (
+        <div
+          className={`flex items-center gap-3 rounded-2xl border px-5 py-3 shadow-sm ${
+            timeLeftSec < 60
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : 'border-gray-200 bg-white text-gray-800'
+          }`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+            Pay within
+          </span>
+          <span className="font-mono text-2xl font-black tabular-nums">
+            {formatTime(timeLeftSec)}
+          </span>
+        </div>
+      ) : null}
       <div className="text-center space-y-5">
         <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto" />
         <h2 className="text-2xl font-bold text-gray-900">Redirecting to Payment</h2>
-        <p className="text-gray-500 text-sm">Please wait while we secure your connection…</p>
+        <p className="text-gray-500 text-sm max-w-sm mx-auto">
+          Please wait while we secure your connection. If you do not pay before the timer ends, your
+          seats will be released.
+        </p>
       </div>
     </div>
   );

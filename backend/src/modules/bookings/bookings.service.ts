@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   Booking,
   BookingSeatStatus,
@@ -24,9 +25,13 @@ import {
 } from '../../common/policies/cancellation-policy';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { paymentWindowMs, seatLockMs } from './booking-timeouts.util';
 import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
+
+/** Max seats one user may commit (PENDING or paid) per trip departure calendar day (Asia/Dhaka). */
+const MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY = 4;
 
 const paymentSafeSelect = {
   id: true,
@@ -50,7 +55,21 @@ export class BookingsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly configService: ConfigService,
   ) {}
+
+  /** `start` inclusive and `end` exclusive for the calendar day in Asia/Dhaka (UTC instants). */
+  private getDhakaCalendarDayUtcBounds(reference: Date): {
+    start: Date;
+    end: Date;
+  } {
+    const ymd = reference.toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Dhaka',
+    });
+    const start = new Date(`${ymd}T00:00:00+06:00`);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return { start, end };
+  }
 
   async create(createBookingDto: CreateBookingDto): Promise<{
     tripId: string;
@@ -58,7 +77,7 @@ export class BookingsService {
     lockExpiresAt: Date;
   }> {
     const now = new Date();
-    const lockExpiresAt = new Date(now.getTime() + 2 * 60 * 1000);
+    const lockExpiresAt = new Date(now.getTime() + seatLockMs(this.configService));
 
     try {
       return await this.prismaService.$transaction(
@@ -211,6 +230,7 @@ export class BookingsService {
               id: true,
               busId: true,
               price: true,
+              departureTime: true,
               bus: { select: { busType: true } },
             },
           });
@@ -283,8 +303,39 @@ export class BookingsService {
             );
           }
 
+          const { start: depDayStart, end: depDayEnd } =
+            this.getDhakaCalendarDayUtcBounds(trip.departureTime);
+          const seatsAlreadyCommittedForDepartureDay =
+            await transactionClient.bookingSeat.count({
+              where: {
+                bookingId: { not: null },
+                booking: {
+                  userId,
+                  status: {
+                    in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+                  },
+                },
+                trip: {
+                  departureTime: { gte: depDayStart, lt: depDayEnd },
+                },
+              },
+            });
+
+          if (
+            seatsAlreadyCommittedForDepartureDay + requestedSeatIds.length >
+            MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY
+          ) {
+            throw new BadRequestException(
+              `You can book at most ${MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY} seats per departure day (all buses). Cancel a booking for that day or choose another travel date.`,
+            );
+          }
+
           const bookingReference =
             await this.generateUniqueBookingReference(transactionClient);
+
+          const paymentDeadline = new Date(
+            now.getTime() + paymentWindowMs(this.configService),
+          );
 
           // Calculate total amount including platform fees and insurance (Per seat)
           const seatCount = requestedSeatIds.length;
@@ -309,6 +360,7 @@ export class BookingsService {
               passengerPhone: confirmBookingDto.passengerPhone,
               totalAmount,
               status: BookingStatus.PENDING, // Start as PENDING
+              paymentExpiresAt: paymentDeadline,
             },
           });
 
@@ -326,6 +378,7 @@ export class BookingsService {
               },
               data: {
                 bookingId: booking.id,
+                lockExpiresAt: paymentDeadline,
               },
             });
 
@@ -653,8 +706,11 @@ export class BookingsService {
           throw new NotFoundException('Booking not found');
         }
 
-        if (booking.status === BookingStatus.CANCELLED) {
-          throw new ConflictException('Booking is already cancelled');
+        if (
+          booking.status === BookingStatus.CANCELLED ||
+          booking.status === BookingStatus.EXPIRED
+        ) {
+          throw new ConflictException('Booking is already cancelled or expired');
         }
 
         await tx.bookingSeat.deleteMany({
@@ -682,6 +738,70 @@ export class BookingsService {
         });
         return cancelledBooking;
       });
+  }
+
+  /**
+   * Marks PENDING bookings as EXPIRED when paymentExpiresAt has passed, fails
+   * open payments, and releases seat rows.
+   */
+  async expireStalePendingBookings(): Promise<number> {
+    const now = new Date();
+
+    const expiredRows = await this.prismaService.$transaction(async (tx) => {
+      const stale = await tx.booking.findMany({
+        where: {
+          status: BookingStatus.PENDING,
+          paymentExpiresAt: { not: null, lt: now },
+        },
+        select: { id: true, userId: true },
+      });
+
+      if (stale.length === 0) {
+        return [];
+      }
+
+      const ids = stale.map((b) => b.id);
+
+      await tx.bookingSeat.updateMany({
+        where: { bookingId: { in: ids } },
+        data: {
+          status: BookingSeatStatus.CANCELLED,
+          bookingId: null,
+          lockExpiresAt: null,
+        },
+      });
+
+      await tx.payment.updateMany({
+        where: {
+          bookingId: { in: ids },
+          status: PaymentStatus.PENDING,
+        },
+        data: { status: PaymentStatus.FAILED },
+      });
+
+      await tx.booking.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          status: BookingStatus.EXPIRED,
+          cancelReason: 'Payment not completed before the time limit',
+          paymentExpiresAt: null,
+        },
+      });
+
+      return stale;
+    });
+
+    for (const row of expiredRows) {
+      await this.notificationsService.notifyBookingUpdate({
+        userId: row.userId,
+        bookingId: row.id,
+        status: BookingStatus.EXPIRED,
+        message:
+          'Your unpaid booking expired and the seats were released. Please select seats again.',
+      });
+    }
+
+    return expiredRows.length;
   }
 
   private async generateUniqueBookingReference(

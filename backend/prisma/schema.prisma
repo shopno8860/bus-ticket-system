@@ -48,6 +48,7 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+  EXPIRED
 }
 
 enum BookingSeatStatus {
@@ -218,6 +219,9 @@ model Booking {
   passengerPhone   String
 
   totalAmount      Decimal        @db.Decimal(10, 2)
+
+  /** After confirm: user must complete payment before this instant (Asia/server time). */
+  paymentExpiresAt DateTime?
 
   status           BookingStatus  @default(PENDING)
   refundAmount     Decimal?       @db.Decimal(10, 2)

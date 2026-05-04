@@ -31,24 +31,29 @@ const BookingPage = () => {
   const [timeLeft, setTimeLeft] = useState(null);
   const [isExpired, setIsExpired] = useState(false);
 
-  // Initialize and persist timer
+  // Initialize and persist timer (seat hold from backend lockExpiresAt; matches SEAT_SELECTION_LOCK_MINUTES)
   useEffect(() => {
-    // Check localStorage for existing expiry for this trip
     const storageKey = `lock_expiry_${tripId}`;
-    let expiryTime = localStorage.getItem(storageKey);
-
-    if (!expiryTime && lockExpiresAt) {
-      expiryTime = new Date(lockExpiresAt).getTime();
-      localStorage.setItem(storageKey, expiryTime);
-    } else if (!expiryTime) {
-      // Fallback: 5 minutes from now if no data available
-      expiryTime = Date.now() + 5 * 60 * 1000;
-      localStorage.setItem(storageKey, expiryTime);
+    const stored = localStorage.getItem(storageKey);
+    let expiryMs;
+    if (stored != null && stored !== "") {
+      expiryMs = Number(stored);
+      if (!Number.isFinite(expiryMs)) {
+        expiryMs = null;
+      }
+    }
+    if (expiryMs == null && lockExpiresAt) {
+      expiryMs = new Date(lockExpiresAt).getTime();
+      localStorage.setItem(storageKey, String(expiryMs));
+    }
+    if (expiryMs == null) {
+      expiryMs = Date.now() + 2 * 60 * 1000;
+      localStorage.setItem(storageKey, String(expiryMs));
     }
 
     const timer = setInterval(() => {
       const now = Date.now();
-      const distance = expiryTime - now;
+      const distance = expiryMs - now;
 
       if (distance <= 0) {
         clearInterval(timer);
@@ -63,11 +68,11 @@ const BookingPage = () => {
     return () => clearInterval(timer);
   }, [tripId, lockExpiresAt]);
 
-  // Handle auto-expiry action
+  // Handle auto-expiry action (seat hold before payment)
   useEffect(() => {
     if (isExpired) {
-      showError("Seat lock expired. Please select seats again");
-      navigate(`/seats/${tripId}`);
+      showError("Your seat hold expired. Please select seats again.");
+      navigate(`/seats/${tripId}`, { replace: true });
     }
   }, [isExpired, navigate, tripId]);
 
@@ -120,7 +125,7 @@ const BookingPage = () => {
       showSuccess("Booking confirmed");
 
       navigate("/payment", {
-        state: { booking: res },
+        state: { booking: res, tripId: res.tripId },
       });
 
     } catch (err) {

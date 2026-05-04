@@ -43,7 +43,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     },
   ];
   private readonly tripDurationHours = 6;
-  private readonly defaultGenerationDays = 5;
+  private readonly defaultGenerationDays = 4;
   private readonly fallbackRoutes: Prisma.RouteCreateManyInput[] = [
     { origin: 'Dhaka', destination: 'Gaibandha' },
     { origin: 'Gaibandha', destination: 'Dhaka' },

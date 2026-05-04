@@ -38,11 +38,25 @@ export class PaymentsController {
   }
 
   private frontendSuccessUrl(bookingId: string): string {
-    return `${this.frontendBaseUrl()}/payment/success?bookingId=${bookingId}`;
+    return `${this.frontendBaseUrl()}/payment/success?bookingId=${encodeURIComponent(bookingId)}`;
   }
 
-  private frontendFailedUrl(): string {
-    return `${this.frontendBaseUrl()}/payment/failed`;
+  /** SSL fail/cancel/success-error: land on seat selection (or trip search) with query hints for toasts. */
+  private frontendSeatSelectionUrl(
+    tripId?: string | null,
+    search?: Record<string, string | undefined>,
+  ): string {
+    const origin = this.frontendBaseUrl();
+    const path = tripId ? `/seats/${tripId}` : '/trips';
+    const url = new URL(path, `${origin}/`);
+    if (search) {
+      for (const [k, v] of Object.entries(search)) {
+        if (v != null && String(v).trim() !== '') {
+          url.searchParams.set(k, String(v));
+        }
+      }
+    }
+    return url.toString();
   }
 
   @Post()
@@ -58,7 +72,9 @@ export class PaymentsController {
   async success(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
-      return res.redirect(this.frontendFailedUrl());
+      return res.redirect(
+        this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
+      );
     }
 
     try {
@@ -67,8 +83,15 @@ export class PaymentsController {
         body && typeof body === 'object' ? (body as Record<string, unknown>) : undefined,
       );
       return res.redirect(this.frontendSuccessUrl(payment.bookingId));
-    } catch {
-      return res.redirect(this.frontendFailedUrl());
+    } catch (err) {
+      const tripId = await this.paymentsService.getTripIdByTranId(tran_id);
+      const msg = err instanceof BadRequestException ? String(err.message) : '';
+      const payment =
+        err instanceof BadRequestException &&
+        /expired|payment window/i.test(msg)
+          ? 'time_expired'
+          : 'failed';
+      return res.redirect(this.frontendSeatSelectionUrl(tripId, { payment }));
     }
   }
 
@@ -79,7 +102,9 @@ export class PaymentsController {
     @Res() res: Response,
   ) {
     if (!tranId) {
-      return res.redirect(this.frontendFailedUrl());
+      return res.redirect(
+        this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
+      );
     }
 
     try {
@@ -92,8 +117,15 @@ export class PaymentsController {
         sslPayload,
       );
       return res.redirect(this.frontendSuccessUrl(payment.bookingId));
-    } catch {
-      return res.redirect(this.frontendFailedUrl());
+    } catch (err) {
+      const tripId = await this.paymentsService.getTripIdByTranId(tranId);
+      const msg = err instanceof BadRequestException ? String(err.message) : '';
+      const payment =
+        err instanceof BadRequestException &&
+        /expired|payment window/i.test(msg)
+          ? 'time_expired'
+          : 'failed';
+      return res.redirect(this.frontendSeatSelectionUrl(tripId, { payment }));
     }
   }
 
@@ -101,7 +133,9 @@ export class PaymentsController {
   async fail(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
-      return res.redirect(this.frontendFailedUrl());
+      return res.redirect(
+        this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
+      );
     }
 
     try {
@@ -110,30 +144,40 @@ export class PaymentsController {
         PaymentStatus.FAILED,
       );
     } catch {
-      return res.redirect(this.frontendFailedUrl());
+      // still send user back to seat selection
     }
-    return res.redirect(this.frontendFailedUrl());
+    const tripId = await this.paymentsService.getTripIdByTranId(tran_id);
+    return res.redirect(
+      this.frontendSeatSelectionUrl(tripId, { payment: 'failed' }),
+    );
   }
 
   @Get('fail')
   async failGet(@Query('tran_id') tranId: string | undefined, @Res() res: Response) {
     if (!tranId) {
-      return res.redirect(this.frontendFailedUrl());
+      return res.redirect(
+        this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
+      );
     }
 
     try {
       await this.paymentsService.handlePaymentFailure(tranId, PaymentStatus.FAILED);
     } catch {
-      return res.redirect(this.frontendFailedUrl());
+      // still send user back to seat selection
     }
-    return res.redirect(this.frontendFailedUrl());
+    const tripId = await this.paymentsService.getTripIdByTranId(tranId);
+    return res.redirect(
+      this.frontendSeatSelectionUrl(tripId, { payment: 'failed' }),
+    );
   }
 
   @Post('cancel')
   async cancel(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
-      return res.redirect(this.frontendFailedUrl());
+      return res.redirect(
+        this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
+      );
     }
 
     try {
@@ -142,9 +186,12 @@ export class PaymentsController {
         PaymentStatus.FAILED,
       ); // Treating cancel as fail for simplicity
     } catch {
-      return res.redirect(this.frontendFailedUrl());
+      // still send user back to seat selection
     }
-    return res.redirect(this.frontendFailedUrl());
+    const tripId = await this.paymentsService.getTripIdByTranId(tran_id);
+    return res.redirect(
+      this.frontendSeatSelectionUrl(tripId, { payment: 'cancelled' }),
+    );
   }
 
   @Get('cancel')
@@ -153,15 +200,20 @@ export class PaymentsController {
     @Res() res: Response,
   ) {
     if (!tranId) {
-      return res.redirect(this.frontendFailedUrl());
+      return res.redirect(
+        this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
+      );
     }
 
     try {
       await this.paymentsService.handlePaymentFailure(tranId, PaymentStatus.FAILED);
     } catch {
-      return res.redirect(this.frontendFailedUrl());
+      // still send user back to seat selection
     }
-    return res.redirect(this.frontendFailedUrl());
+    const tripId = await this.paymentsService.getTripIdByTranId(tranId);
+    return res.redirect(
+      this.frontendSeatSelectionUrl(tripId, { payment: 'cancelled' }),
+    );
   }
 
   @Post(':bookingId/send-confirmation-email')

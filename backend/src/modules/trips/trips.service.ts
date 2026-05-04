@@ -498,7 +498,9 @@ export class TripsService {
       const bookings = await tx.booking.findMany({
         where: {
           tripId: id,
-          status: { not: BookingStatus.CANCELLED },
+          status: {
+            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+          },
         },
         include: {
           payments: {

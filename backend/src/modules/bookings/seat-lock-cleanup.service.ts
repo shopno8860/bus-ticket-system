@@ -13,10 +13,13 @@ export class SeatLockCleanupService {
   async cleanupExpiredLocks(): Promise<void> {
     const now = new Date();
     try {
+      // Only orphan pre-booking locks. PENDING booking seats are released by
+      // booking payment expiry or payment failure handlers.
       const result = await this.prismaService.bookingSeat.updateMany({
         where: {
           status: BookingSeatStatus.LOCKED,
           lockExpiresAt: { lt: now },
+          bookingId: null,
         },
         data: {
           status: BookingSeatStatus.CANCELLED,

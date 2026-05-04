@@ -1,17 +1,30 @@
-import React from 'react';
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { showError } from '../../../utils/toastHelper';
 
 const PaymentFailed = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tripId = searchParams.get('tripId');
+  const payment = searchParams.get('payment');
   const toastShownRef = useRef(false);
 
   useEffect(() => {
     if (toastShownRef.current) return;
     toastShownRef.current = true;
-    showError('Payment failed');
-  }, []);
+
+    if (payment === 'time_expired') {
+      showError('Time expired for payment');
+    } else {
+      showError('Payment failed');
+    }
+
+    const t = setTimeout(() => {
+      navigate(tripId ? `/seats/${tripId}` : '/trips', { replace: true });
+    }, 500);
+
+    return () => clearTimeout(t);
+  }, [navigate, tripId, payment]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -21,27 +34,18 @@ const PaymentFailed = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
           </svg>
         </div>
-        
+
         <div className="space-y-2">
           <h2 className="text-3xl font-extrabold text-gray-900">Payment Failed</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            We couldn't process your payment. Your seat lock has been released. Please try booking again.
+            {tripId
+              ? 'Taking you back to seat selection…'
+              : 'Taking you to trip search…'}
           </p>
         </div>
 
-        <div className="pt-4 space-y-3">
-          <button
-            onClick={() => navigate('/trips')}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-200"
-          >
-            Try Again
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 py-4 rounded-xl font-bold text-sm transition-all"
-          >
-            Back to Home
-          </button>
+        <div className="pt-2">
+          <div className="loading loading-spinner loading-md text-red-500 mx-auto" />
         </div>
       </div>
     </div>
