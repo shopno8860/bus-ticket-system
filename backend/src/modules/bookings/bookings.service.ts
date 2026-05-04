@@ -35,8 +35,11 @@ import { CreateBookingDto } from './dto/create-booking.dto';
  * passenger cancellation (pending refund), admin cancellation, and expiry of unpaid holds.
  */
 
-/** Max seats one user may commit (PENDING or paid) per trip departure calendar day (Asia/Dhaka). */
-const MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY = 4;
+/** Max seats one user may commit (PENDING or CONFIRMED) per purchase calendar day (Asia/Dhaka), by `booking.createdAt`. */
+const MAX_TICKET_SEATS_PER_USER_PER_PURCHASE_DAY = 4;
+
+const DAILY_TICKET_LIMIT_MESSAGE =
+  'You already booked 4 ticket please come back next day to purchase ticket';
 
 const paymentSafeSelect = {
   id: true,
@@ -310,31 +313,26 @@ export class BookingsService {
             );
           }
 
-          const { start: depDayStart, end: depDayEnd } =
-            this.getDhakaCalendarDayUtcBounds(trip.departureTime);
-          const seatsAlreadyCommittedForDepartureDay =
-            await transactionClient.bookingSeat.count({
-              where: {
-                bookingId: { not: null },
-                booking: {
-                  userId,
-                  status: {
-                    in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-                  },
+          const { start: purchaseDayStart, end: purchaseDayEnd } =
+            this.getDhakaCalendarDayUtcBounds(now);
+          const seatsAlreadyBookedToday = await transactionClient.bookingSeat.count({
+            where: {
+              bookingId: { not: null },
+              booking: {
+                userId,
+                status: {
+                  in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
                 },
-                trip: {
-                  departureTime: { gte: depDayStart, lt: depDayEnd },
-                },
+                createdAt: { gte: purchaseDayStart, lt: purchaseDayEnd },
               },
-            });
+            },
+          });
 
           if (
-            seatsAlreadyCommittedForDepartureDay + requestedSeatIds.length >
-            MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY
+            seatsAlreadyBookedToday + requestedSeatIds.length >
+            MAX_TICKET_SEATS_PER_USER_PER_PURCHASE_DAY
           ) {
-            throw new BadRequestException(
-              `You can book at most ${MAX_BOOKING_SEATS_PER_USER_PER_DEPARTURE_DAY} seats per departure day (all buses). Cancel a booking for that day or choose another travel date.`,
-            );
+            throw new BadRequestException(DAILY_TICKET_LIMIT_MESSAGE);
           }
 
           const bookingReference =

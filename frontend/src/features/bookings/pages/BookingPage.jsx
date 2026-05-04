@@ -135,7 +135,18 @@ const BookingPage = () => {
         navigate("/auth/login");
         return;
       }
-      showError("Booking failed");
+      const raw = err?.data?.message ?? err?.message;
+      const msg = Array.isArray(raw)
+        ? raw.join(" ")
+        : String(raw ?? "Booking failed");
+      showError(msg);
+      if (
+        err.status === 400 &&
+        msg.toLowerCase().includes("already booked 4 ticket") &&
+        msg.toLowerCase().includes("next day")
+      ) {
+        window.alert(msg);
+      }
     } finally {
       setLoading(false);
     }
