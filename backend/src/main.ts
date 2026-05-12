@@ -31,7 +31,7 @@ async function bootstrap() {
   const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
   const corsOrigins = [
     'http://localhost:5173',
-    'https://bus-ticket-system-beta.vercel.app',
+    'https://easytrip-beta.vercel.app',
     ...(frontendUrl ? [frontendUrl] : []),
   ];
 
