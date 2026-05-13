@@ -36,10 +36,9 @@ import { CreateBookingDto } from './dto/create-booking.dto';
  */
 
 /** Max seats one user may commit (PENDING or CONFIRMED) per trip departure calendar day (Asia/Dhaka), by `trip.departureTime`. */
-const MAX_TICKET_SEATS_PER_USER_PER_TRAVEL_DAY = 4;
-
-const DAILY_TICKET_LIMIT_MESSAGE =
-  'You already have 4 seats booked for trips on this travel date. You can book seats for other dates.';
+const MAX_TICKET_SEATS_PER_USER_PER_TRIP = 4;
+const TRIP_TICKET_LIMIT_MESSAGE =
+  'You already booked 4 seats for this trip.';
 
 const paymentSafeSelect = {
   id: true,
@@ -313,29 +312,30 @@ export class BookingsService {
             );
           }
 
-          const { start: travelDayStart, end: travelDayEnd } =
-            this.getDhakaCalendarDayUtcBounds(trip.departureTime);
+          // const { start: travelDayStart, end: travelDayEnd } =
+          //   this.getDhakaCalendarDayUtcBounds(trip.departureTime);
           const seatsAlreadyBookedForTravelDay =
             await transactionClient.bookingSeat.count({
               where: {
                 bookingId: { not: null },
                 booking: {
                   userId,
+                  tripId:confirmBookingDto.tripId,
                   status: {
                     in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
                   },
-                  trip: {
-                    departureTime: { gte: travelDayStart, lt: travelDayEnd },
-                  },
+                  // trip: {
+                  //   departureTime: { gte: travelDayStart, lt: travelDayEnd },
+                  // },
                 },
               },
             });
 
           if (
             seatsAlreadyBookedForTravelDay + requestedSeatIds.length >
-            MAX_TICKET_SEATS_PER_USER_PER_TRAVEL_DAY
+            MAX_TICKET_SEATS_PER_USER_PER_TRIP
           ) {
-            throw new BadRequestException(DAILY_TICKET_LIMIT_MESSAGE);
+            throw new BadRequestException(TRIP_TICKET_LIMIT_MESSAGE);
           }
 
           const bookingReference =
@@ -349,7 +349,8 @@ export class BookingsService {
           const seatCount = requestedSeatIds.length;
           const seatTotal = new Prisma.Decimal(trip.price).mul(seatCount);
           const platformFeePerSeat =
-            trip.bus.busType === BusType.AC ? 70 : 40;
+            trip.bus.busType === BusType.AC || 
+            trip.bus.busType === BusType.SLEEPER ? 70 : 40;
           const serviceCharge = platformFeePerSeat * seatCount;
           const insurance = 10 * seatCount;
           const totalAmount = seatTotal.add(serviceCharge).add(insurance);
