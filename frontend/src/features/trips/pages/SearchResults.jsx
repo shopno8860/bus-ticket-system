@@ -212,7 +212,7 @@ function SearchResults() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < 15; i += 1) {
+    for (let i = 0; i <15; i += 1) {
       const day = new Date(today);
       day.setDate(today.getDate() + i);
       days.push({

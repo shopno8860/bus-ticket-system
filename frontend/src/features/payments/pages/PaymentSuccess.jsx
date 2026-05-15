@@ -140,21 +140,21 @@ const PaymentSuccess = () => {
   const seatCount = booking.bookingSeats?.length ?? 0;
   const seatPrice = Number(trip?.price ?? 0);
   const busType = trip?.bus?.busType;
-  const platformFeePerSeat = busType === 'AC' ? 70 : 40;
+  const platformFeePerSeat = busType === 'NON_AC' ? 40 : 70;
   const insurancePerSeat = 10;
   const seatTotal = seatCount * seatPrice;
   const platformFee = seatCount * platformFeePerSeat;
   const insuranceFee = seatCount * insurancePerSeat;
 
-  // ✅ UI
+  //  UI
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
 
       <div className="bg-white rounded-xl shadow-md w-full max-w-md p-6 text-center">
 
-        {/* ✅ Success */}
+        {/*  Success */}
         <h2 className="text-2xl font-bold text-green-600">
-          ✅ Payment Successful
+           Payment Successful
         </h2>
         <p className="text-gray-500 mb-6">
           Your booking is confirmed

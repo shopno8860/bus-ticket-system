@@ -5,11 +5,12 @@ import { useAuth } from "../../auth/context/AuthContext";
 import { showError, showSuccess } from "../../../utils/toastHelper";
 
 const BookingPage = () => {
+  // Booking details are passed from SeatSelection via `navigate("/booking", { state })`.
   const { state } = useLocation();
   const navigate = useNavigate();
   const { user, token } = useAuth();
 
-  // Safety check
+  // Safety check: if user directly opens this page without navigation state, redirect path is unknown.
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -23,6 +24,7 @@ const BookingPage = () => {
 
   const { tripId, selectedSeats, selectedSeatNumbers, seatPrice, busType, lockExpiresAt } = state;
 
+  // Passenger info defaults to logged-in user's saved profile (if available).
   const [name, setName] = useState(user?.fullName || "");
   const [phone, setPhone] = useState(user?.phoneNumber || "");
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,8 @@ const BookingPage = () => {
 
   // Initialize and persist timer (seat hold from backend lockExpiresAt; matches SEAT_SELECTION_LOCK_MINUTES)
   useEffect(() => {
+    // Persist lock expiry time in localStorage so refresh/back doesn't reset the countdown.
+    // This timer represents seat lock window before the user confirms booking/payment.
     const storageKey = `lock_expiry_${tripId}`;
     const stored = localStorage.getItem(storageKey);
     let expiryMs;
@@ -70,6 +74,7 @@ const BookingPage = () => {
 
   // Handle auto-expiry action (seat hold before payment)
   useEffect(() => {
+    // When lock expires, we send the user back to seat selection to lock again.
     if (isExpired) {
       showError("Your seat hold expired. Please select seats again.");
       navigate(`/seats/${tripId}`, { replace: true });
@@ -77,6 +82,7 @@ const BookingPage = () => {
   }, [isExpired, navigate, tripId]);
 
   const formatTime = (seconds) => {
+    // Renders countdown as MM:SS for the UI.
     if (seconds === null) return "00:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -84,7 +90,8 @@ const BookingPage = () => {
   };
 
   // Price Calculation
-  const feePerSeat = busType === "AC" ? 70 : 40;
+  // Fees are per seat (platform fee varies by bus type; insurance fixed).
+  const feePerSeat = busType === "NON_AC" ? 40 : 70;
   const insurancePerSeat = 10;
   const seatTotal = selectedSeats.length * seatPrice;
   const platformFee = selectedSeats.length * feePerSeat;
@@ -93,6 +100,8 @@ const BookingPage = () => {
 
   // Booking handler
   const handleBooking = async () => {
+    // Confirms the PENDING booking (created during seat lock) for the logged-in user,
+    // then navigates to Payment page while preserving the remaining seat-hold time.
     if (!name || !phone) {
       showError("Please enter name and phone");
       return;
@@ -107,6 +116,7 @@ const BookingPage = () => {
     try {
       setLoading(true);
 
+      // Payload uses seat IDs (not seat numbers) because backend expects DB IDs.
       const payload = {
         tripId,
         seatIds: selectedSeats, // These are the database UUIDs
@@ -134,6 +144,7 @@ const BookingPage = () => {
         seatHoldExpiresAtMs = Date.now() + 2 * 60 * 1000;
       }
 
+      // Cleanup: booking is confirmed, so we don't need the lock timer key anymore.
       localStorage.removeItem(storageKey);
       showSuccess("Booking confirmed");
 

@@ -5,14 +5,19 @@ import { lockSeats } from "../../bookings/services/bookingApi";
 import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
 
 const SeatSelection = () => {
+  // Route params: which trip we are selecting seats for.
   const { tripId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // API data + UI state
   const [tripData, setTripData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSeats, setSelectedSeats] = useState([]);
 
   useEffect(() => {
+    // If user returned from SSLCommerz/payment flow, show a toast once based on `?payment=...`
+    // and then remove the query param so reload/back doesn't show it again.
     const payment = searchParams.get("payment");
     if (!payment || !tripId) return undefined;
 
@@ -46,6 +51,8 @@ const SeatSelection = () => {
   }, [searchParams, setSearchParams, tripId]);
 
   useEffect(() => {
+    // Fetch trip details (including current bookingSeats locks/reservations) and keep them fresh.
+    // This lets users see seats getting locked/reserved by others in near-real-time.
     let isMounted = true;
 
     const fetchTripDetails = async ({ silent = false } = {}) => {
@@ -83,6 +90,10 @@ const SeatSelection = () => {
   }, [tripId]);
 
   const allSeats = useMemo(() => {
+    // Derive a seat list for rendering with a computed `seatState`:
+    // - reserved: already booked
+    // - locked: temporarily held by someone else (not expired yet)
+    // - available: can be selected
     if (!tripData || !tripData.bus || !tripData.bus.seats) return [];
 
     const now = Date.now();
@@ -108,9 +119,11 @@ const SeatSelection = () => {
     }));
   }, [tripData]);
 
+  // Per-seat price comes from the trip (string/number) so normalize as float.
   const PRICE_PER_SEAT = tripData ? parseFloat(tripData.price) : 0;
 
   const handleSeatClick = (seat) => {
+    // Guard: do not allow selecting seats already reserved/locked.
     if (seat.seatState === "reserved") {
       showError("Seat already booked");
       return;
@@ -121,9 +134,11 @@ const SeatSelection = () => {
     }
     setSelectedSeats((prev) => {
       if (prev.includes(seat.id)) {
+        // Clicking a selected seat unselects it.
         showSuccess("Seat released");
         return prev.filter((s) => s !== seat.id);
       } else {
+        // Cap seat selection to 4 (matches backend business rule).
         if (prev.length >= 4) {
           showError("You can select up to 4 seats");
           return prev;
@@ -137,6 +152,7 @@ const SeatSelection = () => {
   const busClass = tripData?.bus?.busClass ?? "ECONOMY";
   const busType = tripData?.bus?.busType ?? "NON_AC";
   const seatsByRow = useMemo(() => {
+    // Group seats by row to render the grid row-by-row (economy / non-sleeper).
     const grouped = new Map();
     allSeats.forEach((seat) => {
       const row = Number(seat.rowNumber ?? 1);
@@ -153,6 +169,8 @@ const SeatSelection = () => {
       }));
   }, [allSeats]);
   const businessRows = useMemo(() => {
+    // Business bus layout: special grouping (front rows 1x2-ish + last row 2x2)
+    // to match the UI aisle split used below.
     if (busClass !== "BUSINESS" || busType === "SLEEPER") {
       return [];
     }
@@ -184,6 +202,8 @@ const SeatSelection = () => {
     return rows;
   }, [allSeats, busClass, busType]);
   const sleeperDeckRows = useMemo(() => {
+    // Sleeper layout: split into Upper/Lower deck based on seat label prefix (U*/L*),
+    // and chunk into fixed-size rows for rendering.
     if (busType !== "SLEEPER") {
       return { upperRows: [], lowerRows: [] };
     }
@@ -215,6 +235,8 @@ const SeatSelection = () => {
   }, [allSeats, busType]);
 
   const handleContinue = async () => {
+    // Locks selected seats in backend (creates/updates a PENDING bookingSeat lock)
+    // and navigates to the booking page with selection + lock expiry time.
     if (selectedSeats.length === 0) return;
     
     const loadingToastId = showLoading("Locking seats...");
@@ -228,7 +250,7 @@ const SeatSelection = () => {
       
       const { lockExpiresAt } = lockResponse;
       
-      // Get seat numbers for display
+      // Convert seat IDs to seat numbers for nicer display on the booking screen.
       const selectedSeatDetails = allSeats.filter(s => selectedSeats.includes(s.id));
       
       navigate("/booking", {
@@ -250,6 +272,7 @@ const SeatSelection = () => {
   };
 
   if (loading) {
+    // Initial load / lock request in progress.
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -261,6 +284,7 @@ const SeatSelection = () => {
   }
 
   if (!tripData) {
+    // Trip not found or failed load (after loading ended).
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -434,7 +458,7 @@ const SeatSelection = () => {
   );
 };
 
-// Seat Button Component
+// Seat button that reflects seat state (reserved/locked/available) + selection.
 const SeatButton = ({ seat, isSelected, onClick }) => {
   const { seatNumber, seatState } = seat;
   const base =
@@ -485,6 +509,7 @@ const SeatButton = ({ seat, isSelected, onClick }) => {
   );
 };
 
+// Sleeper deck renderer (upper/lower) using the same SeatButton component.
 const SleeperDeck = ({ title, rows, selectedSeats, onSeatClick }) => {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-2.5">

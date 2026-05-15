@@ -314,7 +314,7 @@ function BusesPage() {
                           >
                             <IconDelete />
                           </button>
-                          <button
+                          {/* <button
                             type="button"
                             onClick={() => handleGenerateSeats(bus)}
                             title="Generate Seats"
@@ -322,7 +322,7 @@ function BusesPage() {
                             className="rounded-md border border-slate-200 p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {generatingBusId === bus.id ? <IconSpinner /> : <IconSeat />}
-                          </button>
+                          </button> */}
                         </div>
                       </td>
                     </tr>
