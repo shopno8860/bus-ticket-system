@@ -26,6 +26,10 @@ import { BookingsService } from './bookings.service';
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  /**
+   * Returns the signed-in user's bookings (with trip, seats, latest payment).
+   * লগইন করা user-এর নিজের বুকিংগুলা (details সহ) দেখায়।
+   */
   @Get('my-bookings')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')
@@ -34,6 +38,10 @@ export class BookingsController {
     return this.bookingsService.findMyBookings(user.sub);
   }
 
+  /**
+   * Locks seats for a trip and creates a PENDING booking without requiring JWT.
+   * প্রথম ধাপ: seat hold/lock করে `lockExpiresAt` রিটার্ন করে; পরে confirm করতে হবে।
+   */
   @Post()
   @ApiOperation({
     summary: 'Lock seats (creates PENDING booking)',
@@ -47,6 +55,10 @@ export class BookingsController {
     return this.bookingsService.create(createBookingDto);
   }
 
+  /**
+   * Confirms a previously locked booking for the authenticated user and sets payment deadline.
+   * দ্বিতীয় ধাপ: লগইন অবস্থায় booking confirm করে payment window শুরু করে।
+   */
   @Patch('confirm')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')
@@ -58,6 +70,10 @@ export class BookingsController {
     return this.bookingsService.confirmBooking(confirmBookingDto, user.sub);
   }
 
+  /**
+   * Returns booking details by ID (owner or ADMIN).
+   * বুকিং ডিটেইল দেখায়; owner/ADMIN ছাড়া দেখা যাবে না।
+   */
   @Get(':id')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')
@@ -69,6 +85,10 @@ export class BookingsController {
     return this.bookingsService.findOne(id, user.sub, user.role);
   }
 
+  /**
+   * Requests cancellation for a confirmed booking (creates a pending refund request).
+   * confirmed বুকিং cancel request করলে refund request pending থাকে (admin approve লাগবে)।
+   */
   @Patch(':id/cancel')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')

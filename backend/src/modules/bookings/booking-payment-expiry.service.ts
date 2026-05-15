@@ -9,6 +9,10 @@ export class BookingPaymentExpiryService {
   constructor(private readonly bookingsService: BookingsService) {}
 
   @Cron('*/30 * * * * *')
+  /**
+   * Background job: expires stale PENDING bookings whose payment window has passed.
+   * প্রতি ৩০ সেকেন্ডে pending unpaid booking গুলো expire করে seats release করে দেয়।
+   */
   async expirePendingBookings(): Promise<void> {
     try {
       const count = await this.bookingsService.expireStalePendingBookings();

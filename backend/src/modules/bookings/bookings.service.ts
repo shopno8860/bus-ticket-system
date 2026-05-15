@@ -37,8 +37,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 
 /** Max seats one user may commit (PENDING or CONFIRMED) per trip departure calendar day (Asia/Dhaka), by `trip.departureTime`. */
 const MAX_TICKET_SEATS_PER_USER_PER_TRIP = 4;
-const TRIP_TICKET_LIMIT_MESSAGE =
-  'You already booked 4 seats for this trip.';
+const TRIP_TICKET_LIMIT_MESSAGE = 'You already booked 4 seats for this trip.';
 
 const paymentSafeSelect = {
   id: true,
@@ -59,13 +58,20 @@ const paymentSafeSelect = {
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
 
+  /**
+   * DI constructor for booking domain operations.
+   * এখানে Prisma DB access, notification send, এবং config/env access ইনজেক্ট করা হয়।
+   */
   constructor(
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
   ) {}
 
-  /** `start` inclusive and `end` exclusive for the calendar day in Asia/Dhaka (UTC instants). */
+  /**
+   * `start` inclusive and `end` exclusive for the calendar day in Asia/Dhaka (UTC instants).
+   * দেওয়া `reference` date অনুযায়ী ঢাকা টাইমজোনের দিনের শুরু/শেষ (UTC Date) বের করে।
+   */
   private getDhakaCalendarDayUtcBounds(reference: Date): {
     start: Date;
     end: Date;
@@ -78,14 +84,19 @@ export class BookingsService {
     return { start, end };
   }
 
-  /** Lock seats for a trip; creates a PENDING booking and returns lock expiry. */
+  /**
+   * Lock seats for a trip; creates a PENDING booking and returns lock expiry.
+   * সিটগুলো সাময়িকভাবে LOCK করে PENDING বুকিং তৈরি করে (payment/confirm এর আগে)।
+   */
   async create(createBookingDto: CreateBookingDto): Promise<{
     tripId: string;
     seatIds: string[];
     lockExpiresAt: Date;
   }> {
     const now = new Date();
-    const lockExpiresAt = new Date(now.getTime() + seatLockMs(this.configService));
+    const lockExpiresAt = new Date(
+      now.getTime() + seatLockMs(this.configService),
+    );
 
     try {
       return await this.prismaService.$transaction(
@@ -151,25 +162,26 @@ export class BookingsService {
           }
 
           for (const seatId of requestedSeatIds) {
-            const recycleResult = await transactionClient.bookingSeat.updateMany({
-              where: {
-                tripId: createBookingDto.tripId,
-                seatId,
-                OR: [
-                  { status: BookingSeatStatus.CANCELLED },
-                  {
-                    status: BookingSeatStatus.LOCKED,
-                    lockExpiresAt: { lt: now },
-                  },
-                ],
-              },
-              data: {
-                status: BookingSeatStatus.LOCKED,
-                bookingId: null,
-                lockExpiresAt,
-                price: trip.price,
-              },
-            });
+            const recycleResult =
+              await transactionClient.bookingSeat.updateMany({
+                where: {
+                  tripId: createBookingDto.tripId,
+                  seatId,
+                  OR: [
+                    { status: BookingSeatStatus.CANCELLED },
+                    {
+                      status: BookingSeatStatus.LOCKED,
+                      lockExpiresAt: { lt: now },
+                    },
+                  ],
+                },
+                data: {
+                  status: BookingSeatStatus.LOCKED,
+                  bookingId: null,
+                  lockExpiresAt,
+                  price: trip.price,
+                },
+              });
 
             if (recycleResult.count > 0) {
               continue;
@@ -217,7 +229,10 @@ export class BookingsService {
     }
   }
 
-  /** Attach authenticated user to a lock, enforce limits, set payment deadline. */
+  /**
+   * Attach authenticated user to a lock, enforce limits, set payment deadline.
+   * লগইন করা user-কে PENDING বুকিংয়ের সাথে attach করে এবং `paymentExpiresAt` সেট করে।
+   */
   async confirmBooking(
     confirmBookingDto: ConfirmBookingDto,
     userId: string,
@@ -320,7 +335,7 @@ export class BookingsService {
                 bookingId: { not: null },
                 booking: {
                   userId,
-                  tripId:confirmBookingDto.tripId,
+                  tripId: confirmBookingDto.tripId,
                   status: {
                     in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
                   },
@@ -349,8 +364,7 @@ export class BookingsService {
           const seatCount = requestedSeatIds.length;
           const seatTotal = new Prisma.Decimal(trip.price).mul(seatCount);
           const platformFeePerSeat =
-            trip.bus.busType === BusType.AC || 
-            trip.bus.busType === BusType.SLEEPER ? 70 : 40;
+            trip.bus.busType === BusType.NON_AC ? 40 : 70;
           const serviceCharge = platformFeePerSeat * seatCount;
           const insurance = 10 * seatCount;
           const totalAmount = seatTotal.add(serviceCharge).add(insurance);
@@ -419,7 +433,10 @@ export class BookingsService {
     }
   }
 
-  /** Booking detail with trip, seats, latest payment; owner or ADMIN. */
+  /**
+   * Booking detail with trip, seats, latest payment; owner or ADMIN.
+   * বুকিং ডিটেইলস (trip/seat/latest payment) ফেরত দেয়; owner বা ADMIN ছাড়া অ্যাক্সেস নিষেধ।
+   */
   async findOne(id: string, requesterUserId: string, requesterRole: UserRole) {
     const booking = await this.prismaService.booking.findUnique({
       where: { id },
@@ -458,7 +475,10 @@ export class BookingsService {
     return booking;
   }
 
-  /** All bookings for the signed-in user, newest first. */
+  /**
+   * All bookings for the signed-in user, newest first.
+   * বর্তমান user-এর সব বুকিং (trip/seat/latest payment/refund) newest-first অর্ডারে দেয়।
+   */
   async findMyBookings(userId: string) {
     return this.prismaService.booking.findMany({
       where: {
@@ -499,7 +519,10 @@ export class BookingsService {
     });
   }
 
-  /** Admin booking table with optional filters (user, route, status, dates). */
+  /**
+   * Admin booking table with optional filters (user, route, status, dates).
+   * Admin panel-এর জন্য filters অনুযায়ী বুকিং লিস্ট (user/trip/payment/refund সহ) রিটার্ন করে।
+   */
   async findAllAdmin(filters: AdminBookingsFilterDto) {
     const where: Prisma.BookingWhereInput = {};
 
@@ -569,7 +592,10 @@ export class BookingsService {
     });
   }
 
-  /** Passenger cancellation: creates PENDING refund; ticket stays confirmed until admin approves. */
+  /**
+   * Passenger cancellation: creates PENDING refund; ticket stays confirmed until admin approves.
+   * User cancellation request করলে refund request তৈরি হয় (PENDING) — admin approve না করা পর্যন্ত টিকিট active থাকে।
+   */
   async cancel(bookingId: string, userId: string): Promise<any> {
     const now = new Date();
 
@@ -697,14 +723,16 @@ export class BookingsService {
           userId,
           refundId: result.refundRequest.id,
           status: RefundStatus.PENDING,
-          message:
-            'A cancellation / refund request is pending admin approval.',
+          message: 'A cancellation / refund request is pending admin approval.',
         });
         return result;
       });
   }
 
-  /** Immediate cancel by admin; clears seats and notifies passenger. */
+  /**
+   * Immediate cancel by admin; clears seats and notifies passenger.
+   * Admin সাথে সাথে বুকিং CANCEL করে; seat rows release করে এবং passenger-কে notify করে।
+   */
   async cancelByAdmin(
     bookingId: string,
     reason: string,
@@ -724,7 +752,9 @@ export class BookingsService {
           booking.status === BookingStatus.CANCELLED ||
           booking.status === BookingStatus.EXPIRED
         ) {
-          throw new ConflictException('Booking is already cancelled or expired');
+          throw new ConflictException(
+            'Booking is already cancelled or expired',
+          );
         }
 
         await tx.bookingSeat.deleteMany({
@@ -757,6 +787,7 @@ export class BookingsService {
   /**
    * Marks PENDING bookings as EXPIRED when paymentExpiresAt has passed, fails
    * open payments, and releases seat rows.
+   * payment timeout হয়ে গেলে pending বুকিং expire করে এবং seats release করে দেয়।
    */
   async expireStalePendingBookings(): Promise<number> {
     const now = new Date();
@@ -818,6 +849,10 @@ export class BookingsService {
     return expiredRows.length;
   }
 
+  /**
+   * Creates a human-readable booking reference, retrying a few times to avoid collisions.
+   * `BKG-<timestamp>-<random>` ফরম্যাটে unique bookingReference বানায়; collision হলে retry করে।
+   */
   private async generateUniqueBookingReference(
     transactionClient: Prisma.TransactionClient,
   ): Promise<string> {
