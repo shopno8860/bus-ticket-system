@@ -33,6 +33,10 @@ import {
 export class RefundsService {
   private readonly logger = new Logger(RefundsService.name);
 
+  /**
+   * DI constructor for refund operations.
+   * এখানে DB (Prisma), notifications, email service, এবং SSLCommerz refund gateway service ইনজেক্ট করা হয়।
+   */
   constructor(
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
@@ -40,6 +44,10 @@ export class RefundsService {
     private readonly sslCommerzRefundService: SslCommerzRefundService,
   ) {}
 
+  /**
+   * Creates a refund request for a confirmed booking (user action).
+   * Checks: booking exists + owner + CONFIRMED + no existing PENDING/APPROVED refund + within cancellation window.
+   */
   async requestRefund(
     requestRefundDto: RequestRefundDto,
     requesterUserId: string,
@@ -151,6 +159,15 @@ export class RefundsService {
       });
   }
 
+  /**
+   * Approves a pending refund request (admin action).
+   *
+   * If bankTranId + SSL store credentials are available, it initiates the refund at SSLCommerz first.
+   * Possible outcomes:
+   * - FAILED/UNKNOWN: refund marked FAILED (booking stays active)
+   * - PROCESSING: refund stays PENDING and payment.refundStatus=SSL_PROCESSING
+   * - SUCCESS (or SSL call not possible): finalize locally (payment REFUNDED, booking CANCELLED, seats released)
+   */
   async approve(
     refundId: string,
     adminUserId: string,
@@ -595,7 +612,7 @@ export class RefundsService {
               'Payment was not SUCCESS; cannot finalize refund from SSL query',
             );
           }
-
+//booking update
           const bu = await tx.booking.updateMany({
             where: {
               id: r.bookingId,
@@ -734,6 +751,10 @@ export class RefundsService {
     };
   }
 
+  /**
+   * Combines admin note with SSL gateway failure reason in a readable way.
+   * Both present থাকলে `adminNote | [SSL] reason` ফরম্যাটে merge করে।
+   */
   private static mergeAdminNoteWithSsl(
     adminNote?: string,
     sslReason?: string,
@@ -746,6 +767,10 @@ export class RefundsService {
     return `${a} | [SSL] ${r}`;
   }
 
+  /**
+   * Sends "refund approved" email to the user.
+   * Email send fail হলে main flow break না করে শুধু log করা হয়।
+   */
   private async sendRefundApprovedEmail(params: {
     userId: string;
     bookingId: string;
@@ -784,6 +809,10 @@ export class RefundsService {
     }
   }
 
+  /**
+   * Rejects a pending refund request (admin action).
+   * Refund REJECTED হয় কিন্তু booking CONFIRMED থাকে (ticket invalidate করা হয় না)।
+   */
   async reject(
     refundId: string,
     adminUserId: string,
@@ -829,6 +858,10 @@ export class RefundsService {
       });
   }
 
+  /**
+   * Lets a user check SSLCommerz refund status for their own refund reference.
+   * Stored DB snapshot + live SSL query result একসাথে রিটার্ন করে।
+   */
   async getSslRefundStatusForUser(refundRefId: string, requesterUserId: string) {
     const row = await this.prismaService.refund.findFirst({
       where: {
@@ -857,6 +890,10 @@ export class RefundsService {
     return { stored: row, live };
   }
 
+  /**
+   * Admin refunds list with optional filters (status, date).
+   * Admin panel এর জন্য refund + booking/user/payment summary সহ রিটার্ন করে।
+   */
   async findAllAdmin(filters: AdminRefundsFilterDto) {
     const where: {
       status?: RefundStatus;
@@ -900,6 +937,10 @@ export class RefundsService {
     });
   }
 
+  /**
+   * Calculates refund percentage based on how many hours remain until departure.
+   * Common cancellation policy helper wrapper।
+   */
   private calculateRefundPercentage(
     requestTime: Date,
     departureTime: Date,

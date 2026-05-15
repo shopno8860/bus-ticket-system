@@ -76,7 +76,7 @@ export class TicketPdfService {
 
     const seatCount = booking.bookingSeats.length;
     const seatPrice = Number(booking.trip.price ?? 0);
-    const platformFeePerSeat = booking.trip.bus.busType === 'AC' ? 70 : 40;
+    const platformFeePerSeat = booking.trip.bus.busType === 'NON_AC' ? 40 : 70;
     const insurancePerSeat = 10;
     const seatTotal = seatCount * seatPrice;
     const platformFee = seatCount * platformFeePerSeat;

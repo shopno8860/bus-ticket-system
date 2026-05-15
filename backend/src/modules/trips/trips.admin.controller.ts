@@ -116,7 +116,7 @@ export class TripsAdminController {
       ? await this.tripGeneratorService.deleteAllTrips()
       : 0;
     const createdTrips = await this.tripGeneratorService.createTripsForUpcomingDays(
-      body.daysAhead ?? 3,
+      body.daysAhead ?? 4,
       {
         forceCreate: body.forceCreate ?? false,
       },

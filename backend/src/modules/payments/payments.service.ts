@@ -44,6 +44,10 @@ type SafePayment = Prisma.PaymentGetPayload<{
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
+  /**
+   * DI constructor for payment operations.
+   * এখানে DB access (Prisma), env/config, notification এবং email service ইনজেক্ট করা হয়।
+   */
   constructor(
     private readonly prismaService: PrismaService,
     private readonly configService: ConfigService,
@@ -51,6 +55,10 @@ export class PaymentsService {
     private readonly mailService: MailService,
   ) {}
 
+  /**
+   * Finds the tripId for a given SSLCommerz `tran_id`.
+   * Payment transactionId দিয়ে booking->tripId বের করতে use হয় (callbacks এ helper)।
+   */
   async getTripIdByTranId(
     tranId: string | undefined | null,
   ): Promise<string | undefined> {
@@ -65,6 +73,10 @@ export class PaymentsService {
     return row?.booking?.tripId;
   }
 
+  /**
+   * Guards against paying outside the booking's payment window.
+   * বুকিং `PENDING` না হলে বা `paymentExpiresAt` পার হয়ে গেলে payment block করে।
+   */
   private assertBookingPaymentWindowOpen(params: {
     status: BookingStatus;
     paymentExpiresAt: Date | null;
@@ -90,6 +102,11 @@ export class PaymentsService {
    * the client called this endpoint twice due to React Strict Mode or a retry),
    * the existing payment record is returned immediately — no duplicate is created
    * and no error is thrown.
+   *
+   * Flow (high level):
+   * - Booking validate + owner check + payment window check
+   * - Existing payment থাকলে reuse (idempotent), না হলে নতুন payment row create
+   * - SSLCommerz session initiate করে `paymentUrl` রিটার্ন
    */
   async create(
     createPaymentDto: CreatePaymentDto,
@@ -344,6 +361,10 @@ export class PaymentsService {
       });
   }
 
+  /**
+   * Sends booking confirmation email with an already generated ticket PDF (buffer or file path).
+   * Payment SUCCESS না হলে email পাঠানো হয় না; owner ছাড়া অন্য কেউ trigger করতে পারবে না।
+   */
   async sendConfirmationEmailWithExistingTicket(params: {
     bookingId: string;
     requesterUserId: string;
@@ -405,6 +426,7 @@ export class PaymentsService {
   /**
    * Handles failed/cancelled payment.
    * Marks payment as FAILED/CANCELLED and booking as CANCELLED.
+   * Payment fail/cancel callback এ payment status update করে এবং seats release করে দেয়।
    */
   async handlePaymentFailure(tranId: string, status: PaymentStatus) {
     return this.prismaService
@@ -465,6 +487,7 @@ export class PaymentsService {
 
   /**
    * Initiates a real session with SSLCommerz and returns the GatewayPageURL.
+   * SSL credential missing হলে sandbox/fallback URL রিটার্ন করে (simulation)।
    */
   private async initiateSSLCommerzPayment(payment: any): Promise<string> {
     const storeId = this.configService.get<string>('STORE_ID');
@@ -556,6 +579,10 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Admin payment list with optional filters (status, method, date).
+   * Admin panel এ payment table/filter এর জন্য payment + booking(trip) + user data সহ রিটার্ন করে।
+   */
   async findAllAdmin(filters: AdminPaymentsFilterDto) {
     const where: {
       status?: PaymentStatus;
@@ -606,6 +633,10 @@ export class PaymentsService {
     });
   }
 
+  /**
+   * Picks the SSLCommerz order validation endpoint.
+   * Priority: `SSL_BASE_URL` -> `SSLCOMMERZ_URL` origin -> sandbox default.
+   */
   private getValidationServerUrl(): string {
     const base = this.configService
       .get<string>('SSL_BASE_URL')
@@ -628,6 +659,10 @@ export class PaymentsService {
     return 'https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php';
   }
 
+  /**
+   * Returns the first non-empty string from `payload` by checking keys in order.
+   * SSL payload এ key naming mismatch (snake_case/camelCase) handle করতে helper।
+   */
   private pickPayloadString(
     payload: Record<string, unknown> | undefined,
     ...keys: string[]
@@ -733,6 +768,10 @@ export class PaymentsService {
     return {};
   }
 
+  /**
+   * Generates a unique transactionId used as SSLCommerz `tran_id`.
+   * Format: `TXN-<timestamp>-<random>`.
+   */
   private generateTransactionId(): string {
     return `TXN-${Date.now()}-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
