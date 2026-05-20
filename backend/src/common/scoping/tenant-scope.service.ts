@@ -17,20 +17,66 @@ export class TenantScopeService {
     return user.role === UserRole.ADMIN;
   }
 
-  resolveListScope(user: AuthenticatedUser): OperatorListScope {
+  resolveEffectiveOperatorId(
+    user: AuthenticatedUser,
+    requestedOperatorId?: string,
+  ): string | undefined {
     if (this.isPlatformAdmin(user)) {
-      return {};
+      const trimmed = requestedOperatorId?.trim();
+      return trimmed || undefined;
     }
+
     this.requireOperatorContext(user);
-    return { operatorId: user.operatorId! };
+    const jwtOperatorId = user.operatorId!;
+
+    if (
+      requestedOperatorId?.trim() &&
+      requestedOperatorId.trim() !== jwtOperatorId
+    ) {
+      throw new ForbiddenException('Cannot access another operator context');
+    }
+
+    return jwtOperatorId;
   }
 
-  resolveScopedOperatorId(user: AuthenticatedUser): string | undefined {
+  resolveRequiredOperatorId(
+    user: AuthenticatedUser,
+    requestedOperatorId?: string,
+  ): string {
+    const effective = this.resolveEffectiveOperatorId(
+      user,
+      requestedOperatorId,
+    );
+
     if (this.isPlatformAdmin(user)) {
-      return undefined;
+      if (!effective) {
+        throw new BadRequestException('operatorId is required for this action');
+      }
+      return effective;
     }
-    this.requireOperatorContext(user);
-    return user.operatorId!;
+
+    return effective!;
+  }
+
+  resolveListScope(
+    user: AuthenticatedUser,
+    requestedOperatorId?: string,
+  ): OperatorListScope {
+    const operatorId = this.resolveEffectiveOperatorId(
+      user,
+      requestedOperatorId,
+    );
+    if (operatorId) {
+      return { operatorId };
+    }
+    return {};
+  }
+
+  resolveScopedOperatorId(
+    user: AuthenticatedUser,
+    requestedOperatorId?: string,
+  ): string | undefined {
+    return this.resolveEffectiveOperatorId(user, requestedOperatorId);
   }
 
   resolveCreateOperatorId(

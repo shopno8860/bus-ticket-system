@@ -1,14 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFetch } from '../../../../hooks/useFetch';
 import { apiFetch } from '../../../../services/api';
 import { endpoints } from '../../../../services/endpoints';
+import {
+  getDashboardBookingRoutes,
+  withOperatorQuery,
+} from '../../services/dashboardApi';
+import { useDashboardScope } from '../../hooks/useDashboardScope';
+import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 
 const BUS_TYPES = ['AC', 'NON_AC', 'SLEEPER'];
 const BUS_CLASSES = ['BUSINESS', 'ECONOMY'];
 
 function AdminTripSearch() {
   const navigate = useNavigate();
+  const { operatorId } = useDashboardScope();
+  const { bookingSeats } = useOperatorHubPaths();
 
   const [searchParams, setSearchParams] = useState({
     origin: '',
@@ -23,12 +31,11 @@ function AdminTripSearch() {
   const [error, setError] = useState(null);
   const [searched, setSearched] = useState(false);
 
-  const { data: routeData } = useFetch(
-    useCallback(
-      () => apiFetch(endpoints.dashboard.bookingRoutes).then((res) => res.items ?? res),
-      [],
-    ),
+  const loadRoutes = useCallback(
+    () => getDashboardBookingRoutes(operatorId),
+    [operatorId],
   );
+  const { data: routeData } = useFetch(loadRoutes);
   const routes = Array.isArray(routeData) ? routeData : [];
 
   const uniqueOrigins = [...new Set(routes.map((r) => r.origin))].sort();
@@ -48,7 +55,11 @@ function AdminTripSearch() {
       if (searchParams.busType) query.append('busType', searchParams.busType);
       if (searchParams.busClass) query.append('busClass', searchParams.busClass);
 
-      const data = await apiFetch(`${endpoints.dashboard.tripsSearch}?${query.toString()}`);
+      const searchUrl = withOperatorQuery(
+        `${endpoints.dashboard.tripsSearch}?${query.toString()}`,
+        operatorId,
+      );
+      const data = await apiFetch(searchUrl);
       setTrips(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Failed to search trips');
@@ -59,7 +70,7 @@ function AdminTripSearch() {
   };
 
   const handleSelectTrip = (trip) => {
-    navigate(`/dashboard/booking/seats/${trip.id}`, {
+    navigate(bookingSeats(trip.id), {
       state: { trip },
     });
   };

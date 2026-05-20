@@ -4,10 +4,13 @@ import { useFetch } from '../../../hooks/useFetch';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 import { showError, showSuccess } from '../../../utils/toastHelper';
+import { withOperatorQuery } from '../services/dashboardApi';
+import { useDashboardScope } from '../hooks/useDashboardScope';
 
 const REFUND_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED'];
 
 function RefundPage() {
+  const { operatorId } = useDashboardScope();
   const [filters, setFilters] = useState({
     status: '',
     date: '',
@@ -30,9 +33,15 @@ function RefundPage() {
   }, [filters.status, filters.date]);
 
   const fetchRefunds = useCallback(async () => {
-    const path = refundQuery ? `${endpoints.dashboard.refunds}?${refundQuery}` : endpoints.dashboard.refunds;
+    const params = new URLSearchParams(refundQuery);
+    if (operatorId) {
+      params.set('operatorId', operatorId);
+    }
+    const path = params.toString()
+      ? `${endpoints.dashboard.refunds}?${params}`
+      : withOperatorQuery(endpoints.dashboard.refunds, operatorId);
     return apiFetch(path).then((res) => res.items ?? res);
-  }, [refundQuery]);
+  }, [refundQuery, operatorId]);
 
   const {
     data: refundData,

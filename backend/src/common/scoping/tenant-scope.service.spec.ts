@@ -25,14 +25,37 @@ describe('TenantScopeService', () => {
     operatorId: 'operator-a',
   };
 
-  it('returns empty list scope for admin', () => {
+  it('returns empty list scope for admin without requested operator', () => {
     expect(service.resolveListScope(admin)).toEqual({});
+  });
+
+  it('returns operator scope for admin when operatorId requested', () => {
+    expect(service.resolveListScope(admin, 'operator-b')).toEqual({
+      operatorId: 'operator-b',
+    });
   });
 
   it('returns operator scope for operator', () => {
     expect(service.resolveListScope(operator)).toEqual({
       operatorId: 'operator-a',
     });
+  });
+
+  it('resolveEffectiveOperatorId returns undefined for admin without request', () => {
+    expect(service.resolveEffectiveOperatorId(admin)).toBeUndefined();
+  });
+
+  it('resolveEffectiveOperatorId returns requested id for admin', () => {
+    expect(service.resolveEffectiveOperatorId(admin, 'operator-b')).toBe(
+      'operator-b',
+    );
+  });
+
+  it('blocks cross-operator context for operator', () => {
+    expect(() =>
+      service.resolveEffectiveOperatorId(operator, 'operator-b'),
+    ).toThrow(ForbiddenException);
+    expect(service.resolveEffectiveOperatorId(operator)).toBe('operator-a');
   });
 
   it('requires operatorId for admin create', () => {
@@ -42,6 +65,19 @@ describe('TenantScopeService', () => {
     expect(service.resolveCreateOperatorId(admin, 'operator-b')).toBe(
       'operator-b',
     );
+  });
+
+  it('resolveRequiredOperatorId requires operatorId for admin', () => {
+    expect(() => service.resolveRequiredOperatorId(admin)).toThrow(
+      BadRequestException,
+    );
+    expect(service.resolveRequiredOperatorId(admin, 'operator-b')).toBe(
+      'operator-b',
+    );
+  });
+
+  it('resolveRequiredOperatorId uses jwt for operator', () => {
+    expect(service.resolveRequiredOperatorId(operator)).toBe('operator-a');
   });
 
   it('blocks cross-operator assignment for operator', () => {

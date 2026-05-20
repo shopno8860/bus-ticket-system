@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../../../../services/api';
 import SeatGrid from '../../../../components/seats/SeatGrid';
+import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 
 function AdminSeatSelection() {
   const { tripId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { bookingSummary } = useOperatorHubPaths();
 
   const trip = location.state?.trip;
 
@@ -93,7 +95,7 @@ function AdminSeatSelection() {
 
   const handleContinue = () => {
     if (selectedSeats.length === 0) return;
-    navigate('/dashboard/booking/summary', {
+    navigate(bookingSummary, {
       state: {
         trip: tripData,
         tripId,

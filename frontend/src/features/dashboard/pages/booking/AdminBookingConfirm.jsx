@@ -2,10 +2,12 @@ import { useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Ticket from '../../../../components/ticket/Ticket';
 import { downloadPDF } from '../../../../utils/pdf';
+import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 
 function AdminBookingConfirm() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { booking: bookingPath } = useOperatorHubPaths();
   const ticketRef = useRef(null);
 
   if (!state?.booking) {
@@ -13,7 +15,7 @@ function AdminBookingConfirm() {
       <div className="flex items-center justify-center bg-slate-50 p-12">
         <div className="text-center">
           <p className="text-slate-500 mb-4">No booking data found.</p>
-          <button onClick={() => navigate('/dashboard/booking')} className="rounded-md bg-[#0f172a] px-4 py-2 text-sm font-medium text-white">
+          <button onClick={() => navigate(bookingPath)} className="rounded-md bg-[#0f172a] px-4 py-2 text-sm font-medium text-white">
             Book Another Ticket
           </button>
         </div>
@@ -65,7 +67,7 @@ function AdminBookingConfirm() {
             Download PDF
           </button>
           <button
-            onClick={() => navigate('/dashboard/booking')}
+            onClick={() => navigate(bookingPath)}
             className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
           >
             Book Another

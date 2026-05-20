@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import OperatorSelect from '../components/OperatorSelect';
 import { useDashboardScope } from '../hooks/useDashboardScope';
@@ -27,8 +27,12 @@ const defaultForm = {
 };
 
 function BusesPage() {
-  const { requireOperatorOnCreate, showOperatorColumn } = useDashboardScope();
-  const { data, error, loading, execute } = useFetch(getDashboardBuses);
+  const { operatorId, requireOperatorOnCreate, showOperatorColumn } = useDashboardScope();
+  const loadBuses = useCallback(
+    () => getDashboardBuses(operatorId),
+    [operatorId],
+  );
+  const { data, error, loading, execute } = useFetch(loadBuses);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBus, setEditingBus] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
@@ -145,9 +149,11 @@ function BusesPage() {
     const payload = {
       name: formData.busName.trim(),
       registrationNumber: formData.registrationNumber.trim(),
-      ...(requireOperatorOnCreate && !editingBus
-        ? { operatorId: formData.operatorId }
-        : {}),
+      ...(!editingBus && operatorId
+        ? { operatorId }
+        : requireOperatorOnCreate && !editingBus
+          ? { operatorId: formData.operatorId }
+          : {}),
       seatCapacity:
         formData.busType === 'SLEEPER'
           ? 36

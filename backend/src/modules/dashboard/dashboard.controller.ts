@@ -145,7 +145,10 @@ export class DashboardController {
     @Query('limit') limit = '20',
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const operatorId = this.tenantScope.resolveScopedOperatorId(user);
+    const operatorId = this.tenantScope.resolveScopedOperatorId(
+      user,
+      filters.operatorId,
+    );
     const bookings = await this.bookingsService.findAllAdmin(
       filters,
       operatorId,
@@ -201,8 +204,11 @@ export class DashboardController {
   @ApiOperation({
     summary: 'Routes for book-ticket search filters (operator-scoped)',
   })
-  async getBookingRoutes(@CurrentUser() user: AuthenticatedUser) {
-    const scope = this.tenantScope.resolveListScope(user);
+  async getBookingRoutes(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const scope = this.tenantScope.resolveListScope(user, operatorId);
     if (scope.operatorId) {
       return this.routesService.findByOperator(scope.operatorId);
     }
@@ -216,9 +222,13 @@ export class DashboardController {
   })
   async searchTripsForBooking(
     @Query() searchTripsDto: SearchTripsDto,
+    @Query('operatorId') queryOperatorId: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const operatorId = this.tenantScope.resolveScopedOperatorId(user);
+    const operatorId = this.tenantScope.resolveScopedOperatorId(
+      user,
+      queryOperatorId,
+    );
     return this.tripsService.findAll(searchTripsDto, operatorId);
   }
 
@@ -231,7 +241,10 @@ export class DashboardController {
     @Query('limit') limit = '20',
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const operatorId = this.tenantScope.resolveScopedOperatorId(user);
+    const operatorId = this.tenantScope.resolveScopedOperatorId(
+      user,
+      filters.operatorId,
+    );
     const payments = await this.paymentsService.findAllAdmin(
       filters,
       operatorId,
@@ -248,7 +261,10 @@ export class DashboardController {
     @Query('limit') limit = '20',
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const operatorId = this.tenantScope.resolveScopedOperatorId(user);
+    const operatorId = this.tenantScope.resolveScopedOperatorId(
+      user,
+      filters.operatorId,
+    );
     const refunds = await this.refundsService.findAllAdmin(filters, operatorId);
     return this.paginate(refunds, page, limit);
   }
@@ -349,8 +365,11 @@ export class DashboardController {
 
   @Get('buses')
   @RequirePermissions(Permission.MANAGE_BUSES)
-  async getBuses(@CurrentUser() user: AuthenticatedUser) {
-    const scope = this.tenantScope.resolveListScope(user);
+  async getBuses(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const scope = this.tenantScope.resolveListScope(user, operatorId);
     if (scope.operatorId) {
       return this.busesService.findByOperator(scope.operatorId);
     }
@@ -454,8 +473,11 @@ export class DashboardController {
 
   @Get('routes')
   @RequirePermissions(Permission.MANAGE_ROUTES)
-  async getRoutes(@CurrentUser() user: AuthenticatedUser) {
-    const scope = this.tenantScope.resolveListScope(user);
+  async getRoutes(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const scope = this.tenantScope.resolveListScope(user, operatorId);
     if (scope.operatorId) {
       return this.routesService.findByOperator(scope.operatorId);
     }
@@ -539,7 +561,10 @@ export class DashboardController {
     @Query() filters: AdminTripsFilterDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const operatorId = this.tenantScope.resolveScopedOperatorId(user);
+    const operatorId = this.tenantScope.resolveScopedOperatorId(
+      user,
+      filters.operatorId,
+    );
     return this.tripsService.findAllAdmin(filters, operatorId);
   }
 
@@ -703,37 +728,62 @@ export class DashboardController {
 
   @Get('staff')
   @RequirePermissions(Permission.MANAGE_STAFF)
-  getStaff(@CurrentUser() user: AuthenticatedUser) {
-    this.tenantScope.requireOperatorContext(user);
-    return this.operatorsService.findStaff(user.operatorId!);
+  async getStaff(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const effectiveOperatorId = this.tenantScope.resolveRequiredOperatorId(
+      user,
+      operatorId,
+    );
+    await this.tenantScope.assertOperatorActive(effectiveOperatorId);
+    return this.operatorsService.findStaff(effectiveOperatorId);
   }
 
   @Post('staff')
   @RequirePermissions(Permission.MANAGE_STAFF)
-  createStaff(
+  async createStaff(
     @Body() dto: CreateStaffDto,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
   ) {
-    this.tenantScope.requireOperatorContext(user);
-    return this.operatorsService.createStaff(user.operatorId!, dto);
+    const effectiveOperatorId = this.tenantScope.resolveRequiredOperatorId(
+      user,
+      operatorId,
+    );
+    await this.tenantScope.assertOperatorActive(effectiveOperatorId);
+    return this.operatorsService.createStaff(effectiveOperatorId, dto);
   }
 
   @Patch('staff/:id')
   @RequirePermissions(Permission.MANAGE_STAFF)
-  updateStaff(
+  async updateStaff(
     @Param('id') id: string,
     @Body() dto: UpdateStaffDto,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
   ) {
-    this.tenantScope.requireOperatorContext(user);
-    return this.operatorsService.updateStaff(id, dto, user.operatorId!);
+    const effectiveOperatorId = this.tenantScope.resolveRequiredOperatorId(
+      user,
+      operatorId,
+    );
+    await this.tenantScope.assertOperatorActive(effectiveOperatorId);
+    return this.operatorsService.updateStaff(id, dto, effectiveOperatorId);
   }
 
   @Delete('staff/:id')
   @RequirePermissions(Permission.MANAGE_STAFF)
-  deleteStaff(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    this.tenantScope.requireOperatorContext(user);
-    return this.operatorsService.deleteStaff(id, user.operatorId!);
+  async deleteStaff(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const effectiveOperatorId = this.tenantScope.resolveRequiredOperatorId(
+      user,
+      operatorId,
+    );
+    await this.tenantScope.assertOperatorActive(effectiveOperatorId);
+    return this.operatorsService.deleteStaff(id, effectiveOperatorId);
   }
 
   private paginate<T>(items: T[], pageRaw: string, limitRaw: string) {

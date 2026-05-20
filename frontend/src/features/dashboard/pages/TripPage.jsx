@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import {
   cancelDashboardTrip,
@@ -8,6 +8,7 @@ import {
   getDashboardTrips,
   updateDashboardTrip,
 } from '../services/dashboardApi';
+import { useDashboardScope } from '../hooks/useDashboardScope';
 
 const TRIP_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED'];
 
@@ -20,9 +21,16 @@ const defaultTripForm = {
 };
 
 function TripPage() {
-  const { data, error, loading, execute } = useFetch(getDashboardTrips, { immediate: false });
-  const { data: busData, loading: busLoading } = useFetch(getDashboardBuses);
-  const { data: routeData, loading: routeLoading } = useFetch(getDashboardRoutes);
+  const { operatorId } = useDashboardScope();
+  const loadTrips = useCallback(
+    (params) => getDashboardTrips(params, operatorId),
+    [operatorId],
+  );
+  const loadBuses = useCallback(() => getDashboardBuses(operatorId), [operatorId]);
+  const loadRoutes = useCallback(() => getDashboardRoutes(operatorId), [operatorId]);
+  const { data, error, loading, execute } = useFetch(loadTrips, { immediate: false });
+  const { data: busData, loading: busLoading } = useFetch(loadBuses);
+  const { data: routeData, loading: routeLoading } = useFetch(loadRoutes);
 
   const [filters, setFilters] = useState({
     route: '',
@@ -155,6 +163,7 @@ function TripPage() {
       departureTime: new Date(formData.departureTime).toISOString(),
       arrivalTime: new Date(formData.arrivalTime).toISOString(),
       price: Number(formData.price),
+      ...(operatorId && !editingTrip ? { operatorId } : {}),
     };
 
     setSubmitting(true);

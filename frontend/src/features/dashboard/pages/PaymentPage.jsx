@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
+import { withOperatorQuery } from '../services/dashboardApi';
+import { useDashboardScope } from '../hooks/useDashboardScope';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 
@@ -7,6 +9,7 @@ const PAYMENT_STATUSES = ['PENDING', 'SUCCESS', 'FAILED', 'REFUNDED'];
 const PAYMENT_METHODS = ['BKASH', 'NAGAD', 'CARD'];
 
 function PaymentPage() {
+  const { operatorId } = useDashboardScope();
   const [filters, setFilters] = useState({
     status: '',
     method: '',
@@ -23,9 +26,15 @@ function PaymentPage() {
   }, [filters.status, filters.date]);
 
   const fetchPayments = useCallback(async () => {
-    const path = paymentQuery ? `${endpoints.dashboard.payments}?${paymentQuery}` : endpoints.dashboard.payments;
-    return apiFetch(path).then((res) => res.items ?? res);
-  }, [paymentQuery]);
+    const params = new URLSearchParams(paymentQuery);
+    if (operatorId) {
+      params.set('operatorId', operatorId);
+    }
+    const url = params.toString()
+      ? `${endpoints.dashboard.payments}?${params}`
+      : withOperatorQuery(endpoints.dashboard.payments, operatorId);
+    return apiFetch(url).then((res) => res.items ?? res);
+  }, [operatorId, paymentQuery]);
 
   const {
     data: paymentData,

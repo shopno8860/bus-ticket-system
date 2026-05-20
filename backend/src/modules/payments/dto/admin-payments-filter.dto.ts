@@ -1,5 +1,5 @@
 import { PaymentMethod, PaymentStatus } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AdminPaymentsFilterDto {
@@ -31,4 +31,11 @@ export class AdminPaymentsFilterDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter payments by operator (platform admin)',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

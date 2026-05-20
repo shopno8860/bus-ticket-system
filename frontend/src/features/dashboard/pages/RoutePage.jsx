@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import {
   createDashboardRoute,
@@ -6,6 +6,7 @@ import {
   getDashboardRoutes,
   updateDashboardRoute,
 } from '../services/dashboardApi';
+import { useDashboardScope } from '../hooks/useDashboardScope';
 
 const defaultForm = {
   origin: '',
@@ -17,7 +18,12 @@ function normalizeCity(value) {
 }
 
 function RoutePage() {
-  const { data, error, loading, execute } = useFetch(getDashboardRoutes);
+  const { operatorId } = useDashboardScope();
+  const loadRoutes = useCallback(
+    () => getDashboardRoutes(operatorId),
+    [operatorId],
+  );
+  const { data, error, loading, execute } = useFetch(loadRoutes);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
@@ -119,6 +125,7 @@ function RoutePage() {
     const payload = {
       origin: formData.origin.trim(),
       destination: formData.destination.trim(),
+      ...(operatorId && !editingRoute ? { operatorId } : {}),
     };
 
     setSubmitting(true);

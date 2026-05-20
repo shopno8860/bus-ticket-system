@@ -1,6 +1,24 @@
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 
+export function withOperatorQuery(url, operatorId) {
+  if (!operatorId) {
+    return url;
+  }
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}operatorId=${encodeURIComponent(operatorId)}`;
+}
+
+export function getDashboardProfile() {
+  return apiFetch(endpoints.dashboard.profile);
+}
+
+export function getDashboardBookingRoutes(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.bookingRoutes, operatorId)).then(
+    (res) => res.items ?? res,
+  );
+}
+
 export function getDashboardStats() {
   return apiFetch(endpoints.dashboard.stats).then((res) => ({
     totalUsers: Number(res?.totalUsers ?? 0),
@@ -29,8 +47,10 @@ export function changeDashboardUserRole(id, role) {
   });
 }
 
-export function getDashboardBookings() {
-  return apiFetch(endpoints.dashboard.bookings).then((res) => res.items ?? res);
+export function getDashboardBookings(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.bookings, operatorId)).then(
+    (res) => res.items ?? res,
+  );
 }
 
 export function cancelDashboardBooking(id, reason) {
@@ -40,12 +60,16 @@ export function cancelDashboardBooking(id, reason) {
   });
 }
 
-export function getDashboardPayments() {
-  return apiFetch(endpoints.dashboard.payments).then((res) => res.items ?? res);
+export function getDashboardPayments(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.payments, operatorId)).then(
+    (res) => res.items ?? res,
+  );
 }
 
-export function getDashboardRefunds() {
-  return apiFetch(endpoints.dashboard.refunds).then((res) => res.items ?? res);
+export function getDashboardRefunds(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.refunds, operatorId)).then(
+    (res) => res.items ?? res,
+  );
 }
 
 export function approveDashboardRefund(id, adminNote) {
@@ -62,8 +86,10 @@ export function rejectDashboardRefund(id, adminNote) {
   });
 }
 
-export function getDashboardBuses() {
-  return apiFetch(endpoints.dashboard.buses).then((res) => res.items ?? res);
+export function getDashboardBuses(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.buses, operatorId)).then(
+    (res) => res.items ?? res,
+  );
 }
 
 export function createDashboardBus(payload) {
@@ -93,8 +119,10 @@ export function generateDashboardBusSeats(id, columnsPerRow = 4, forceRegenerate
   });
 }
 
-export function getDashboardRoutes() {
-  return apiFetch(endpoints.dashboard.routes).then((res) => res.items ?? res);
+export function getDashboardRoutes(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.routes, operatorId)).then(
+    (res) => res.items ?? res,
+  );
 }
 
 export function createDashboardRoute(payload) {
@@ -117,9 +145,13 @@ export function deleteDashboardRoute(id) {
   });
 }
 
-export function getDashboardTrips(params = {}) {
+export function getDashboardTrips(params = {}, scopedOperatorId) {
   const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
+  const merged = { ...params };
+  if (scopedOperatorId) {
+    merged.operatorId = scopedOperatorId;
+  }
+  Object.entries(merged).forEach(([key, value]) => {
     if (value !== undefined && value !== null && String(value).trim() !== '') {
       searchParams.set(key, String(value));
     }
@@ -199,26 +231,26 @@ export function getDashboardOperatorStats(id) {
   return apiFetch(endpoints.dashboard.operatorStats(id));
 }
 
-export function getDashboardStaff() {
-  return apiFetch(endpoints.dashboard.staff);
+export function getDashboardStaff(operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.staff, operatorId));
 }
 
-export function createDashboardStaff(payload) {
-  return apiFetch(endpoints.dashboard.staff, {
+export function createDashboardStaff(payload, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.staff, operatorId), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export function updateDashboardStaff(id, payload) {
-  return apiFetch(endpoints.dashboard.updateStaff(id), {
+export function updateDashboardStaff(id, payload, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.updateStaff(id), operatorId), {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }
 
-export function deleteDashboardStaff(id) {
-  return apiFetch(endpoints.dashboard.deleteStaff(id), {
+export function deleteDashboardStaff(id, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.deleteStaff(id), operatorId), {
     method: 'DELETE',
   });
 }

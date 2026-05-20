@@ -22,4 +22,11 @@ export class AdminBookingsFilterDto {
   @IsOptional()
   @IsString()
   user?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter bookings by operator (platform admin)',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

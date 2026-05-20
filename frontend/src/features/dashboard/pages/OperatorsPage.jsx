@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 
 function OperatorsPage() {
+  const navigate = useNavigate();
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,23 +138,35 @@ function OperatorsPage() {
                     <td className="px-3 py-2">{statusBadge(op.status)}</td>
                     <td className="px-3 py-2 text-slate-700">{formatDate(op.createdAt)}</td>
                     <td className="px-3 py-2">
-                      {op.status === 'SUSPENDED' ? (
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => handleActivate(op.id)}
-                          className="rounded-md border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                          onClick={() => {
+                            localStorage.setItem('dashboard:lastOperatorId', op.id);
+                            navigate(`/dashboard/operators/${op.id}`);
+                          }}
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                         >
-                          Activate
+                          Manage
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSuspend(op.id)}
-                          className="rounded-md border border-rose-300 px-2 py-1 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
-                        >
-                          Suspend
-                        </button>
-                      )}
+                        {op.status === 'SUSPENDED' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleActivate(op.id)}
+                            className="rounded-md border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                          >
+                            Activate
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSuspend(op.id)}
+                            className="rounded-md border border-rose-300 px-2 py-1 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

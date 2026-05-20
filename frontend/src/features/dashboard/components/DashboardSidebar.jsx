@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { FaBars, FaChevronLeft, FaChevronRight, FaSignOutAlt, FaTimes } from 'react-icons/fa';
-import { dashboardMenuItems } from '../config/dashboardNav';
+import { getDashboardMenuItems } from '../config/dashboardNav';
 import { usePermissions } from '../hooks/usePermissions';
 
 function DashboardSidebar({
@@ -10,9 +10,9 @@ function DashboardSidebar({
   onCloseMobile,
   onLogout,
 }) {
-  const { can } = usePermissions();
+  const { can, isAdmin, operatorId } = usePermissions();
 
-  const visibleItems = dashboardMenuItems.filter((item) =>
+  const visibleItems = getDashboardMenuItems({ isAdmin, operatorId }).filter((item) =>
     item.permissions.every((permission) => can(permission)),
   );
 

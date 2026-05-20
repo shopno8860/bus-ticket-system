@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/context/AuthContext';
 import DashboardSidebar from '../features/dashboard/components/DashboardSidebar';
 import DashboardTopbar from '../features/dashboard/components/DashboardTopbar';
 import { getDashboardPageTitle } from '../features/dashboard/config/dashboardNav';
+import { useOperatorScope } from '../features/dashboard/context/OperatorScopeContext';
 
 function DashboardLayout() {
   const location = useLocation();
@@ -11,9 +12,10 @@ function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const { operator } = useOperatorScope();
   const pageTitle = useMemo(
-    () => getDashboardPageTitle(location.pathname),
-    [location.pathname],
+    () => getDashboardPageTitle(location.pathname, operator?.companyName),
+    [location.pathname, operator?.companyName],
   );
 
   const desktopPadding = collapsed ? 'lg:pl-[112px]' : 'lg:pl-[304px]';

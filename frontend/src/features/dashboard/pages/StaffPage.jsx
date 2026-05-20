@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import {
   createDashboardStaff,
@@ -6,6 +6,7 @@ import {
   getDashboardStaff,
   updateDashboardStaff,
 } from '../services/dashboardApi';
+import { useDashboardScope } from '../hooks/useDashboardScope';
 
 const defaultForm = {
   fullName: '',
@@ -15,7 +16,12 @@ const defaultForm = {
 };
 
 function StaffPage() {
-  const { data, error, loading, execute } = useFetch(getDashboardStaff);
+  const { operatorId } = useDashboardScope();
+  const loadStaff = useCallback(
+    () => getDashboardStaff(operatorId),
+    [operatorId],
+  );
+  const { data, error, loading, execute } = useFetch(loadStaff);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
@@ -111,10 +117,10 @@ function StaffPage() {
     setFormError('');
     try {
       if (editingStaff?.id) {
-        await updateDashboardStaff(editingStaff.id, payload);
+        await updateDashboardStaff(editingStaff.id, payload, operatorId);
         showToast('success', 'Staff updated successfully.');
       } else {
-        await createDashboardStaff(payload);
+        await createDashboardStaff(payload, operatorId);
         showToast('success', 'Staff created successfully.');
       }
       await execute();
@@ -142,7 +148,7 @@ function StaffPage() {
     if (!staffToDelete?.id) return;
     setDeleting(true);
     try {
-      await deleteDashboardStaff(staffToDelete.id);
+      await deleteDashboardStaff(staffToDelete.id, operatorId);
       showToast('success', 'Staff deleted successfully.');
       await execute();
       closeDeleteDialog();

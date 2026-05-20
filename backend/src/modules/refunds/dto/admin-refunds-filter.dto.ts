@@ -1,5 +1,5 @@
 import { RefundStatus } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AdminRefundsFilterDto {
@@ -16,4 +16,11 @@ export class AdminRefundsFilterDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter refunds by operator (platform admin)',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

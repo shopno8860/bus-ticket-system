@@ -4,6 +4,9 @@ import { config } from '../../../config';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
+import { getDashboardBookingRoutes, withOperatorQuery } from '../services/dashboardApi';
+import { useDashboardScope } from '../hooks/useDashboardScope';
+import { useOperatorHubPaths } from '../hooks/useOperatorHubPaths';
 
 const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED'];
 
@@ -12,12 +15,17 @@ function canPrintBooking(booking) {
   return booking?.status === 'CONFIRMED';
 }
 
-function openPrintTicket(navigate, booking) {
-  navigate('/dashboard/booking/confirm', { state: { booking } });
-}
-
 function BookingPage() {
   const navigate = useNavigate();
+  const { bookingConfirm } = useOperatorHubPaths();
+  const { operatorId } = useDashboardScope();
+
+  const openPrintTicket = useCallback(
+    (booking) => {
+      navigate(bookingConfirm, { state: { booking } });
+    },
+    [navigate, bookingConfirm],
+  );
   const [filters, setFilters] = useState({
     status: '',
     date: '',
@@ -41,10 +49,16 @@ function BookingPage() {
     return params.toString();
   }, [filters.date, filters.routeId, filters.search, filters.status]);
 
-  const fetchBookings = useCallback(
-    async () => apiFetch(`${endpoints.dashboard.bookings}?${bookingQuery}`).then((res) => res.items ?? res),
-    [bookingQuery],
-  );
+  const fetchBookings = useCallback(async () => {
+    const params = new URLSearchParams(bookingQuery);
+    if (operatorId) {
+      params.set('operatorId', operatorId);
+    }
+    const url = params.toString()
+      ? `${endpoints.dashboard.bookings}?${params}`
+      : withOperatorQuery(endpoints.dashboard.bookings, operatorId);
+    return apiFetch(url).then((res) => res.items ?? res);
+  }, [bookingQuery, operatorId]);
 
   const {
     data: bookingData,
@@ -53,9 +67,11 @@ function BookingPage() {
     execute: refetch,
   } = useFetch(fetchBookings);
 
-  const { data: routeData } = useFetch(
-    useCallback(() => apiFetch(endpoints.routes.list).then((res) => res.items ?? res), []),
+  const loadRoutes = useCallback(
+    () => getDashboardBookingRoutes(operatorId),
+    [operatorId],
   );
+  const { data: routeData } = useFetch(loadRoutes);
 
   const bookings = Array.isArray(bookingData) ? bookingData : [];
   const routes = Array.isArray(routeData) ? routeData : [];
@@ -282,7 +298,7 @@ function BookingPage() {
                           <button
                             type="button"
                             title="Print Ticket"
-                            onClick={() => openPrintTicket(navigate, booking)}
+                            onClick={() => openPrintTicket(booking)}
                             className="rounded-md border border-slate-200 p-1.5 text-emerald-600 transition hover:bg-emerald-50"
                           >
                             <IconPrint />
@@ -351,7 +367,7 @@ function BookingPage() {
                     type="button"
                     onClick={() => {
                       setSelectedBooking(null);
-                      openPrintTicket(navigate, selectedBooking);
+                      openPrintTicket(selectedBooking);
                     }}
                     className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700"
                   >
