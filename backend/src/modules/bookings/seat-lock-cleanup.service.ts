@@ -9,7 +9,7 @@ export class SeatLockCleanupService {
 
   constructor(private readonly prismaService: PrismaService) {}
 
-  @Cron('*/30 * * * * *')
+  @Cron('15,45 * * * * *')
   async cleanupExpiredLocks(): Promise<void> {
     const now = new Date();
     try {

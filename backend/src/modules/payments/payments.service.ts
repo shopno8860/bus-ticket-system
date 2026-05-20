@@ -219,7 +219,7 @@ export class PaymentsService {
             paymentUrl,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
       )
       .then(async (result) => {
         await this.notificationsService.notifyBookingUpdate({
@@ -343,7 +343,7 @@ export class PaymentsService {
             shouldSendEmail: true,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
       )
       .then(async ({ payment, shouldSendEmail }) => {
         if (!shouldSendEmail) {
@@ -472,7 +472,7 @@ export class PaymentsService {
 
           return updatedPayment;
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
       )
       .then(async (updatedPayment) => {
         await this.notificationsService.notifyBookingUpdate({

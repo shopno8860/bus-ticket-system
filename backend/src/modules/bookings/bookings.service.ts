@@ -216,7 +216,7 @@ export class BookingsService {
             lockExpiresAt,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
       );
     } catch (error: unknown) {
       if (
@@ -418,7 +418,7 @@ export class BookingsService {
 
           return booking;
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
       );
     } catch (error: unknown) {
       if (
@@ -710,7 +710,7 @@ export class BookingsService {
           },
           booking: bookingAfter,
         };
-      })
+      }, { maxWait: 15000 })
       .then(async (result) => {
         await this.notificationsService.notifyBookingUpdate({
           userId,
@@ -772,7 +772,7 @@ export class BookingsService {
             cancelledBy: adminUserId,
           },
         });
-      })
+      }, { maxWait: 15000 })
       .then(async (cancelledBooking) => {
         await this.notificationsService.notifyBookingUpdate({
           userId: cancelledBooking.userId,
@@ -834,7 +834,7 @@ export class BookingsService {
       });
 
       return stale;
-    });
+    }, { maxWait: 15000 });
 
     for (const row of expiredRows) {
       await this.notificationsService.notifyBookingUpdate({
