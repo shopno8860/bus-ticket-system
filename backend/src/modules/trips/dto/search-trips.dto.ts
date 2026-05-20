@@ -64,4 +64,11 @@ export class SearchTripsDto {
   @IsOptional()
   @IsString()
   maxPrice?: string;
+
+  @ApiPropertyOptional({
+    description: 'Scope search to operator (dashboard admin/staff)',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

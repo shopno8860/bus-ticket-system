@@ -228,12 +228,11 @@ export class DashboardController {
   })
   async searchTripsForBooking(
     @Query() searchTripsDto: SearchTripsDto,
-    @Query('operatorId') queryOperatorId: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const operatorId = this.tenantScope.resolveScopedOperatorId(
       user,
-      queryOperatorId,
+      searchTripsDto.operatorId,
     );
     return this.tripsService.findAll(searchTripsDto, operatorId);
   }

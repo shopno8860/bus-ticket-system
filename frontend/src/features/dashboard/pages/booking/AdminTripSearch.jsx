@@ -3,10 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useFetch } from '../../../../hooks/useFetch';
 import { apiFetch } from '../../../../services/api';
 import { endpoints } from '../../../../services/endpoints';
-import {
-  getDashboardBookingRoutes,
-  withOperatorQuery,
-} from '../../services/dashboardApi';
+import { getDashboardBookingRoutes } from '../../services/dashboardApi';
 import { useDashboardScope } from '../../hooks/useDashboardScope';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 
@@ -54,11 +51,12 @@ function AdminTripSearch() {
       if (searchParams.date) query.append('date', searchParams.date);
       if (searchParams.busType) query.append('busType', searchParams.busType);
       if (searchParams.busClass) query.append('busClass', searchParams.busClass);
+      if (operatorId) query.append('operatorId', operatorId);
 
-      const searchUrl = withOperatorQuery(
-        `${endpoints.dashboard.tripsSearch}?${query.toString()}`,
-        operatorId,
-      );
+      const queryString = query.toString();
+      const searchUrl = queryString
+        ? `${endpoints.dashboard.tripsSearch}?${queryString}`
+        : endpoints.dashboard.tripsSearch;
       const data = await apiFetch(searchUrl);
       setTrips(Array.isArray(data) ? data : []);
     } catch (err) {
