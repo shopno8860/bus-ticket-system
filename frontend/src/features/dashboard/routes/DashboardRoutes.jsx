@@ -88,7 +88,10 @@ function DashboardRoutes() {
             <Route
               path="bus"
               element={
-                <PermissionGate permission={Permission.MANAGE_BUSES}>
+                <PermissionGate
+                  match="any"
+                  permissions={[Permission.VIEW_BUSES, Permission.MANAGE_BUSES]}
+                >
                   <PageTitle title="Bus Management" />
                   <BusPage />
                 </PermissionGate>
@@ -97,7 +100,10 @@ function DashboardRoutes() {
             <Route
               path="route"
               element={
-                <PermissionGate permission={Permission.MANAGE_ROUTES}>
+                <PermissionGate
+                  match="any"
+                  permissions={[Permission.VIEW_ROUTES, Permission.MANAGE_ROUTES]}
+                >
                   <PageTitle title="Route Management" />
                   <RoutePage />
                 </PermissionGate>
@@ -106,7 +112,10 @@ function DashboardRoutes() {
             <Route
               path="trip"
               element={
-                <PermissionGate permission={Permission.MANAGE_TRIPS}>
+                <PermissionGate
+                  match="any"
+                  permissions={[Permission.VIEW_TRIPS, Permission.MANAGE_TRIPS]}
+                >
                   <PageTitle title="Trip Management" />
                   <TripPage />
                 </PermissionGate>
@@ -115,7 +124,10 @@ function DashboardRoutes() {
             <Route
               path="staff"
               element={
-                <PermissionGate permission={Permission.MANAGE_STAFF}>
+                <PermissionGate
+                  match="any"
+                  permissions={[Permission.VIEW_STAFF, Permission.MANAGE_STAFF]}
+                >
                   <PageTitle title="Staff Management" />
                   <StaffPage />
                 </PermissionGate>
@@ -124,7 +136,13 @@ function DashboardRoutes() {
             <Route
               path="booking/manage"
               element={
-                <PermissionGate permission={Permission.MANAGE_BOOKINGS}>
+                <PermissionGate
+                  match="any"
+                  permissions={[
+                    Permission.VIEW_BOOKINGS,
+                    Permission.MANAGE_BOOKINGS,
+                  ]}
+                >
                   <PageTitle title="Booking Management" />
                   <BookingPage />
                 </PermissionGate>
@@ -170,7 +188,13 @@ function DashboardRoutes() {
             <Route
               path="payment"
               element={
-                <PermissionGate permission={Permission.MANAGE_PAYMENTS}>
+                <PermissionGate
+                  match="any"
+                  permissions={[
+                    Permission.VIEW_PAYMENTS,
+                    Permission.MANAGE_PAYMENTS,
+                  ]}
+                >
                   <PageTitle title="Payment Management" />
                   <PaymentPage />
                 </PermissionGate>
@@ -179,7 +203,10 @@ function DashboardRoutes() {
             <Route
               path="refund"
               element={
-                <PermissionGate permission={Permission.MANAGE_REFUNDS}>
+                <PermissionGate
+                  match="any"
+                  permissions={[Permission.VIEW_REFUNDS, Permission.MANAGE_REFUNDS]}
+                >
                   <PageTitle title="Refund Management" />
                   <RefundPage />
                 </PermissionGate>

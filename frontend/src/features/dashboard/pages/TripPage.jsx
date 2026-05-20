@@ -9,6 +9,7 @@ import {
   updateDashboardTrip,
 } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 
 const TRIP_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED'];
 
@@ -21,7 +22,7 @@ const defaultTripForm = {
 };
 
 function TripPage() {
-  const { operatorId } = useDashboardScope();
+  const { operatorId, isPlatformReadOnly } = useDashboardScope();
   const loadTrips = useCallback(
     (params) => getDashboardTrips(params, operatorId),
     [operatorId],
@@ -250,14 +251,18 @@ function TripPage() {
           <h1 className="text-xl font-semibold text-slate-900">Trip Management</h1>
           <p className="text-sm text-slate-500">Manage all trips efficiently</p>
         </div>
-        <button
-          type="button"
-          onClick={openAddDrawer}
-          className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
-        >
-          Add Trip
-        </button>
+        {!isPlatformReadOnly ? (
+          <button
+            type="button"
+            onClick={openAddDrawer}
+            className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
+          >
+            Add Trip
+          </button>
+        ) : null}
       </section>
+
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
@@ -338,7 +343,9 @@ function TripPage() {
                   <th className="px-3 py-2 font-medium">Arrival</th>
                   <th className="px-3 py-2 font-medium">Price</th>
                   <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  {!isPlatformReadOnly ? (
+                    <th className="px-3 py-2 font-medium">Actions</th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -357,27 +364,29 @@ function TripPage() {
                     <td className="px-3 py-2">
                       <StatusBadge status={trip.status} />
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditDrawer(trip)}
-                          title="Edit Trip"
-                          className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
-                        >
-                          <IconEdit />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openCancelModal(trip)}
-                          disabled={trip.status === 'CANCELLED'}
-                          title="Cancel Trip"
-                          className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <IconCancel />
-                        </button>
-                      </div>
-                    </td>
+                    {!isPlatformReadOnly ? (
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditDrawer(trip)}
+                            title="Edit Trip"
+                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
+                          >
+                            <IconEdit />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openCancelModal(trip)}
+                            disabled={trip.status === 'CANCELLED'}
+                            title="Cancel Trip"
+                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <IconCancel />
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

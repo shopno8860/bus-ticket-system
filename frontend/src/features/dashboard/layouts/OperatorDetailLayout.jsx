@@ -14,7 +14,7 @@ function OperatorDetailLayout() {
   const { operatorId } = useParams();
   const navigate = useNavigate();
   const { operator, loading, error } = useOperatorScope();
-  const { can, isAdmin } = usePermissions();
+  const { canAny, isAdmin } = usePermissions();
   const [allOperators, setAllOperators] = useState([]);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ function OperatorDetailLayout() {
   }, [isAdmin]);
 
   const visibleTabs = operatorHubTabs.filter((tab) =>
-    tab.permissions.every((permission) => can(permission)),
+    canAny(...tab.permissions),
   );
 
   const handleSuspend = useCallback(async () => {

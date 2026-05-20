@@ -6,9 +6,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
+import {
+  PERMISSIONS_KEY,
+  PERMISSIONS_MODE_KEY,
+  type PermissionsMode,
+} from '../decorators/require-permissions.decorator';
 import { Permission } from '../permissions/permission.enum';
-import { roleHasPermission } from '../permissions/role-permissions.map';
+import {
+  roleHasAnyPermission,
+  roleHasPermission,
+} from '../permissions/role-permissions.map';
 import type { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 
 @Injectable()
@@ -25,6 +32,11 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
+    const mode = this.reflector.getAllAndOverride<PermissionsMode>(
+      PERMISSIONS_MODE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
     const request = context.switchToHttp().getRequest<Request>();
     const user = request.user as AuthenticatedUser | undefined;
 
@@ -32,11 +44,14 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    const hasAll = requiredPermissions.every((permission) =>
-      roleHasPermission(user.role, permission),
-    );
+    const allowed =
+      mode === 'any'
+        ? roleHasAnyPermission(user.role, requiredPermissions)
+        : requiredPermissions.every((permission) =>
+            roleHasPermission(user.role, permission),
+          );
 
-    if (!hasAll) {
+    if (!allowed) {
       throw new ForbiddenException('You do not have permission for this action');
     }
 

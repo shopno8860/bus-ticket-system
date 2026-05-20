@@ -6,6 +6,7 @@ import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 import { getDashboardBookingRoutes, withOperatorQuery } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 import { useOperatorHubPaths } from '../hooks/useOperatorHubPaths';
 
 const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED'];
@@ -18,7 +19,7 @@ function canPrintBooking(booking) {
 function BookingPage() {
   const navigate = useNavigate();
   const { bookingConfirm } = useOperatorHubPaths();
-  const { operatorId } = useDashboardScope();
+  const { operatorId, isPlatformReadOnly } = useDashboardScope();
 
   const openPrintTicket = useCallback(
     (booking) => {
@@ -165,6 +166,8 @@ function BookingPage() {
         />
       </section>
 
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
+
       <section className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-end gap-3 text-sm">
           <FilterField label="Status">
@@ -304,15 +307,17 @@ function BookingPage() {
                             <IconPrint />
                           </button>
                         )}
-                        <button
-                          type="button"
-                          title="Cancel Booking"
-                          onClick={() => setBookingToCancel(booking)}
-                          disabled={booking.status === 'CANCELLED' || booking.status === 'EXPIRED'}
-                          className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <IconCancel />
-                        </button>
+                        {!isPlatformReadOnly ? (
+                          <button
+                            type="button"
+                            title="Cancel Booking"
+                            onClick={() => setBookingToCancel(booking)}
+                            disabled={booking.status === 'CANCELLED' || booking.status === 'EXPIRED'}
+                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <IconCancel />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

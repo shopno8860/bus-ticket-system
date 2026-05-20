@@ -12,7 +12,10 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Refund, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
+import {
+  RequireAnyPermissions,
+  RequirePermissions,
+} from '../../auth/decorators/require-permissions.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { Permission } from '../../auth/permissions/permission.enum';
@@ -137,7 +140,10 @@ export class DashboardController {
   }
 
   @Get('bookings')
-  @RequirePermissions(Permission.MANAGE_BOOKINGS)
+  @RequireAnyPermissions(
+    Permission.VIEW_BOOKINGS,
+    Permission.MANAGE_BOOKINGS,
+  )
   @ApiOperation({ summary: 'Filtered bookings, paginated' })
   async getBookings(
     @Query() filters: AdminBookingsFilterDto,
@@ -233,7 +239,10 @@ export class DashboardController {
   }
 
   @Get('payments')
-  @RequirePermissions(Permission.MANAGE_PAYMENTS)
+  @RequireAnyPermissions(
+    Permission.VIEW_PAYMENTS,
+    Permission.MANAGE_PAYMENTS,
+  )
   @ApiOperation({ summary: 'Filtered payments, paginated' })
   async getPayments(
     @Query() filters: AdminPaymentsFilterDto,
@@ -253,7 +262,7 @@ export class DashboardController {
   }
 
   @Get('refunds')
-  @RequirePermissions(Permission.MANAGE_REFUNDS)
+  @RequireAnyPermissions(Permission.VIEW_REFUNDS, Permission.MANAGE_REFUNDS)
   @ApiOperation({ summary: 'Filtered refunds, paginated' })
   async getRefunds(
     @Query() filters: AdminRefundsFilterDto,
@@ -364,7 +373,7 @@ export class DashboardController {
   }
 
   @Get('buses')
-  @RequirePermissions(Permission.MANAGE_BUSES)
+  @RequireAnyPermissions(Permission.VIEW_BUSES, Permission.MANAGE_BUSES)
   async getBuses(
     @CurrentUser() user: AuthenticatedUser,
     @Query('operatorId') operatorId?: string,
@@ -472,7 +481,7 @@ export class DashboardController {
   }
 
   @Get('routes')
-  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @RequireAnyPermissions(Permission.VIEW_ROUTES, Permission.MANAGE_ROUTES)
   async getRoutes(
     @CurrentUser() user: AuthenticatedUser,
     @Query('operatorId') operatorId?: string,
@@ -556,7 +565,7 @@ export class DashboardController {
   }
 
   @Get('trips')
-  @RequirePermissions(Permission.MANAGE_TRIPS)
+  @RequireAnyPermissions(Permission.VIEW_TRIPS, Permission.MANAGE_TRIPS)
   async getTrips(
     @Query() filters: AdminTripsFilterDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -721,13 +730,16 @@ export class DashboardController {
   }
 
   @Get('operators/:id/stats')
-  @RequirePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAnyPermissions(
+    Permission.VIEW_DASHBOARD,
+    Permission.MANAGE_OPERATORS,
+  )
   async getOperatorStats(@Param('id') id: string) {
     return this.operatorsService.getStats(id);
   }
 
   @Get('staff')
-  @RequirePermissions(Permission.MANAGE_STAFF)
+  @RequireAnyPermissions(Permission.VIEW_STAFF, Permission.MANAGE_STAFF)
   async getStaff(
     @CurrentUser() user: AuthenticatedUser,
     @Query('operatorId') operatorId?: string,

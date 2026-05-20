@@ -22,25 +22,25 @@ export const operatorHubTabs = [
     segment: 'bus',
     label: 'Buses',
     icon: FaBus,
-    permissions: [Permission.MANAGE_BUSES],
+    permissions: [Permission.VIEW_BUSES, Permission.MANAGE_BUSES],
   },
   {
     segment: 'route',
     label: 'Routes',
     icon: FaMapMarkedAlt,
-    permissions: [Permission.MANAGE_ROUTES],
+    permissions: [Permission.VIEW_ROUTES, Permission.MANAGE_ROUTES],
   },
   {
     segment: 'trip',
     label: 'Trips',
     icon: FaRoute,
-    permissions: [Permission.MANAGE_TRIPS],
+    permissions: [Permission.VIEW_TRIPS, Permission.MANAGE_TRIPS],
   },
   {
     segment: 'booking/manage',
     label: 'Bookings',
     icon: FaTicketAlt,
-    permissions: [Permission.MANAGE_BOOKINGS],
+    permissions: [Permission.VIEW_BOOKINGS, Permission.MANAGE_BOOKINGS],
   },
   {
     segment: 'booking',
@@ -53,19 +53,19 @@ export const operatorHubTabs = [
     segment: 'payment',
     label: 'Payments',
     icon: FaCreditCard,
-    permissions: [Permission.MANAGE_PAYMENTS],
+    permissions: [Permission.VIEW_PAYMENTS, Permission.MANAGE_PAYMENTS],
   },
   {
     segment: 'refund',
     label: 'Refunds',
     icon: FaUndoAlt,
-    permissions: [Permission.MANAGE_REFUNDS],
+    permissions: [Permission.VIEW_REFUNDS, Permission.MANAGE_REFUNDS],
   },
   {
     segment: 'staff',
     label: 'Staff',
     icon: FaUserFriends,
-    permissions: [Permission.MANAGE_STAFF],
+    permissions: [Permission.VIEW_STAFF, Permission.MANAGE_STAFF],
   },
 ];
 

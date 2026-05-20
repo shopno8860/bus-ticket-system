@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import OperatorSelect from '../components/OperatorSelect';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 import {
   createDashboardBus,
   deleteDashboardBus,
@@ -27,7 +28,8 @@ const defaultForm = {
 };
 
 function BusesPage() {
-  const { operatorId, requireOperatorOnCreate, showOperatorColumn } = useDashboardScope();
+  const { operatorId, requireOperatorOnCreate, showOperatorColumn, isPlatformReadOnly } =
+    useDashboardScope();
   const loadBuses = useCallback(
     () => getDashboardBuses(operatorId),
     [operatorId],
@@ -253,14 +255,18 @@ function BusesPage() {
           <h1 className="text-xl font-semibold text-slate-900">Bus Management</h1>
           <p className="text-sm text-slate-500">Manage routes, capacity, and bus status.</p>
         </div>
-        <button
-          type="button"
-          onClick={openFormDrawer}
-          className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
-        >
-          Add Bus
-        </button>
+        {!isPlatformReadOnly ? (
+          <button
+            type="button"
+            onClick={openFormDrawer}
+            className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
+          >
+            Add Bus
+          </button>
+        ) : null}
       </section>
+
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         {loading ? (
@@ -292,7 +298,9 @@ function BusesPage() {
                     <th className="px-3 py-2 font-medium">Class</th>
                     <th className="px-3 py-2 font-medium">Type</th>
                     <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">Actions</th>
+                    {!isPlatformReadOnly ? (
+                      <th className="px-3 py-2 font-medium">Actions</th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -313,35 +321,28 @@ function BusesPage() {
                       <td className="px-3 py-2">
                         <StatusBadge status={bus.status} />
                       </td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEditDrawer(bus)}
-                            title="Edit Bus"
-                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
-                          >
-                            <IconEdit />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openDeleteDialog(bus)}
-                            title="Delete Bus"
-                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
-                          >
-                            <IconDelete />
-                          </button>
-                          {/* <button
-                            type="button"
-                            onClick={() => handleGenerateSeats(bus)}
-                            title="Generate Seats"
-                            disabled={generatingBusId === bus.id}
-                            className="rounded-md border border-slate-200 p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {generatingBusId === bus.id ? <IconSpinner /> : <IconSeat />}
-                          </button> */}
-                        </div>
-                      </td>
+                      {!isPlatformReadOnly ? (
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openEditDrawer(bus)}
+                              title="Edit Bus"
+                              className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
+                            >
+                              <IconEdit />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openDeleteDialog(bus)}
+                              title="Delete Bus"
+                              className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
+                            >
+                              <IconDelete />
+                            </button>
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>

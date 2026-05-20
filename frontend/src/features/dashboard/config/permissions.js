@@ -1,5 +1,12 @@
 export const Permission = {
   VIEW_DASHBOARD: 'view_dashboard',
+  VIEW_BUSES: 'view_buses',
+  VIEW_ROUTES: 'view_routes',
+  VIEW_TRIPS: 'view_trips',
+  VIEW_BOOKINGS: 'view_bookings',
+  VIEW_PAYMENTS: 'view_payments',
+  VIEW_REFUNDS: 'view_refunds',
+  VIEW_STAFF: 'view_staff',
   MANAGE_BUSES: 'manage_buses',
   MANAGE_ROUTES: 'manage_routes',
   MANAGE_TRIPS: 'manage_trips',
@@ -12,8 +19,21 @@ export const Permission = {
   BOOK_TICKET: 'book_ticket',
 };
 
+export const PLATFORM_ADMIN_PERMISSIONS = [
+  Permission.VIEW_DASHBOARD,
+  Permission.MANAGE_OPERATORS,
+  Permission.MANAGE_USERS,
+  Permission.VIEW_BUSES,
+  Permission.VIEW_ROUTES,
+  Permission.VIEW_TRIPS,
+  Permission.VIEW_BOOKINGS,
+  Permission.VIEW_PAYMENTS,
+  Permission.VIEW_REFUNDS,
+  Permission.VIEW_STAFF,
+];
+
 export const ROLE_PERMISSIONS = {
-  ADMIN: Object.values(Permission),
+  ADMIN: [...PLATFORM_ADMIN_PERMISSIONS],
   OPERATOR: [
     Permission.VIEW_DASHBOARD,
     Permission.MANAGE_BUSES,
@@ -40,4 +60,8 @@ export function getPermissionsForRole(role) {
 
 export function roleHasPermission(role, permission) {
   return getPermissionsForRole(role).includes(permission);
+}
+
+export function roleHasAnyPermission(role, permissions) {
+  return permissions.some((permission) => roleHasPermission(role, permission));
 }

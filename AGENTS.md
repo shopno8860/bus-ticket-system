@@ -48,7 +48,7 @@ npm run dev             # http://localhost:5173
 
 | Role | Dashboard | Can manage |
 |------|-----------|------------|
-| ADMIN | `/dashboard/*` | Global: operators, all bookings, all buses, all trips |
+| ADMIN | `/dashboard/*` | **Platform:** operators (create/suspend), users. **Read-only** inside operator hubs (buses, routes, trips, bookings, payments, refunds, staff). No book-ticket or tenant CRUD. |
 | OPERATOR | `/dashboard/*` | Own buses, routes, trips, bookings, payments, refunds, staff |
 | STAFF | `/dashboard/*` | Own bookings only (book tickets, view history) |
 
@@ -60,7 +60,7 @@ JWT payload includes `operatorId` for OPERATOR/STAFF users. Suspended operators 
 ## Architecture
 
 - **Backend**: NestJS modules, Controllers → Services pattern, `class-validator` DTOs with global `ValidationPipe` (`whitelist: true`, `forbidNonWhitelisted: true`).
-- **Dashboard endpoints**: Centralized in `modules/dashboard/` at `/dashboard/*`. Permission guard per route (`manage_buses`, etc.).
+- **Dashboard endpoints**: Centralized in `modules/dashboard/` at `/dashboard/*`. Permission guard per route. Tenant **reads** use `RequireAnyPermissions(view_*, manage_*)`; **writes** require `manage_*` (ADMIN has `view_*` only for tenant ops).
 - **Legacy aliases**: `/admin/*`, `/operator/*`, `/staff/*` delegate to dashboard handlers.
 - **Prisma 7**: Uses `prisma.config.ts` with `defineConfig`. Run `prisma:generate` after schema changes.
 - **Critical DB ops** (booking, payment, refund) use Prisma `$transaction({isolationLevel: 'Serializable'})` with `maxWait: 15000`.

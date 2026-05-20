@@ -9,7 +9,7 @@ import { usePermissions } from '../hooks/usePermissions';
 
 function OperatorOverviewPage() {
   const { operatorId } = useParams();
-  const { can, isAdmin } = usePermissions();
+  const { canAny, isAdmin } = usePermissions();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,7 +31,7 @@ function OperatorOverviewPage() {
   }, [operatorId, isAdmin]);
 
   const visibleTabs = operatorHubTabs.filter(
-    (tab) => tab.segment && tab.permissions.every((p) => can(p)),
+    (tab) => tab.segment && canAny(...tab.permissions),
   );
 
   if (loading) {

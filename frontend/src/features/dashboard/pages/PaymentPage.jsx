@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFetch } from '../../../hooks/useFetch';
 import { withOperatorQuery } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 
@@ -9,7 +10,7 @@ const PAYMENT_STATUSES = ['PENDING', 'SUCCESS', 'FAILED', 'REFUNDED'];
 const PAYMENT_METHODS = ['BKASH', 'NAGAD', 'CARD'];
 
 function PaymentPage() {
-  const { operatorId } = useDashboardScope();
+  const { operatorId, isPlatformReadOnly } = useDashboardScope();
   const [filters, setFilters] = useState({
     status: '',
     method: '',
@@ -72,6 +73,8 @@ function PaymentPage() {
           className="w-full max-w-xs rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
       </section>
+
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-end gap-3 text-sm">

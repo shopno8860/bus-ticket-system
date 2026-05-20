@@ -7,6 +7,7 @@ import {
   updateDashboardStaff,
 } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 
 const defaultForm = {
   fullName: '',
@@ -16,7 +17,7 @@ const defaultForm = {
 };
 
 function StaffPage() {
-  const { operatorId } = useDashboardScope();
+  const { operatorId, isPlatformReadOnly } = useDashboardScope();
   const loadStaff = useCallback(
     () => getDashboardStaff(operatorId),
     [operatorId],
@@ -166,14 +167,18 @@ function StaffPage() {
           <h1 className="text-xl font-semibold text-slate-900">Staff Management</h1>
           <p className="text-sm text-slate-500">Manage your team members.</p>
         </div>
-        <button
-          type="button"
-          onClick={openFormModal}
-          className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
-        >
-          Add Staff
-        </button>
+        {!isPlatformReadOnly ? (
+          <button
+            type="button"
+            onClick={openFormModal}
+            className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
+          >
+            Add Staff
+          </button>
+        ) : null}
       </section>
+
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         {loading ? (
@@ -201,7 +206,9 @@ function StaffPage() {
                   <th className="px-3 py-2 font-medium">Email</th>
                   <th className="px-3 py-2 font-medium">Phone</th>
                   <th className="px-3 py-2 font-medium">Created Date</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  {!isPlatformReadOnly ? (
+                    <th className="px-3 py-2 font-medium">Actions</th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -220,26 +227,28 @@ function StaffPage() {
                     <td className="px-3 py-2 text-slate-600">
                       {formatDate(staffMember.createdAt)}
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(staffMember)}
-                          title="Edit Staff"
-                          className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteDialog(staffMember)}
-                          title="Delete Staff"
-                          className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {!isPlatformReadOnly ? (
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(staffMember)}
+                            title="Edit Staff"
+                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteDialog(staffMember)}
+                            title="Delete Staff"
+                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

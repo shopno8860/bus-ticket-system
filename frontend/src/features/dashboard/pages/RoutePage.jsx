@@ -7,6 +7,7 @@ import {
   updateDashboardRoute,
 } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 
 const defaultForm = {
   origin: '',
@@ -18,7 +19,7 @@ function normalizeCity(value) {
 }
 
 function RoutePage() {
-  const { operatorId } = useDashboardScope();
+  const { operatorId, isPlatformReadOnly } = useDashboardScope();
   const loadRoutes = useCallback(
     () => getDashboardRoutes(operatorId),
     [operatorId],
@@ -181,14 +182,18 @@ function RoutePage() {
           <h1 className="text-xl font-semibold text-slate-900">Route Management</h1>
           <p className="text-sm text-slate-500">Manage routes between cities</p>
         </div>
-        <button
-          type="button"
-          onClick={openFormDrawer}
-          className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
-        >
-          Add Route
-        </button>
+        {!isPlatformReadOnly ? (
+          <button
+            type="button"
+            onClick={openFormDrawer}
+            className="rounded-md bg-[#0f172a] px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1e293b]"
+          >
+            Add Route
+          </button>
+        ) : null}
       </section>
+
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         {loading ? (
@@ -214,7 +219,9 @@ function RoutePage() {
                   <th className="px-3 py-2 font-medium">Destination</th>
                   <th className="px-3 py-2 font-medium">Route Name</th>
                   <th className="px-3 py-2 font-medium">Created Date</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  {!isPlatformReadOnly ? (
+                    <th className="px-3 py-2 font-medium">Actions</th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -226,26 +233,28 @@ function RoutePage() {
                       {route.origin} {'->'} {route.destination}
                     </td>
                     <td className="px-3 py-2 text-slate-600">{formatDate(route.createdAt)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditDrawer(route)}
-                          title="Edit Route"
-                          className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
-                        >
-                          <IconEdit />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteDialog(route)}
-                          title="Delete Route"
-                          className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
-                        >
-                          <IconDelete />
-                        </button>
-                      </div>
-                    </td>
+                    {!isPlatformReadOnly ? (
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditDrawer(route)}
+                            title="Edit Route"
+                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
+                          >
+                            <IconEdit />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteDialog(route)}
+                            title="Delete Route"
+                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
+                          >
+                            <IconDelete />
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

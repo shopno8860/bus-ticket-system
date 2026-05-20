@@ -6,11 +6,12 @@ import { endpoints } from '../../../services/endpoints';
 import { showError, showSuccess } from '../../../utils/toastHelper';
 import { withOperatorQuery } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
+import ReadOnlyBanner from '../components/ReadOnlyBanner';
 
 const REFUND_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED'];
 
 function RefundPage() {
-  const { operatorId } = useDashboardScope();
+  const { operatorId, isPlatformReadOnly } = useDashboardScope();
   const [filters, setFilters] = useState({
     status: '',
     date: '',
@@ -176,6 +177,8 @@ function RefundPage() {
         />
       </section>
 
+      {isPlatformReadOnly ? <ReadOnlyBanner /> : null}
+
       <section className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-end gap-3 text-sm">
           <FilterField label="Status">
@@ -266,7 +269,7 @@ function RefundPage() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5">
-                        {refund.status === 'PENDING' ? (
+                        {!isPlatformReadOnly && refund.status === 'PENDING' ? (
                           <>
                             <button
                               type="button"
@@ -355,7 +358,7 @@ function RefundPage() {
                 বাটনে SSL API থেকে লেটেস্ট স্ট্যাটাস এনে <strong>আমাদের ডাটাবেস</strong> আপডেট হবে (রিফান্ড
                 <code className="mx-0.5">refunded</code> হলে বুকিং/পেমেন্ট ফাইনালাইজ হবে)।
               </p>
-              {selectedRefund.sslRefundRefId ? (
+              {!isPlatformReadOnly && selectedRefund.sslRefundRefId ? (
                 <button
                   type="button"
                   disabled={sslSyncing}

@@ -11,6 +11,7 @@ export function useDashboardScope() {
   const operatorId =
     routeOperatorId ?? params.operatorId ?? jwtOperatorId ?? null;
   const isScopedView = inOperatorHub || Boolean(operatorId && isAdmin);
+  const isPlatformReadOnly = isAdmin;
 
   return {
     isAdmin,
@@ -19,6 +20,7 @@ export function useDashboardScope() {
     operatorId,
     can,
     inOperatorHub,
+    isPlatformReadOnly,
     showOperatorColumn: isAdmin && !isScopedView,
     requireOperatorOnCreate: isAdmin && !operatorId,
   };
