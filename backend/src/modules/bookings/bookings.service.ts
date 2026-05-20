@@ -216,7 +216,10 @@ export class BookingsService {
             lockExpiresAt,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 15000,
+        },
       );
     } catch (error: unknown) {
       if (
@@ -255,6 +258,7 @@ export class BookingsService {
               busId: true,
               price: true,
               departureTime: true,
+              operatorId: true,
               bus: { select: { busType: true } },
             },
           });
@@ -379,6 +383,7 @@ export class BookingsService {
               bookingReference,
               userId,
               tripId: confirmBookingDto.tripId,
+              operatorId: trip.operatorId,
               passengerName: confirmBookingDto.passengerName,
               passengerPhone: confirmBookingDto.passengerPhone,
               totalAmount,
@@ -418,7 +423,10 @@ export class BookingsService {
 
           return booking;
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 15000,
+        },
       );
     } catch (error: unknown) {
       if (
@@ -437,6 +445,105 @@ export class BookingsService {
    * Booking detail with trip, seats, latest payment; owner or ADMIN.
    * বুকিং ডিটেইলস (trip/seat/latest payment) ফেরত দেয়; owner বা ADMIN ছাড়া অ্যাক্সেস নিষেধ।
    */
+  async countByOperator(operatorId: string): Promise<number> {
+    return this.prismaService.booking.count({ where: { operatorId } });
+  }
+
+  async createStaffBooking(
+    dto: {
+      tripId: string;
+      seatIds: string[];
+      passengerName: string;
+      passengerPhone?: string;
+      discountPercent?: number;
+    },
+    operatorId: string,
+    userId: string,
+  ) {
+    const trip = await this.prismaService.trip.findUnique({
+      where: { id: dto.tripId },
+      include: { bus: true, route: true },
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+    if (trip.status !== 'SCHEDULED')
+      throw new BadRequestException('Trip is not available for booking');
+    if (trip.operatorId !== operatorId)
+      throw new ForbiddenException('Trip does not belong to your operator');
+
+    const seats = await this.prismaService.seat.findMany({
+      where: { id: { in: dto.seatIds }, busId: trip.busId },
+    });
+    if (seats.length !== dto.seatIds.length) {
+      throw new BadRequestException('Some seats not found');
+    }
+
+    const totalSeatPrice = Number(trip.price) * seats.length;
+    const discountPercent = dto.discountPercent ?? 0;
+    const discountAmount =
+      (totalSeatPrice * Math.min(Math.max(discountPercent, 0), 100)) / 100;
+    const finalAmount = totalSeatPrice - discountAmount;
+
+    return this.prismaService.$transaction(async (tx) => {
+      for (const seatId of dto.seatIds) {
+        const existing = await tx.bookingSeat.findUnique({
+          where: {
+            tripId_seatId: { tripId: dto.tripId, seatId },
+          },
+        });
+        if (existing)
+          throw new ConflictException(`Seat ${seatId} is already booked`);
+      }
+
+      const bookingReference = `BKG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      const booking = await tx.booking.create({
+        data: {
+          bookingReference,
+          tripId: dto.tripId,
+          operatorId,
+          userId,
+          passengerName: dto.passengerName,
+          passengerPhone: dto.passengerPhone ?? '',
+          totalAmount: totalSeatPrice,
+          discountType: discountPercent > 0 ? 'PERCENTAGE' : null,
+          discountValue: discountPercent > 0 ? discountPercent : null,
+          discountAmount,
+          finalAmount,
+          status: BookingStatus.CONFIRMED,
+          bookingSource: 'MANUAL',
+          bookingSeats: {
+            create: dto.seatIds.map((seatId) => ({
+              seatId,
+              tripId: dto.tripId,
+              price: trip.price,
+              status: BookingSeatStatus.RESERVED,
+            })),
+          },
+        },
+        include: {
+          trip: { include: { route: true, bus: true } },
+          bookingSeats: { include: { seat: true } },
+        },
+      });
+
+      return booking;
+    });
+  }
+
+  async findByOperator(operatorId: string) {
+    return this.prismaService.booking.findMany({
+      where: { operatorId },
+      include: {
+        user: {
+          select: { id: true, fullName: true, email: true, phoneNumber: true },
+        },
+        trip: { include: { route: true, bus: true } },
+        bookingSeats: { include: { seat: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findOne(id: string, requesterUserId: string, requesterRole: UserRole) {
     const booking = await this.prismaService.booking.findUnique({
       where: { id },
@@ -523,8 +630,12 @@ export class BookingsService {
    * Admin booking table with optional filters (user, route, status, dates).
    * Admin panel-এর জন্য filters অনুযায়ী বুকিং লিস্ট (user/trip/payment/refund সহ) রিটার্ন করে।
    */
-  async findAllAdmin(filters: AdminBookingsFilterDto) {
+  async findAllAdmin(filters: AdminBookingsFilterDto, operatorId?: string) {
     const where: Prisma.BookingWhereInput = {};
+
+    if (operatorId) {
+      where.operatorId = operatorId;
+    }
 
     if (filters.user) {
       where.userId = filters.user;
@@ -600,117 +711,121 @@ export class BookingsService {
     const now = new Date();
 
     return this.prismaService
-      .$transaction(async (tx) => {
-        const booking = await tx.booking.findUnique({
-          where: { id: bookingId },
-          include: {
-            trip: true,
-            payments: {
-              where: { status: PaymentStatus.SUCCESS },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-              select: paymentSafeSelect,
-            },
-          },
-        });
-
-        if (!booking) {
-          throw new NotFoundException('Booking not found');
-        }
-
-        if (booking.userId !== userId) {
-          throw new ForbiddenException(
-            'You are not authorized to cancel this booking',
-          );
-        }
-
-        if (booking.status !== BookingStatus.CONFIRMED) {
-          throw new ConflictException(
-            'Only confirmed bookings can be cancelled',
-          );
-        }
-
-        const existingRefundRequest = await tx.refund.findFirst({
-          where: {
-            bookingId,
-            status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
-          },
-          select: { id: true, status: true },
-        });
-
-        if (existingRefundRequest) {
-          throw new ConflictException(
-            'A refund request already exists for this booking',
-          );
-        }
-
-        const departureTime = new Date(booking.trip.departureTime);
-        const diffInHours = getHoursBeforeDeparture(now, departureTime);
-
-        if (!canCancelBooking(diffInHours)) {
-          throw new BadRequestException(
-            'Cancellations are not allowed within 2 hours of departure',
-          );
-        }
-
-        const refundPercentage = getRefundPercentage(diffInHours);
-
-        const totalAmount = new Prisma.Decimal(booking.totalAmount);
-        const refundAmount = totalAmount.mul(refundPercentage);
-        const latestSuccessfulPayment = booking.payments[0];
-
-        if (!latestSuccessfulPayment) {
-          throw new ConflictException(
-            'No successful payment found for this booking refund',
-          );
-        }
-
-        const createdRefundRequest = await tx.refund.create({
-          data: {
-            bookingId: booking.id,
-            paymentId: latestSuccessfulPayment.id,
-            userId: booking.userId,
-            reason: 'Cancellation requested by user (pending admin approval)',
-            amount: refundAmount,
-            status: RefundStatus.PENDING,
-          },
-        });
-
-        const bookingAfter = await tx.booking.findUnique({
-          where: { id: bookingId },
-          include: {
-            trip: {
-              include: {
-                route: true,
-                bus: true,
+      .$transaction(
+        async (tx) => {
+          const booking = await tx.booking.findUnique({
+            where: { id: bookingId },
+            include: {
+              trip: true,
+              payments: {
+                where: { status: PaymentStatus.SUCCESS },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: paymentSafeSelect,
               },
             },
-            bookingSeats: {
-              include: {
-                seat: true,
+          });
+
+          if (!booking) {
+            throw new NotFoundException('Booking not found');
+          }
+
+          if (booking.userId !== userId) {
+            throw new ForbiddenException(
+              'You are not authorized to cancel this booking',
+            );
+          }
+
+          if (booking.status !== BookingStatus.CONFIRMED) {
+            throw new ConflictException(
+              'Only confirmed bookings can be cancelled',
+            );
+          }
+
+          const existingRefundRequest = await tx.refund.findFirst({
+            where: {
+              bookingId,
+              status: { in: [RefundStatus.PENDING, RefundStatus.APPROVED] },
+            },
+            select: { id: true, status: true },
+          });
+
+          if (existingRefundRequest) {
+            throw new ConflictException(
+              'A refund request already exists for this booking',
+            );
+          }
+
+          const departureTime = new Date(booking.trip.departureTime);
+          const diffInHours = getHoursBeforeDeparture(now, departureTime);
+
+          if (!canCancelBooking(diffInHours)) {
+            throw new BadRequestException(
+              'Cancellations are not allowed within 2 hours of departure',
+            );
+          }
+
+          const refundPercentage = getRefundPercentage(diffInHours);
+
+          const totalAmount = new Prisma.Decimal(booking.totalAmount);
+          const refundAmount = totalAmount.mul(refundPercentage);
+          const latestSuccessfulPayment = booking.payments[0];
+
+          if (!latestSuccessfulPayment) {
+            throw new ConflictException(
+              'No successful payment found for this booking refund',
+            );
+          }
+
+          const createdRefundRequest = await tx.refund.create({
+            data: {
+              bookingId: booking.id,
+              paymentId: latestSuccessfulPayment.id,
+              userId: booking.userId,
+              operatorId: booking.operatorId,
+              reason: 'Cancellation requested by user (pending admin approval)',
+              amount: refundAmount,
+              status: RefundStatus.PENDING,
+            },
+          });
+
+          const bookingAfter = await tx.booking.findUnique({
+            where: { id: bookingId },
+            include: {
+              trip: {
+                include: {
+                  route: true,
+                  bus: true,
+                },
+              },
+              bookingSeats: {
+                include: {
+                  seat: true,
+                },
+              },
+              payments: {
+                select: paymentSafeSelect,
               },
             },
-            payments: {
-              select: paymentSafeSelect,
+          });
+
+          if (!bookingAfter) {
+            throw new NotFoundException('Booking not found');
+          }
+
+          return {
+            message:
+              'Cancellation request sent to admin. Your ticket stays active until the request is approved.',
+            refundAmount: refundAmount.toNumber(),
+            refundRequest: {
+              id: createdRefundRequest.id,
+              status: createdRefundRequest.status,
             },
-          },
-        });
-
-        if (!bookingAfter) {
-          throw new NotFoundException('Booking not found');
-        }
-
-        return {
-          message:
-            'Cancellation request sent to admin. Your ticket stays active until the request is approved.',
-          refundAmount: refundAmount.toNumber(),
-          refundRequest: {
-            id: createdRefundRequest.id,
-            status: createdRefundRequest.status,
-          },
-          booking: bookingAfter,
-        };
-      }, { maxWait: 15000 })
+            booking: bookingAfter,
+          };
+        },
+        { maxWait: 15000 },
+      )
       .then(async (result) => {
         await this.notificationsService.notifyBookingUpdate({
           userId,
@@ -739,40 +854,43 @@ export class BookingsService {
     adminUserId: string,
   ): Promise<Booking> {
     return this.prismaService
-      .$transaction(async (tx) => {
-        const booking = await tx.booking.findUnique({
-          where: { id: bookingId },
-        });
+      .$transaction(
+        async (tx) => {
+          const booking = await tx.booking.findUnique({
+            where: { id: bookingId },
+          });
 
-        if (!booking) {
-          throw new NotFoundException('Booking not found');
-        }
+          if (!booking) {
+            throw new NotFoundException('Booking not found');
+          }
 
-        if (
-          booking.status === BookingStatus.CANCELLED ||
-          booking.status === BookingStatus.EXPIRED
-        ) {
-          throw new ConflictException(
-            'Booking is already cancelled or expired',
-          );
-        }
+          if (
+            booking.status === BookingStatus.CANCELLED ||
+            booking.status === BookingStatus.EXPIRED
+          ) {
+            throw new ConflictException(
+              'Booking is already cancelled or expired',
+            );
+          }
 
-        await tx.bookingSeat.deleteMany({
-          where: {
-            bookingId,
-          },
-        });
+          await tx.bookingSeat.deleteMany({
+            where: {
+              bookingId,
+            },
+          });
 
-        return tx.booking.update({
-          where: { id: bookingId },
-          data: {
-            status: BookingStatus.CANCELLED,
-            cancelledAt: new Date(),
-            cancelReason: reason,
-            cancelledBy: adminUserId,
-          },
-        });
-      }, { maxWait: 15000 })
+          return tx.booking.update({
+            where: { id: bookingId },
+            data: {
+              status: BookingStatus.CANCELLED,
+              cancelledAt: new Date(),
+              cancelReason: reason,
+              cancelledBy: adminUserId,
+            },
+          });
+        },
+        { maxWait: 15000 },
+      )
       .then(async (cancelledBooking) => {
         await this.notificationsService.notifyBookingUpdate({
           userId: cancelledBooking.userId,
@@ -792,49 +910,59 @@ export class BookingsService {
   async expireStalePendingBookings(): Promise<number> {
     const now = new Date();
 
-    const expiredRows = await this.prismaService.$transaction(async (tx) => {
-      const stale = await tx.booking.findMany({
-        where: {
-          status: BookingStatus.PENDING,
-          paymentExpiresAt: { not: null, lt: now },
-        },
-        select: { id: true, userId: true },
-      });
+    const expiredRows = await this.prismaService.$transaction(
+      async (tx) => {
+        const stale = await tx.booking.findMany({
+          where: {
+            status: BookingStatus.PENDING,
+            OR: [
+              { paymentExpiresAt: { not: null, lt: now } },
+              {
+                trip: {
+                  operator: { status: 'SUSPENDED' },
+                },
+              },
+            ],
+          },
+          select: { id: true, userId: true },
+        });
 
-      if (stale.length === 0) {
-        return [];
-      }
+        if (stale.length === 0) {
+          return [];
+        }
 
-      const ids = stale.map((b) => b.id);
+        const ids = stale.map((b) => b.id);
 
-      await tx.bookingSeat.updateMany({
-        where: { bookingId: { in: ids } },
-        data: {
-          status: BookingSeatStatus.CANCELLED,
-          bookingId: null,
-          lockExpiresAt: null,
-        },
-      });
+        await tx.bookingSeat.updateMany({
+          where: { bookingId: { in: ids } },
+          data: {
+            status: BookingSeatStatus.CANCELLED,
+            bookingId: null,
+            lockExpiresAt: null,
+          },
+        });
 
-      await tx.payment.updateMany({
-        where: {
-          bookingId: { in: ids },
-          status: PaymentStatus.PENDING,
-        },
-        data: { status: PaymentStatus.FAILED },
-      });
+        await tx.payment.updateMany({
+          where: {
+            bookingId: { in: ids },
+            status: PaymentStatus.PENDING,
+          },
+          data: { status: PaymentStatus.FAILED },
+        });
 
-      await tx.booking.updateMany({
-        where: { id: { in: ids } },
-        data: {
-          status: BookingStatus.EXPIRED,
-          cancelReason: 'Payment not completed before the time limit',
-          paymentExpiresAt: null,
-        },
-      });
+        await tx.booking.updateMany({
+          where: { id: { in: ids } },
+          data: {
+            status: BookingStatus.EXPIRED,
+            cancelReason: 'Payment not completed before the time limit',
+            paymentExpiresAt: null,
+          },
+        });
 
-      return stale;
-    }, { maxWait: 15000 });
+        return stale;
+      },
+      { maxWait: 15000 },
+    );
 
     for (const row of expiredRows) {
       await this.notificationsService.notifyBookingUpdate({

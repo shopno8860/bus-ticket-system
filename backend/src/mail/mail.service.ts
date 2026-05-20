@@ -41,7 +41,9 @@ export class MailService {
 
     const { host, port, user, pass } = this.getSmtpConfig();
     if (!user || !pass) {
-      this.logger.warn('SMTP credentials are not configured. Email was skipped.');
+      this.logger.warn(
+        'SMTP credentials are not configured. Email was skipped.',
+      );
       return null;
     }
 

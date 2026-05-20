@@ -12,13 +12,6 @@ export class CreateBusDto {
   name: string;
 
   @ApiProperty({
-    example: 'Green Line Paribahan',
-  })
-  @IsString()
-  @IsNotEmpty()
-  operatorName: string;
-
-  @ApiProperty({
     example: 'DHAKA-METRO-BA-1234',
   })
   @IsString()

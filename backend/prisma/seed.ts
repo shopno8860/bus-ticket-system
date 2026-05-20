@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { BusClass, BusType, PrismaClient, TripStatus } from '@prisma/client';
+import { BusClass, BusType, OperatorStatus, PrismaClient, TripStatus, UserRole } from '@prisma/client';
 import { Pool } from 'pg';
+import * as bcrypt from 'bcrypt';
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -9,6 +10,31 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const operatorSlogans: Array<{ companyName: string; slug: string; email: string }> = [
+    { companyName: 'Alhamra', slug: 'alhamra', email: 'info@alhamra.com' },
+    { companyName: 'Orin', slug: 'orin', email: 'info@orin.com' },
+    { companyName: 'Hanif', slug: 'hanif', email: 'info@hanif.com' },
+  ];
+
+  const operatorIds = new Map<string, string>();
+  for (const op of operatorSlogans) {
+    const existing = await prisma.operator.findUnique({ where: { slug: op.slug } });
+    if (existing) {
+      operatorIds.set(op.slug, existing.id);
+    } else {
+      const created = await prisma.operator.create({
+        data: {
+          companyName: op.companyName,
+          slug: op.slug,
+          email: op.email,
+          status: OperatorStatus.ACTIVE,
+        },
+      });
+      operatorIds.set(op.slug, created.id);
+      console.log(`Created operator: ${op.companyName}`);
+    }
+  }
+
   const cities = [
     'Chittagong',
     'Sylhet',
@@ -18,124 +44,41 @@ async function main() {
     'Gaibandha',
   ] as const;
 
-  const buses = [
-    {
-      name: 'Alhamra AC Coach 1',
-      operatorName: 'Alhamra',
-      registrationNumber: 'AL-AC-001',
-      seatCapacity: 28,
-      busType: BusType.AC,
-      busClass: BusClass.BUSINESS,
-    },
-    {
-      name: 'Alhamra AC Coach 2',
-      operatorName: 'Alhamra',
-      registrationNumber: 'AL-AC-002',
-      seatCapacity: 36,
-      busType: BusType.AC,
-      busClass: BusClass.ECONOMY,
-    },
-    {
-      name: 'Alhamra Non-AC Coach 1',
-      operatorName: 'Alhamra',
-      registrationNumber: 'AL-NA-001',
-      seatCapacity: 40,
-      busType: BusType.NON_AC,
-      busClass: BusClass.ECONOMY,
-    },
-    {
-      name: 'Alhamra Sleeper AC 1',
-      operatorName: 'Alhamra',
-      registrationNumber: 'AL-SL-001',
-      seatCapacity: 36,
-      busType: BusType.SLEEPER,
-      busClass: BusClass.BUSINESS,
-    },
-    {
-      name: 'Orin AC Coach 1',
-      operatorName: 'Orin',
-      registrationNumber: 'OR-AC-001',
-      seatCapacity: 28,
-      busType: BusType.AC,
-      busClass: BusClass.BUSINESS,
-    },
-    {
-      name: 'Orin AC Coach 2',
-      operatorName: 'Orin',
-      registrationNumber: 'OR-AC-002',
-      seatCapacity: 36,
-      busType: BusType.AC,
-      busClass: BusClass.ECONOMY,
-    },
-    {
-      name: 'Orin Non-AC Coach 1',
-      operatorName: 'Orin',
-      registrationNumber: 'OR-NA-001',
-      seatCapacity: 40,
-      busType: BusType.NON_AC,
-      busClass: BusClass.ECONOMY,
-    },
-    {
-      name: 'Orin Sleeper AC 1',
-      operatorName: 'Orin',
-      registrationNumber: 'OR-SL-001',
-      seatCapacity: 36,
-      busType: BusType.SLEEPER,
-      busClass: BusClass.BUSINESS,
-    },
-    {
-      name: 'Hanif AC Coach 1',
-      operatorName: 'Hanif',
-      registrationNumber: 'HN-AC-001',
-      seatCapacity: 28,
-      busType: BusType.AC,
-      busClass: BusClass.BUSINESS,
-    },
-    {
-      name: 'Hanif AC Coach 2',
-      operatorName: 'Hanif',
-      registrationNumber: 'HN-AC-002',
-      seatCapacity: 36,
-      busType: BusType.AC,
-      busClass: BusClass.ECONOMY,
-    },
-    {
-      name: 'Hanif Non-AC Coach 1',
-      operatorName: 'Hanif',
-      registrationNumber: 'HN-NA-001',
-      seatCapacity: 40,
-      busType: BusType.NON_AC,
-      busClass: BusClass.ECONOMY,
-    },
-    {
-      name: 'Hanif Sleeper AC 1',
-      operatorName: 'Hanif',
-      registrationNumber: 'HN-SL-001',
-      seatCapacity: 36,
-      busType: BusType.SLEEPER,
-      busClass: BusClass.BUSINESS,
-    },
+  const firstOperatorId = operatorIds.values().next().value!;
+
+  const busDefinitions = [
+    { name: 'Alhamra AC Coach 1', operatorSlug: 'alhamra', registrationNumber: 'AL-AC-001', seatCapacity: 28, busType: BusType.AC, busClass: BusClass.BUSINESS },
+    { name: 'Alhamra AC Coach 2', operatorSlug: 'alhamra', registrationNumber: 'AL-AC-002', seatCapacity: 36, busType: BusType.AC, busClass: BusClass.ECONOMY },
+    { name: 'Alhamra Non-AC Coach 1', operatorSlug: 'alhamra', registrationNumber: 'AL-NA-001', seatCapacity: 40, busType: BusType.NON_AC, busClass: BusClass.ECONOMY },
+    { name: 'Alhamra Sleeper AC 1', operatorSlug: 'alhamra', registrationNumber: 'AL-SL-001', seatCapacity: 36, busType: BusType.SLEEPER, busClass: BusClass.BUSINESS },
+    { name: 'Orin AC Coach 1', operatorSlug: 'orin', registrationNumber: 'OR-AC-001', seatCapacity: 28, busType: BusType.AC, busClass: BusClass.BUSINESS },
+    { name: 'Orin AC Coach 2', operatorSlug: 'orin', registrationNumber: 'OR-AC-002', seatCapacity: 36, busType: BusType.AC, busClass: BusClass.ECONOMY },
+    { name: 'Orin Non-AC Coach 1', operatorSlug: 'orin', registrationNumber: 'OR-NA-001', seatCapacity: 40, busType: BusType.NON_AC, busClass: BusClass.ECONOMY },
+    { name: 'Orin Sleeper AC 1', operatorSlug: 'orin', registrationNumber: 'OR-SL-001', seatCapacity: 36, busType: BusType.SLEEPER, busClass: BusClass.BUSINESS },
+    { name: 'Hanif AC Coach 1', operatorSlug: 'hanif', registrationNumber: 'HN-AC-001', seatCapacity: 28, busType: BusType.AC, busClass: BusClass.BUSINESS },
+    { name: 'Hanif AC Coach 2', operatorSlug: 'hanif', registrationNumber: 'HN-AC-002', seatCapacity: 36, busType: BusType.AC, busClass: BusClass.ECONOMY },
+    { name: 'Hanif Non-AC Coach 1', operatorSlug: 'hanif', registrationNumber: 'HN-NA-001', seatCapacity: 40, busType: BusType.NON_AC, busClass: BusClass.ECONOMY },
+    { name: 'Hanif Sleeper AC 1', operatorSlug: 'hanif', registrationNumber: 'HN-SL-001', seatCapacity: 36, busType: BusType.SLEEPER, busClass: BusClass.BUSINESS },
   ] as const;
 
   let createdRoutes = 0;
   for (const city of cities) {
-    createdRoutes += (
-      await prisma.route.createMany({
-        data: { origin: 'Dhaka', destination: city },
-        skipDuplicates: true,
-      })
-    ).count;
-    createdRoutes += (
-      await prisma.route.createMany({
-        data: { origin: city, destination: 'Dhaka' },
-        skipDuplicates: true,
-      })
-    ).count;
+    for (const opId of operatorIds.values()) {
+      createdRoutes += (
+        await prisma.route.createMany({
+          data: [
+            { origin: 'Dhaka', destination: city, operatorId: opId },
+            { origin: city, destination: 'Dhaka', operatorId: opId },
+          ],
+          skipDuplicates: true,
+        })
+      ).count;
+    }
   }
   console.log(`Created routes: ${createdRoutes}`);
 
   let createdBuses = 0;
-  for (const bus of buses) {
+  for (const bus of busDefinitions) {
     const existing = await prisma.bus.findUnique({
       where: { registrationNumber: bus.registrationNumber },
       select: { id: true },
@@ -143,7 +86,9 @@ async function main() {
     if (existing) {
       continue;
     }
-    const createdBus = await prisma.bus.create({ data: bus });
+    const { operatorSlug, ...busData } = bus;
+    const opId = operatorIds.get(operatorSlug) ?? firstOperatorId;
+    const createdBus = await prisma.bus.create({ data: { ...busData, operatorId: opId } });
     await prisma.seat.createMany({
       data: buildSeats(createdBus.id, createdBus.busClass, createdBus.busType),
       skipDuplicates: true,
@@ -156,7 +101,7 @@ async function main() {
     select: { id: true, origin: true, destination: true },
   });
   const allBuses = await prisma.bus.findMany({
-    select: { id: true, busType: true, busClass: true },
+    select: { id: true, operatorId: true, busType: true, busClass: true },
   });
 
   const today = new Date();
@@ -213,6 +158,7 @@ async function main() {
         tripsToCreate.push({
           routeId: route.id,
           busId: bus.id,
+          operatorId: bus.operatorId,
           boardingPoint: route.origin,
           droppingPoint: route.destination,
           departureTime,
@@ -233,6 +179,81 @@ async function main() {
   } else {
     console.log('No missing trips to create for today.');
   }
+
+  const hash = await bcrypt.hash('password123', 10);
+  const adminHash = await bcrypt.hash('admin123', 10);
+
+  await prisma.user.upsert({
+    where: { email: 'admin@easytrip.com' },
+    update: {},
+    create: {
+      fullName: 'Super Admin',
+      email: 'admin@easytrip.com',
+      passwordHash: adminHash,
+      phoneNumber: '+8801700000001',
+      role: UserRole.ADMIN,
+    },
+  });
+  console.log('Created admin: admin@easytrip.com / admin123');
+
+  const operatorUsers = [
+    { fullName: 'Alhamra Admin', email: 'alhamra@test.com', slug: 'alhamra' },
+    { fullName: 'Orin Admin', email: 'orin@test.com', slug: 'orin' },
+    { fullName: 'Hanif Admin', email: 'hanif@test.com', slug: 'hanif' },
+  ];
+  for (const u of operatorUsers) {
+    const opId = operatorIds.get(u.slug);
+    if (!opId) continue;
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        fullName: u.fullName,
+        email: u.email,
+        passwordHash: hash,
+        phoneNumber: '+8801700000000',
+        role: UserRole.OPERATOR,
+        operatorId: opId,
+      },
+    });
+    console.log(`Created operator admin: ${u.email} / password123`);
+  }
+
+  const staffUsers = [
+    { fullName: 'Alhamra Staff', email: 'staff.alhamra@test.com', slug: 'alhamra' },
+    { fullName: 'Orin Staff', email: 'staff.orin@test.com', slug: 'orin' },
+    { fullName: 'Hanif Staff', email: 'staff.hanif@test.com', slug: 'hanif' },
+  ];
+  for (const u of staffUsers) {
+    const opId = operatorIds.get(u.slug);
+    if (!opId) continue;
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        fullName: u.fullName,
+        email: u.email,
+        passwordHash: hash,
+        phoneNumber: '+8801700000000',
+        role: UserRole.STAFF,
+        operatorId: opId,
+      },
+    });
+    console.log(`Created staff: ${u.email} / password123`);
+  }
+
+  await prisma.user.upsert({
+    where: { email: 'passenger@test.com' },
+    update: {},
+    create: {
+      fullName: 'Test Passenger',
+      email: 'passenger@test.com',
+      passwordHash: hash,
+      phoneNumber: '+8801700000099',
+      role: UserRole.USER,
+    },
+  });
+  console.log('Created passenger: passenger@test.com / password123');
 }
 
 function buildSeats(busId: string, busClass: BusClass, busType: BusType) {

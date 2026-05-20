@@ -12,12 +12,9 @@ import { RoutesModule } from './modules/routes/routes.module';
 import { SeatsModule } from './modules/seats/seats.module';
 import { TripsModule } from './modules/trips/trips.module';
 import { UsersModule } from './modules/users/users.module';
+import { OperatorsModule } from './modules/operators/operators.module';
 import { PrismaModule } from './prisma/prisma.module';
 
-/**
- * Root NestJS module.
- * অ্যাপের সব feature module (auth, bookings, payments ইত্যাদি) একসাথে wire-up করে।
- */
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -34,6 +31,7 @@ import { PrismaModule } from './prisma/prisma.module';
     SeatsModule,
     TripsModule,
     UsersModule,
+    OperatorsModule,
   ],
 })
 export class AppModule {}

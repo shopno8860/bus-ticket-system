@@ -9,11 +9,7 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -70,7 +66,9 @@ export class UsersController {
 
   @Delete('delete-account')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Soft-delete or remove current user account (per service rules)' })
+  @ApiOperation({
+    summary: 'Soft-delete or remove current user account (per service rules)',
+  })
   async deleteAccount(
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<{ message: string }> {
@@ -101,7 +99,8 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @ApiOperation({
     summary: 'Dashboard aggregates (ADMIN)',
-    description: 'Counts, revenue strings, trends, and recent activity for admin UI.',
+    description:
+      'Counts, revenue strings, trends, and recent activity for admin UI.',
   })
   async getDashboardStats(): Promise<{
     totalUsers: number;

@@ -187,3 +187,11 @@ export function cancelAdminTrip(id, reason) {
     body: JSON.stringify({ reason }),
   });
 }
+
+/** POST /admin/bookings — Admin creates confirmed booking for passenger */
+export function createAdminBooking(payload) {
+  return apiFetch(endpoints.admin.createBooking, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

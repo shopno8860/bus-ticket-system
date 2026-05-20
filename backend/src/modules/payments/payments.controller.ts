@@ -72,7 +72,8 @@ export class PaymentsController {
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Start SSLCommerz payment',
-    description: 'Returns gateway redirect URL and session data for the booking.',
+    description:
+      'Returns gateway redirect URL and session data for the booking.',
   })
   async create(
     @Body() createPaymentDto: CreatePaymentDto,
@@ -84,7 +85,8 @@ export class PaymentsController {
   @Post('success')
   @ApiOperation({
     summary: 'SSLCommerz success callback (POST)',
-    description: 'Server-side redirect to frontend success or seat selection with error query.',
+    description:
+      'Server-side redirect to frontend success or seat selection with error query.',
   })
   async success(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
@@ -97,7 +99,9 @@ export class PaymentsController {
     try {
       const payment = await this.paymentsService.handlePaymentSuccess(
         tran_id,
-        body && typeof body === 'object' ? (body as Record<string, unknown>) : undefined,
+        body && typeof body === 'object'
+          ? (body as Record<string, unknown>)
+          : undefined,
       );
       return res.redirect(this.frontendSuccessUrl(payment.bookingId));
     } catch (err) {
@@ -115,7 +119,8 @@ export class PaymentsController {
   @Get('success')
   @ApiOperation({
     summary: 'SSLCommerz success callback (GET)',
-    description: 'Same as POST success; some gateways use GET with query params.',
+    description:
+      'Same as POST success; some gateways use GET with query params.',
   })
   async successGet(
     @Query('tran_id') tranId: string | undefined,
@@ -151,7 +156,10 @@ export class PaymentsController {
   }
 
   @Post('fail')
-  @ApiOperation({ summary: 'SSLCommerz fail callback (POST)', description: 'Redirects to frontend with payment=failed.' })
+  @ApiOperation({
+    summary: 'SSLCommerz fail callback (POST)',
+    description: 'Redirects to frontend with payment=failed.',
+  })
   async fail(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
@@ -176,7 +184,10 @@ export class PaymentsController {
 
   @Get('fail')
   @ApiOperation({ summary: 'SSLCommerz fail callback (GET)' })
-  async failGet(@Query('tran_id') tranId: string | undefined, @Res() res: Response) {
+  async failGet(
+    @Query('tran_id') tranId: string | undefined,
+    @Res() res: Response,
+  ) {
     if (!tranId) {
       return res.redirect(
         this.frontendSeatSelectionUrl(null, { payment: 'no_session' }),
@@ -184,7 +195,10 @@ export class PaymentsController {
     }
 
     try {
-      await this.paymentsService.handlePaymentFailure(tranId, PaymentStatus.FAILED);
+      await this.paymentsService.handlePaymentFailure(
+        tranId,
+        PaymentStatus.FAILED,
+      );
     } catch {
       // still send user back to seat selection
     }
@@ -195,7 +209,10 @@ export class PaymentsController {
   }
 
   @Post('cancel')
-  @ApiOperation({ summary: 'SSLCommerz cancel callback (POST)', description: 'User aborted payment at gateway.' })
+  @ApiOperation({
+    summary: 'SSLCommerz cancel callback (POST)',
+    description: 'User aborted payment at gateway.',
+  })
   async cancel(@Body() body: any, @Res() res: Response) {
     const { tran_id } = body ?? {};
     if (!tran_id) {
@@ -231,7 +248,10 @@ export class PaymentsController {
     }
 
     try {
-      await this.paymentsService.handlePaymentFailure(tranId, PaymentStatus.FAILED);
+      await this.paymentsService.handlePaymentFailure(
+        tranId,
+        PaymentStatus.FAILED,
+      );
     } catch {
       // still send user back to seat selection
     }

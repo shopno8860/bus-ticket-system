@@ -4,7 +4,10 @@ import { ConfigService } from '@nestjs/config';
  * Parses env minutes into a finite positive value capped at 60.
  * ENV থেকে মিনিট পড়ার সময় invalid/negative হলে fallback নেয় এবং max 60 মিনিট cap করে।
  */
-function clampPositiveMinutes(raw: string | undefined, fallback: number): number {
+function clampPositiveMinutes(
+  raw: string | undefined,
+  fallback: number,
+): number {
   const n = Number(raw ?? fallback);
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(n, 60);
@@ -16,10 +19,7 @@ function clampPositiveMinutes(raw: string | undefined, fallback: number): number
  */
 export function seatLockMs(config: ConfigService): number {
   return (
-    clampPositiveMinutes(
-      config.get<string>('SEAT_SELECTION_LOCK_MINUTES'),
-      2,
-    ) *
+    clampPositiveMinutes(config.get<string>('SEAT_SELECTION_LOCK_MINUTES'), 2) *
     60 *
     1000
   );

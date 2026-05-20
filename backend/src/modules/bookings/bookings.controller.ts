@@ -7,11 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Booking } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
@@ -33,7 +29,9 @@ export class BookingsController {
   @Get('my-bookings')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'List current user bookings with trips and latest payment' })
+  @ApiOperation({
+    summary: 'List current user bookings with trips and latest payment',
+  })
   async findMyBookings(@CurrentUser() user: AuthenticatedUser): Promise<any[]> {
     return this.bookingsService.findMyBookings(user.sub);
   }
@@ -45,7 +43,8 @@ export class BookingsController {
   @Post()
   @ApiOperation({
     summary: 'Lock seats (creates PENDING booking)',
-    description: 'No JWT required for lock; returns lockExpiresAt. Confirm with PATCH /bookings/confirm when logged in.',
+    description:
+      'No JWT required for lock; returns lockExpiresAt. Confirm with PATCH /bookings/confirm when logged in.',
   })
   async create(@Body() createBookingDto: CreateBookingDto): Promise<{
     tripId: string;
@@ -62,7 +61,9 @@ export class BookingsController {
   @Patch('confirm')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Attach user and finalize PENDING booking before payment' })
+  @ApiOperation({
+    summary: 'Attach user and finalize PENDING booking before payment',
+  })
   async confirmBooking(
     @Body() confirmBookingDto: ConfirmBookingDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -77,7 +78,10 @@ export class BookingsController {
   @Get(':id')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Booking detail', description: 'Owner or ADMIN only.' })
+  @ApiOperation({
+    summary: 'Booking detail',
+    description: 'Owner or ADMIN only.',
+  })
   async findOne(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -94,7 +98,8 @@ export class BookingsController {
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Request cancellation for a confirmed booking',
-    description: 'Creates a pending refund request; ticket stays active until admin approves.',
+    description:
+      'Creates a pending refund request; ticket stays active until admin approves.',
   })
   async cancel(
     @Param('id') id: string,

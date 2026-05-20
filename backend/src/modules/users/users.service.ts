@@ -182,7 +182,10 @@ export class UsersService {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, 10);
+    const newPasswordHash = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      10,
+    );
 
     await this.prismaService.user.update({
       where: { id: userId },
@@ -216,21 +219,16 @@ export class UsersService {
     const PLATFORM_FEE_PER_SEAT_AC = 70;
     const PLATFORM_FEE_PER_SEAT_NON_AC = 40;
 
-    const [
-      totalUsers,
-      totalBuses,
-      totalTrips,
-      totalBookings,
-      pendingRefunds,
-    ] = await Promise.all([
-      this.prismaService.user.count(),
-      this.prismaService.bus.count(),
-      this.prismaService.trip.count(),
-      this.prismaService.booking.count(),
-      this.prismaService.refund.count({
-        where: { status: RefundStatus.PENDING },
-      }),
-    ]);
+    const [totalUsers, totalBuses, totalTrips, totalBookings, pendingRefunds] =
+      await Promise.all([
+        this.prismaService.user.count(),
+        this.prismaService.bus.count(),
+        this.prismaService.trip.count(),
+        this.prismaService.booking.count(),
+        this.prismaService.refund.count({
+          where: { status: RefundStatus.PENDING },
+        }),
+      ]);
 
     const platformRevenueAggregate = await this.prismaService.$queryRaw<
       Array<{ total: Prisma.Decimal | null }>
@@ -255,6 +253,15 @@ export class UsersService {
         WHERE p."bookingId" = b.id
           AND p.status IN ('SUCCESS', 'REFUNDED')
       )`;
+
+    const adminBookingRevenue = await this.prismaService.$queryRaw<
+      Array<{ total: Prisma.Decimal | null }>
+    >`SELECT COALESCE(SUM(
+        COALESCE("finalAmount", "totalAmount", 0)
+      ), 0)::numeric AS total
+      FROM "Booking"
+      WHERE "bookingSource" = 'ADMIN_BOOKING'
+        AND status = 'CONFIRMED'`;
 
     const now = new Date();
     const dayKeys: string[] = [];
@@ -337,6 +344,22 @@ export class UsersService {
       revenueCounts.set(row.day, Number(row.total ?? 0));
     });
 
+    const adminDailyRevenue = await this.prismaService.$queryRaw<
+      Array<{ day: string; total: Prisma.Decimal | null }>
+    >`SELECT to_char("createdAt"::date, 'YYYY-MM-DD') AS day,
+       SUM(COALESCE("finalAmount", "totalAmount", 0))::numeric AS total
+       FROM "Booking"
+       WHERE "bookingSource" = 'ADMIN_BOOKING'
+         AND status = 'CONFIRMED'
+         AND "createdAt" >= ${rangeStart}
+       GROUP BY day
+       ORDER BY day ASC`;
+    adminDailyRevenue.forEach((row) => {
+      if (!row.day) return;
+      const existing = revenueCounts.get(row.day) ?? 0;
+      revenueCounts.set(row.day, existing + Number(row.total ?? 0));
+    });
+
     const trendPoints: DashboardTrendPoint[] = dayKeys.map((key) => ({
       label: dayLabelMap.get(key) ?? key,
       bookings: bookingCounts.get(key) ?? 0,
@@ -384,9 +407,10 @@ export class UsersService {
       totalBuses,
       totalTrips,
       totalBookings,
-      totalRevenue: platformRevenueAggregate[0]?.total
-        ? platformRevenueAggregate[0].total.toString()
-        : '0',
+      totalRevenue: (
+        Number(platformRevenueAggregate[0]?.total ?? 0) +
+        Number(adminBookingRevenue[0]?.total ?? 0)
+      ).toString(),
       pendingRefunds,
       bookingTrends: trendPoints.map(({ label, bookings }) => ({
         label,

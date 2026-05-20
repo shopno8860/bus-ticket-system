@@ -7,15 +7,13 @@ import {
   NotFoundException,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Bus, UserRole } from '@prisma/client';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { BusesService } from './buses.service';
 import { CreateBusDto } from './dto/create-bus.dto';
 
@@ -30,8 +28,11 @@ export class BusesController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Create bus (ADMIN)' })
-  async create(@Body() createBusDto: CreateBusDto): Promise<Bus> {
-    return this.busesService.create(createBusDto);
+  async create(
+    @Body() createBusDto: CreateBusDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<Bus> {
+    return this.busesService.create(createBusDto, currentUser.operatorId!);
   }
 
   @Get()

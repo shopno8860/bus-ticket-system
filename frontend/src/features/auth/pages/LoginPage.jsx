@@ -25,7 +25,16 @@ const LoginPage = () => {
       return requestedRedirect;
     }
 
-    return normalizeRole(role) === 'ADMIN' ? '/admin/dashboard' : '/';
+    switch (normalizeRole(role)) {
+      case 'ADMIN':
+        return '/admin/dashboard';
+      case 'OPERATOR':
+        return '/operator/dashboard';
+      case 'STAFF':
+        return '/staff/dashboard';
+      default:
+        return '/';
+    }
   };
 
   // Redirect if already logged in

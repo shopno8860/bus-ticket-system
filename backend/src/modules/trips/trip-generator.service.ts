@@ -1,12 +1,18 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { BusClass, BusType, Prisma, TripStatus } from '@prisma/client';
+import {
+  BusClass,
+  BusType,
+  OperatorStatus,
+  Prisma,
+  TripStatus,
+} from '@prisma/client';
 import { BusSeederService } from '../buses/bus-seeder.service';
 import { RouteSeederService } from '../routes/route-seeder.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
-export class TripGeneratorService implements OnApplicationBootstrap {
+export class TripGeneratorService {
   private readonly logger = new Logger(TripGeneratorService.name);
   /** Fixed daily departures: hour (local) → bus category for that slot. */
   private readonly scheduleSlots: ReadonlyArray<{
@@ -44,14 +50,21 @@ export class TripGeneratorService implements OnApplicationBootstrap {
   ];
   private readonly tripDurationHours = 6;
   private readonly defaultGenerationDays = 4;
-  private readonly fallbackRoutes: Prisma.RouteCreateManyInput[] = [
-    { origin: 'Dhaka', destination: 'Gaibandha' },
-    { origin: 'Gaibandha', destination: 'Dhaka' },
+  private readonly fallbackRouteDefs = [
+    { origin: 'Dhaka', destination: 'Gaibandha', operatorSlug: 'alhamra' },
+    { origin: 'Gaibandha', destination: 'Dhaka', operatorSlug: 'alhamra' },
   ];
-  private readonly fallbackBuses: Prisma.BusCreateManyInput[] = [
+  private readonly fallbackBusDefs: Array<{
+    name: string;
+    operatorSlug: string;
+    registrationNumber: string;
+    seatCapacity: number;
+    busType: BusType;
+    busClass: BusClass;
+  }> = [
     {
       name: 'Alhamra AC Coach 1',
-      operatorName: 'Alhamra',
+      operatorSlug: 'alhamra',
       registrationNumber: 'AL-AC-001',
       seatCapacity: 28,
       busType: BusType.AC,
@@ -59,7 +72,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     },
     {
       name: 'Hanif Non-AC Coach 1',
-      operatorName: 'Hanif',
+      operatorSlug: 'hanif',
       registrationNumber: 'HN-NA-001',
       seatCapacity: 40,
       busType: BusType.NON_AC,
@@ -67,7 +80,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     },
     {
       name: 'Orin Sleeper AC 1',
-      operatorName: 'Orin',
+      operatorSlug: 'orin',
       registrationNumber: 'OR-SL-001',
       seatCapacity: 36,
       busType: BusType.SLEEPER,
@@ -82,7 +95,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     'sylhet',
     "cox's bazar",
   ]);
-  private readonly supportedOperators = new Set([
+  private readonly supportedOperatorSlugs = new Set([
     'alhamra',
     'orin',
     'hanif',
@@ -93,22 +106,6 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     private readonly routeSeederService: RouteSeederService,
     private readonly busSeederService: BusSeederService,
   ) {}
-
-  async onApplicationBootstrap(): Promise<void> {
-    try {
-      const createdTrips = await this.createTripsForUpcomingDays(
-        this.defaultGenerationDays,
-      );
-      this.logger.log(
-        `Startup trip sync completed for next ${this.defaultGenerationDays} days. Created trips: ${createdTrips}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Startup trip sync failed`,
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
-  }
 
   /**
    * Removes every trip. Cascades delete bookings, booking seats, payments, and refunds.
@@ -127,7 +124,14 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     routesCreated: number;
     busesCreated: number;
   }> {
-    const routesCreated = await this.routeSeederService.seedRoutes();
+    await this.ensureFallbackOperators();
+    const firstOperator = await this.prismaService.operator.findFirst({
+      where: { status: 'ACTIVE' },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const operatorId = firstOperator?.id;
+    const routesCreated = await this.routeSeederService.seedRoutes(operatorId);
     const busesCreated = await this.busSeederService.seedBuses();
     return { routesCreated, busesCreated };
   }
@@ -181,19 +185,24 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     await this.seedRoutesAndBuses();
     await this.ensureRequiredDataExists();
 
-    const [allRoutes, allBuses] = await Promise.all([
+    const [allRoutes, allBuses, operators] = await Promise.all([
       this.prismaService.route.findMany({
         select: { id: true, origin: true, destination: true },
       }),
       this.prismaService.bus.findMany({
-        select: { id: true, operatorName: true, busType: true, busClass: true },
+        select: { id: true, operatorId: true, busType: true, busClass: true },
+      }),
+      this.prismaService.operator.findMany({
+        where: { slug: { in: Array.from(this.supportedOperatorSlugs) } },
+        select: { id: true, slug: true },
       }),
     ]);
+    const supportedOperatorIds = new Set(operators.map((o) => o.id));
     const routes = allRoutes.filter((route) =>
       this.isSupportedRoute(route.origin, route.destination),
     );
     const buses = allBuses.filter((bus) =>
-      this.supportedOperators.has(bus.operatorName.trim().toLowerCase()),
+      supportedOperatorIds.has(bus.operatorId),
     );
 
     this.logger.debug(`Routes: ${routes.length}`);
@@ -247,11 +256,14 @@ export class TripGeneratorService implements OnApplicationBootstrap {
           tripsToCreate.push({
             routeId: route.id,
             busId: bus.id,
+            operatorId: bus.operatorId,
             boardingPoint: route.origin,
             droppingPoint: route.destination,
             departureTime,
             arrivalTime,
-            price: new Prisma.Decimal(this.getTicketPrice(bus.busType, bus.busClass)).toFixed(2),
+            price: new Prisma.Decimal(
+              this.getTicketPrice(bus.busType, bus.busClass),
+            ).toFixed(2),
             status: TripStatus.SCHEDULED,
           });
         }
@@ -310,11 +322,7 @@ export class TripGeneratorService implements OnApplicationBootstrap {
     return 800;
   }
 
-  private buildDepartureTime(
-    dayStart: Date,
-    hour: number,
-    minute = 0,
-  ): Date {
+  private buildDepartureTime(dayStart: Date, hour: number, minute = 0): Date {
     const year = dayStart.getFullYear();
     const month = dayStart.getMonth();
     const day = dayStart.getDate();
@@ -327,24 +335,74 @@ export class TripGeneratorService implements OnApplicationBootstrap {
       this.prismaService.bus.count(),
     ]);
 
+    await this.ensureFallbackOperators();
+
+    const operatorMap = new Map<string, string>();
+    const operators = await this.prismaService.operator.findMany({
+      where: { slug: { in: Array.from(this.supportedOperatorSlugs) } },
+      select: { id: true, slug: true },
+    });
+    for (const op of operators) {
+      operatorMap.set(op.slug, op.id);
+    }
+
     if (routeCount === 0) {
-      const result = await this.prismaService.route.createMany({
-        data: this.fallbackRoutes,
-        skipDuplicates: true,
-      });
-      this.logger.warn(
-        `No routes found. Seeded fallback routes. Created routes: ${result.count}`,
-      );
+      const fallbackRoutes = this.fallbackRouteDefs
+        .filter((r) => operatorMap.has(r.operatorSlug))
+        .map((r) => ({
+          origin: r.origin,
+          destination: r.destination,
+          operatorId: operatorMap.get(r.operatorSlug)!,
+        }));
+      if (fallbackRoutes.length > 0) {
+        const result = await this.prismaService.route.createMany({
+          data: fallbackRoutes,
+          skipDuplicates: true,
+        });
+        this.logger.warn(
+          `No routes found. Seeded fallback routes. Created routes: ${result.count}`,
+        );
+      }
     }
 
     if (busCount === 0) {
-      const result = await this.prismaService.bus.createMany({
-        data: this.fallbackBuses,
-        skipDuplicates: true,
+      const fallbackBuses = this.fallbackBusDefs
+        .filter((b) => operatorMap.has(b.operatorSlug))
+        .map((b) => ({
+          name: b.name,
+          registrationNumber: b.registrationNumber,
+          seatCapacity: b.seatCapacity,
+          busType: b.busType,
+          busClass: b.busClass,
+          operatorId: operatorMap.get(b.operatorSlug)!,
+        }));
+      if (fallbackBuses.length > 0) {
+        const result = await this.prismaService.bus.createMany({
+          data: fallbackBuses,
+          skipDuplicates: true,
+        });
+        this.logger.warn(
+          `No buses found. Seeded fallback buses. Created buses: ${result.count}`,
+        );
+      }
+    }
+  }
+
+  private async ensureFallbackOperators(): Promise<void> {
+    for (const slug of this.supportedOperatorSlugs) {
+      const existing = await this.prismaService.operator.findUnique({
+        where: { slug },
+        select: { id: true },
       });
-      this.logger.warn(
-        `No buses found. Seeded fallback buses. Created buses: ${result.count}`,
-      );
+      if (existing) continue;
+      await this.prismaService.operator.create({
+        data: {
+          companyName: slug.charAt(0).toUpperCase() + slug.slice(1),
+          slug,
+          status: OperatorStatus.ACTIVE,
+        },
+      });
+      this.logger.warn(`Created fallback operator: ${slug}`);
     }
   }
 

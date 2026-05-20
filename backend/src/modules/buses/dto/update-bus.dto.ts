@@ -12,13 +12,6 @@ export class UpdateBusDto {
   name?: string;
 
   @ApiPropertyOptional({
-    example: 'Green Line Paribahan',
-  })
-  @IsOptional()
-  @IsString()
-  operatorName?: string;
-
-  @ApiPropertyOptional({
     example: 'DHAKA-METRO-BA-1234',
   })
   @IsOptional()

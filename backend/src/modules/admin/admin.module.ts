@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import { AdminBookingsService } from '../admin-bookings/admin-bookings.service';
 import { BookingsModule } from '../bookings/bookings.module';
 import { BusesModule } from '../buses/buses.module';
+import { OperatorsModule } from '../operators/operators.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { RefundsModule } from '../refunds/refunds.module';
 import { RoutesModule } from '../routes/routes.module';
@@ -21,9 +23,10 @@ import { AuditLogService } from './audit-log.service';
     BusesModule,
     RoutesModule,
     SeatsModule,
+    OperatorsModule,
   ],
   controllers: [AdminController],
-  providers: [RolesGuard, AuditLogService],
+  providers: [RolesGuard, AuditLogService, AdminBookingsService],
   exports: [AuditLogService],
 })
 export class AdminModule {}

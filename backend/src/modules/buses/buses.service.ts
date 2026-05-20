@@ -16,12 +16,12 @@ export class BusesService {
     private readonly seatsService: SeatsService,
   ) {}
 
-  async create(createBusDto: CreateBusDto): Promise<Bus> {
+  async create(createBusDto: CreateBusDto, operatorId: string): Promise<Bus> {
     const normalizedCreateBusDto = this.normalizeCreateDto(createBusDto);
 
     try {
       const bus = await this.prismaService.bus.create({
-        data: normalizedCreateBusDto,
+        data: { ...normalizedCreateBusDto, operatorId },
       });
       await this.seatsService.createForBus(bus.id, { forceRegenerate: false });
       return bus;
@@ -40,6 +40,13 @@ export class BusesService {
       }
       throw error;
     }
+  }
+
+  async findByOperator(operatorId: string): Promise<Bus[]> {
+    return this.prismaService.bus.findMany({
+      where: { operatorId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async findAll(): Promise<Bus[]> {

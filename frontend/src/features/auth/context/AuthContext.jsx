@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
@@ -30,6 +30,12 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, [token]);
 
+  const role = useMemo(() => user?.role ?? null, [user]);
+  const isAdmin = role === 'ADMIN';
+  const isOperator = role === 'OPERATOR';
+  const isStaff = role === 'STAFF';
+  const isUser = role === 'USER';
+
   const login = async (email, password) => {
     const response = await apiFetch(endpoints.auth.login, {
       method: 'POST',
@@ -37,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     const { accessToken, user: userData } = response;
-    
+
     localStorage.setItem('accessToken', accessToken);
     setToken(accessToken);
     setUser(userData);
@@ -49,9 +55,7 @@ export const AuthProvider = ({ children }) => {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    
-    // After registration, we can either auto-login or redirect to login
-    // Let's redirect to login for simplicity or login immediately if response has token
+
     navigate('/auth/login');
   };
 
@@ -86,7 +90,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, register, loading, updateUserProfile, clearAuthState }}>
+    <AuthContext.Provider value={{ user, token, login, logout, register, loading, updateUserProfile, clearAuthState, role, isAdmin, isOperator, isStaff, isUser }}>
       {children}
     </AuthContext.Provider>
   );

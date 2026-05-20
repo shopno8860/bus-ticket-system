@@ -9,11 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Refund, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -43,6 +39,11 @@ import { UpdateTripDto } from '../trips/dto/update-trip.dto';
 import { TripsService } from '../trips/trips.service';
 import { ChangeUserRoleDto } from '../users/dto/change-user-role.dto';
 import { type UserResponse, UsersService } from '../users/users.service';
+import { AdminBookingsService } from '../admin-bookings/admin-bookings.service';
+import { CreateAdminBookingDto } from '../admin-bookings/dto/create-admin-booking.dto';
+import { OperatorsService } from '../operators/operators.service';
+import { CreateOperatorDto } from '../operators/dto/create-operator.dto';
+import { UpdateOperatorDto } from '../operators/dto/update-operator.dto';
 import { AuditLogService } from './audit-log.service';
 
 /**
@@ -64,6 +65,8 @@ export class AdminController {
     private readonly busesService: BusesService,
     private readonly routesService: RoutesService,
     private readonly seatsService: SeatsService,
+    private readonly adminBookingsService: AdminBookingsService,
+    private readonly operatorsService: OperatorsService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
@@ -74,7 +77,9 @@ export class AdminController {
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'Paginated user list (client-side slice of full list)' })
+  @ApiOperation({
+    summary: 'Paginated user list (client-side slice of full list)',
+  })
   async getUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
     const users = await this.usersService.findAll();
     return this.paginate(users, page, limit);
@@ -135,6 +140,18 @@ export class AdminController {
     return cancelled;
   }
 
+  @Post('bookings')
+  @ApiOperation({
+    summary:
+      'Admin creates a confirmed booking for a passenger (bypasses payment)',
+  })
+  async createAdminBooking(
+    @Body() dto: CreateAdminBookingDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.adminBookingsService.createAdminBooking(dto, currentUser.sub);
+  }
+
   @Get('payments')
   @ApiOperation({ summary: 'Filtered payments, paginated' })
   async getPayments(
@@ -158,7 +175,9 @@ export class AdminController {
   }
 
   @Patch('refunds/:id/approve')
-  @ApiOperation({ summary: 'Approve refund (may trigger SSLCommerz refund API)' })
+  @ApiOperation({
+    summary: 'Approve refund (may trigger SSLCommerz refund API)',
+  })
   async approveRefund(
     @Param('id') id: string,
     @Body() dto: ReviewRefundDto,
@@ -202,7 +221,9 @@ export class AdminController {
   }
 
   @Post('refunds/:id/ssl-sync')
-  @ApiOperation({ summary: 'Re-query SSLCommerz for refund status and persist outcome' })
+  @ApiOperation({
+    summary: 'Re-query SSLCommerz for refund status and persist outcome',
+  })
   async syncSslRefund(
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -231,7 +252,7 @@ export class AdminController {
     @Body() dto: CreateTripDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const trip = await this.tripsService.create(dto);
+    const trip = await this.tripsService.create(dto, currentUser.operatorId!);
     await this.auditLogService.logAction({
       actorUserId: currentUser.sub,
       action: 'create_trip',
@@ -294,7 +315,7 @@ export class AdminController {
     @Body() dto: CreateBusDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const bus = await this.busesService.create(dto);
+    const bus = await this.busesService.create(dto, currentUser.operatorId!);
     await this.auditLogService.logAction({
       actorUserId: currentUser.sub,
       action: 'create_bus',
@@ -345,7 +366,7 @@ export class AdminController {
     @Body() dto: CreateRouteDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    const route = await this.routesService.create(dto);
+    const route = await this.routesService.create(dto, currentUser.operatorId!);
     await this.auditLogService.logAction({
       actorUserId: currentUser.sub,
       action: 'create_route',
@@ -406,6 +427,93 @@ export class AdminController {
       payload: { seatsCreated: seats.length },
     });
     return seats;
+  }
+
+  // ── Operator CRUD ──────────────────────────────────────────────────────
+
+  @Get('operators')
+  @ApiOperation({ summary: 'List all operators' })
+  async getOperators() {
+    return this.operatorsService.findAll();
+  }
+
+  @Get('operators/:id')
+  @ApiOperation({ summary: 'Get operator details' })
+  async getOperator(@Param('id') id: string) {
+    return this.operatorsService.findOne(id);
+  }
+
+  @Post('operators')
+  @ApiOperation({ summary: 'Create operator (audit logged)' })
+  async createOperator(
+    @Body() dto: CreateOperatorDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const operator = await this.operatorsService.create(dto);
+    await this.auditLogService.logAction({
+      actorUserId: currentUser.sub,
+      action: 'create_operator',
+      targetType: 'operator',
+      targetId: operator.id,
+      payload: { companyName: dto.companyName },
+    });
+    return operator;
+  }
+
+  @Patch('operators/:id')
+  @ApiOperation({ summary: 'Update operator (audit logged)' })
+  async updateOperator(
+    @Param('id') id: string,
+    @Body() dto: UpdateOperatorDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const operator = await this.operatorsService.update(id, dto);
+    await this.auditLogService.logAction({
+      actorUserId: currentUser.sub,
+      action: 'update_operator',
+      targetType: 'operator',
+      targetId: id,
+      payload: dto as Record<string, unknown>,
+    });
+    return operator;
+  }
+
+  @Post('operators/:id/suspend')
+  @ApiOperation({ summary: 'Suspend operator (audit logged)' })
+  async suspendOperator(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const result = await this.operatorsService.suspend(id);
+    await this.auditLogService.logAction({
+      actorUserId: currentUser.sub,
+      action: 'suspend_operator',
+      targetType: 'operator',
+      targetId: id,
+    });
+    return result;
+  }
+
+  @Post('operators/:id/activate')
+  @ApiOperation({ summary: 'Activate operator (audit logged)' })
+  async activateOperator(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const result = await this.operatorsService.activate(id);
+    await this.auditLogService.logAction({
+      actorUserId: currentUser.sub,
+      action: 'activate_operator',
+      targetType: 'operator',
+      targetId: id,
+    });
+    return result;
+  }
+
+  @Get('operators/:id/stats')
+  @ApiOperation({ summary: 'Get operator stats' })
+  async getOperatorStats(@Param('id') id: string) {
+    return this.operatorsService.getStats(id);
   }
 
   private paginate<T>(items: T[], pageRaw: string, limitRaw: string) {

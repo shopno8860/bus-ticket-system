@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { config } from '../../../config';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiFetch } from '../../../services/api';
 import { endpoints } from '../../../services/endpoints';
 
-const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED'];
+const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED'];
 
 function BookingPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({
     status: '',
     date: '',
@@ -25,7 +27,6 @@ function BookingPage() {
 
   const bookingQuery = useMemo(() => {
     const params = new URLSearchParams();
-    // Backend currently supports only date/route/user filters for admin bookings.
     if (filters.date) params.set('date', filters.date);
     if (filters.routeId) params.set('route', filters.routeId);
     return params.toString();
@@ -203,6 +204,8 @@ function BookingPage() {
                   <th className="px-3 py-2 font-medium">Trip Info</th>
                   <th className="px-3 py-2 font-medium">Seats</th>
                   <th className="px-3 py-2 font-medium">Amount</th>
+                  <th className="px-3 py-2 font-medium">Discount</th>
+                  <th className="px-3 py-2 font-medium">Source</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Actions</th>
                 </tr>
@@ -233,7 +236,25 @@ function BookingPage() {
                     </td>
                     <td className="px-3 py-2 text-slate-700">{formatSeats(booking.bookingSeats)}</td>
                     <td className="px-3 py-2 text-slate-700">
-                      {formatAmount(booking.totalAmount ?? booking.amount ?? booking.trip?.price)}
+                      {formatAmount(booking.finalAmount || booking.totalAmount || booking.amount || booking.trip?.price)}
+                      {booking.discountAmount > 0 && (
+                        <p className="text-[10px] text-green-600">
+                          Orig: {formatAmount(booking.totalAmount)}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {booking.discountAmount > 0 ? (
+                        <span className="text-xs text-green-600 font-medium">
+                          -{formatAmount(booking.discountAmount)}
+                          {booking.discountType === 'PERCENTAGE' && ` (${booking.discountValue}%)`}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <SourceBadge source={booking.bookingSource} />
                     </td>
                     <td className="px-3 py-2">
                       <StatusBadge status={booking.status} />
@@ -248,11 +269,21 @@ function BookingPage() {
                         >
                           <IconView />
                         </button>
+                        {booking.bookingSource === 'ADMIN_BOOKING' && booking.status === 'CONFIRMED' && (
+                          <button
+                            type="button"
+                            title="Print Ticket"
+                            onClick={() => navigate(`/admin/booking/confirm`, { state: { booking } })}
+                            className="rounded-md border border-slate-200 p-1.5 text-emerald-600 transition hover:bg-emerald-50"
+                          >
+                            <IconPrint />
+                          </button>
+                        )}
                         <button
                           type="button"
                           title="Cancel Booking"
                           onClick={() => setBookingToCancel(booking)}
-                          disabled={booking.status === 'CANCELLED'}
+                          disabled={booking.status === 'CANCELLED' || booking.status === 'EXPIRED'}
                           className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <IconCancel />
@@ -288,6 +319,15 @@ function BookingPage() {
                 value={`${selectedBooking.trip?.bus?.name ?? '-'} | ${selectedBooking.trip?.route?.origin ?? '-'} -> ${selectedBooking.trip?.route?.destination ?? '-'} | ${formatDateTime(selectedBooking.trip?.departureTime)}`}
               />
               <DetailRow label="Seats" value={formatSeats(selectedBooking.bookingSeats)} />
+              <DetailRow label="Booking Source" value={selectedBooking.bookingSource === 'ADMIN_BOOKING' ? 'Admin Booking' : 'User Booking'} />
+              {selectedBooking.discountAmount > 0 && (
+                <>
+                  <DetailRow label="Discount Type" value={selectedBooking.discountType === 'PERCENTAGE' ? `Percentage (${selectedBooking.discountValue}%)` : `Fixed (${formatAmount(selectedBooking.discountValue)})`} />
+                  <DetailRow label="Discount Amount" value={formatAmount(selectedBooking.discountAmount)} />
+                  <DetailRow label="Original Fare" value={formatAmount(selectedBooking.totalAmount)} />
+                  <DetailRow label="Final Amount" value={formatAmount(selectedBooking.finalAmount)} />
+                </>
+              )}
               <DetailRow
                 label="Payment"
                 value={formatPayment(selectedBooking.payments?.[0] ?? selectedBooking.payment)}
@@ -296,6 +336,20 @@ function BookingPage() {
                 label="Refund"
                 value={formatRefund(selectedBooking.refunds?.[0] ?? selectedBooking.refund)}
               />
+              {selectedBooking.bookingSource === 'ADMIN_BOOKING' && selectedBooking.status === 'CONFIRMED' && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBooking(null);
+                      navigate(`/admin/booking/confirm`, { state: { booking: selectedBooking } });
+                    }}
+                    className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700"
+                  >
+                    Print Ticket
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -360,6 +414,21 @@ function BookingPage() {
   );
 }
 
+function SourceBadge({ source }) {
+  if (source === 'ADMIN_BOOKING') {
+    return (
+      <span className="inline-flex rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">
+        ADMIN
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+      USER
+    </span>
+  );
+}
+
 function FilterField({ label, children }) {
   return (
     <label className="min-w-[170px] flex-1">
@@ -383,6 +452,7 @@ function StatusBadge({ status }) {
     PENDING: 'bg-amber-100 text-amber-700',
     CONFIRMED: 'bg-emerald-100 text-emerald-700',
     CANCELLED: 'bg-rose-100 text-rose-700',
+    EXPIRED: 'bg-slate-100 text-slate-700',
   };
 
   return (
@@ -438,6 +508,14 @@ function IconView() {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
       <path d="M10 4.5c4.2 0 7.32 2.766 8.5 5.5-1.18 2.734-4.3 5.5-8.5 5.5S2.68 12.734 1.5 10c1.18-2.734 4.3-5.5 8.5-5.5Zm0 2c-2.745 0-4.973 1.58-6.18 3.5 1.207 1.92 3.435 3.5 6.18 3.5s4.973-1.58 6.18-3.5c-1.207-1.92-3.435-3.5-6.18-3.5Zm0 1.75a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5Z" />
+    </svg>
+  );
+}
+
+function IconPrint() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path fillRule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v3H5v-3ZM3 5.5A1.5 1.5 0 0 0 1.5 7v5A1.5 1.5 0 0 0 3 13.5h1.5v-1.5A1.5 1.5 0 0 1 6 10.5h8a1.5 1.5 0 0 1 1.5 1.5v1.5H17a1.5 1.5 0 0 0 1.5-1.5V7A1.5 1.5 0 0 0 17 5.5H3Zm2 6.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-4ZM6 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
     </svg>
   );
 }

@@ -138,6 +138,7 @@ export class RefundsService {
               bookingId: booking.id,
               paymentId: latestSuccessfulPayment.id,
               userId: booking.userId,
+              operatorId: booking.operatorId,
               reason: requestRefundDto.reason,
               amount: refundAmount,
               status: RefundStatus.PENDING,
@@ -221,9 +222,7 @@ export class RefundsService {
       refundTransId = `rfd_${randomBytes(12).toString('hex')}`;
       const refeId = `${snapshot.id}_${Date.now()}`.slice(0, 50);
       const reason =
-        adminNote?.trim() ||
-        snapshot.reason ||
-        'Admin approved refund';
+        adminNote?.trim() || snapshot.reason || 'Admin approved refund';
 
       sslResult = await this.sslCommerzRefundService.initiateRefund({
         bankTranId: bankTranIdTrimmed,
@@ -273,7 +272,8 @@ export class RefundsService {
             sslResult.approvalStatus ??
             sslResult.normalizedStatus,
           sslRawResponse: sslJson,
-          bankTranId: (bankTranIdTrimmed || snapshot.payment?.bankTranId) ?? null,
+          bankTranId:
+            (bankTranIdTrimmed || snapshot.payment?.bankTranId) ?? null,
           adminNote: mergedFailureNote ?? undefined,
         },
       });
@@ -300,7 +300,9 @@ export class RefundsService {
               throw new NotFoundException('Refund not found');
             }
             if (refund.status !== RefundStatus.PENDING) {
-              throw new ConflictException('Only pending refunds can be approved');
+              throw new ConflictException(
+                'Only pending refunds can be approved',
+              );
             }
 
             if (refund.paymentId) {
@@ -612,7 +614,7 @@ export class RefundsService {
               'Payment was not SUCCESS; cannot finalize refund from SSL query',
             );
           }
-//booking update
+          //booking update
           const bu = await tx.booking.updateMany({
             where: {
               id: r.bookingId,
@@ -862,7 +864,10 @@ export class RefundsService {
    * Lets a user check SSLCommerz refund status for their own refund reference.
    * Stored DB snapshot + live SSL query result একসাথে রিটার্ন করে।
    */
-  async getSslRefundStatusForUser(refundRefId: string, requesterUserId: string) {
+  async getSslRefundStatusForUser(
+    refundRefId: string,
+    requesterUserId: string,
+  ) {
     const row = await this.prismaService.refund.findFirst({
       where: {
         sslRefundRefId: refundRefId,
@@ -883,9 +888,8 @@ export class RefundsService {
       throw new NotFoundException('Refund not found');
     }
 
-    const live = await this.sslCommerzRefundService.queryRefundStatus(
-      refundRefId,
-    );
+    const live =
+      await this.sslCommerzRefundService.queryRefundStatus(refundRefId);
 
     return { stored: row, live };
   }
@@ -894,11 +898,16 @@ export class RefundsService {
    * Admin refunds list with optional filters (status, date).
    * Admin panel এর জন্য refund + booking/user/payment summary সহ রিটার্ন করে।
    */
-  async findAllAdmin(filters: AdminRefundsFilterDto) {
+  async findAllAdmin(filters: AdminRefundsFilterDto, operatorId?: string) {
     const where: {
       status?: RefundStatus;
       createdAt?: { gte: Date; lt: Date };
+      operatorId?: string;
     } = {};
+
+    if (operatorId) {
+      where.operatorId = operatorId;
+    }
 
     if (filters.status) {
       where.status = filters.status;

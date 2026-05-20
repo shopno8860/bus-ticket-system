@@ -6,11 +6,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Trip, UserRole } from '@prisma/client';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -48,7 +44,7 @@ export class TripsAdminController {
       targetBusId: createTripDto.busId,
       timestamp: new Date().toISOString(),
     });
-    return this.tripsService.create(createTripDto);
+    return this.tripsService.create(createTripDto, currentUser.operatorId!);
   }
 
   @Patch(':id')
@@ -115,12 +111,13 @@ export class TripsAdminController {
     const deletedTrips = body.replaceAllTrips
       ? await this.tripGeneratorService.deleteAllTrips()
       : 0;
-    const createdTrips = await this.tripGeneratorService.createTripsForUpcomingDays(
-      body.daysAhead ?? 4,
-      {
-        forceCreate: body.forceCreate ?? false,
-      },
-    );
+    const createdTrips =
+      await this.tripGeneratorService.createTripsForUpcomingDays(
+        body.daysAhead ?? 4,
+        {
+          forceCreate: body.forceCreate ?? false,
+        },
+      );
 
     return {
       routesCreated,
@@ -144,7 +141,9 @@ export class TripsAdminController {
   }
 
   @Post('generate-for-date/today')
-  @ApiOperation({ summary: 'Generate trips for today (Asia/Dhaka calendar day)' })
+  @ApiOperation({
+    summary: 'Generate trips for today (Asia/Dhaka calendar day)',
+  })
   async generateForToday(
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<{ date: string; createdTrips: number }> {

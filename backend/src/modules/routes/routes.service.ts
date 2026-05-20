@@ -16,14 +16,18 @@ export class RoutesService {
     private readonly routeSeederService: RouteSeederService,
   ) {}
 
-  async create(createRouteDto: CreateRouteDto): Promise<Route> {
+  async create(
+    createRouteDto: CreateRouteDto,
+    operatorId: string,
+  ): Promise<Route> {
     try {
       const route = await this.prismaService.route.create({
-        data: createRouteDto,
+        data: { ...createRouteDto, operatorId },
       });
       await this.routeSeederService.ensureReverseRoute(
         createRouteDto.origin,
         createRouteDto.destination,
+        operatorId,
       );
       return route;
     } catch (error: unknown) {
@@ -37,6 +41,13 @@ export class RoutesService {
       }
       throw error;
     }
+  }
+
+  async findByOperator(operatorId: string): Promise<Route[]> {
+    return this.prismaService.route.findMany({
+      where: { operatorId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async findAll(): Promise<Route[]> {

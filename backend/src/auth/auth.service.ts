@@ -25,7 +25,6 @@ type SafeUser = Omit<
   | 'resetPasswordExpires'
 >;
 
-/** JWT issuance, credential checks, refresh rotation, and password reset email flow. */
 @Injectable()
 export class AuthService {
   constructor(
@@ -35,7 +34,6 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
-  /** Create user with hashed password and return access + refresh tokens. */
   async register(registerDto: RegisterDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email.toLowerCase() },
@@ -60,10 +58,10 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
-  /** Validate email/password and return tokens plus sanitized user. */
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email.toLowerCase() },
+      include: { operator: { select: { status: true } } },
     });
 
     if (!user) {
@@ -79,10 +77,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    if (
+      (user.role === UserRole.OPERATOR || user.role === UserRole.STAFF) &&
+      user.operator?.status === 'SUSPENDED'
+    ) {
+      throw new UnauthorizedException(
+        'Your company account has been suspended. Please contact support.',
+      );
+    }
+
     return this.buildAuthResponse(user);
   }
 
-  /** Exchange refresh token for new pair after bcrypt compare against stored hash. */
   async refreshTokens(userId: string, refreshToken: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -104,7 +110,6 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
-  /** Clear refresh token hash so the old refresh token cannot be reused. */
   async logout(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },
@@ -116,7 +121,6 @@ export class AuthService {
     };
   }
 
-  /** Load user by id and strip secrets for client consumption. */
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -129,7 +133,6 @@ export class AuthService {
     return this.sanitizeUser(user);
   }
 
-  /** If email exists, store hashed reset token and send reset link (timing-safe response). */
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
     const email = forgotPasswordDto.email.toLowerCase();
     const user = await this.prisma.user.findUnique({
@@ -163,7 +166,6 @@ export class AuthService {
     };
   }
 
-  /** Validate reset token window, set new password, clear reset fields and refresh hash. */
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const hashedIncomingToken = this.hashToken(resetPasswordDto.token);
     const now = new Date();
@@ -198,7 +200,6 @@ export class AuthService {
     };
   }
 
-  /** Used by JWT strategy: ensure user still exists and return minimal auth principal. */
   async validateAccessTokenUser(payload: AuthenticatedUser) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
@@ -212,10 +213,13 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      operatorId: user.operatorId,
     };
   }
 
-  private async buildAuthResponse(user: User) {
+  private async buildAuthResponse(
+    user: User & { operator?: { status: string } | null },
+  ) {
     const tokens = await this.generateTokens(user);
     const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, 10);
 
@@ -236,6 +240,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      operatorId: user.operatorId,
     };
     const accessTokenExpiresIn = this.configService.getOrThrow<string>(
       'JWT_ACCESS_EXPIRES_IN',

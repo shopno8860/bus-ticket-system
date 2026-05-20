@@ -5,7 +5,7 @@ import { SeatsService } from '../seats/seats.service';
 
 type SeedBus = {
   name: string;
-  operatorName: string;
+  operatorSlug: string;
   registrationNumber: string;
   seatCapacity: number;
   busType: BusType;
@@ -19,7 +19,7 @@ export class BusSeederService {
   private readonly buses: SeedBus[] = [
     {
       name: 'Alhamra AC Coach 1',
-      operatorName: 'Alhamra',
+      operatorSlug: 'alhamra',
       registrationNumber: 'AL-AC-001',
       seatCapacity: 28,
       busType: BusType.AC,
@@ -27,7 +27,7 @@ export class BusSeederService {
     },
     {
       name: 'Alhamra AC Coach 2',
-      operatorName: 'Alhamra',
+      operatorSlug: 'alhamra',
       registrationNumber: 'AL-AC-002',
       seatCapacity: 36,
       busType: BusType.AC,
@@ -35,7 +35,7 @@ export class BusSeederService {
     },
     {
       name: 'Alhamra Non-AC Coach 1',
-      operatorName: 'Alhamra',
+      operatorSlug: 'alhamra',
       registrationNumber: 'AL-NA-001',
       seatCapacity: 40,
       busType: BusType.NON_AC,
@@ -43,7 +43,7 @@ export class BusSeederService {
     },
     {
       name: 'Alhamra Sleeper AC 1',
-      operatorName: 'Alhamra',
+      operatorSlug: 'alhamra',
       registrationNumber: 'AL-SL-001',
       seatCapacity: 36,
       busType: BusType.SLEEPER,
@@ -51,7 +51,7 @@ export class BusSeederService {
     },
     {
       name: 'Orin AC Coach 1',
-      operatorName: 'Orin',
+      operatorSlug: 'orin',
       registrationNumber: 'OR-AC-001',
       seatCapacity: 28,
       busType: BusType.AC,
@@ -59,7 +59,7 @@ export class BusSeederService {
     },
     {
       name: 'Orin AC Coach 2',
-      operatorName: 'Orin',
+      operatorSlug: 'orin',
       registrationNumber: 'OR-AC-002',
       seatCapacity: 36,
       busType: BusType.AC,
@@ -67,7 +67,7 @@ export class BusSeederService {
     },
     {
       name: 'Orin Non-AC Coach 1',
-      operatorName: 'Orin',
+      operatorSlug: 'orin',
       registrationNumber: 'OR-NA-001',
       seatCapacity: 40,
       busType: BusType.NON_AC,
@@ -75,7 +75,7 @@ export class BusSeederService {
     },
     {
       name: 'Orin Sleeper AC 1',
-      operatorName: 'Orin',
+      operatorSlug: 'orin',
       registrationNumber: 'OR-SL-001',
       seatCapacity: 36,
       busType: BusType.SLEEPER,
@@ -83,7 +83,7 @@ export class BusSeederService {
     },
     {
       name: 'Hanif AC Coach 1',
-      operatorName: 'Hanif',
+      operatorSlug: 'hanif',
       registrationNumber: 'HN-AC-001',
       seatCapacity: 28,
       busType: BusType.AC,
@@ -91,7 +91,7 @@ export class BusSeederService {
     },
     {
       name: 'Hanif AC Coach 2',
-      operatorName: 'Hanif',
+      operatorSlug: 'hanif',
       registrationNumber: 'HN-AC-002',
       seatCapacity: 36,
       busType: BusType.AC,
@@ -99,7 +99,7 @@ export class BusSeederService {
     },
     {
       name: 'Hanif Non-AC Coach 1',
-      operatorName: 'Hanif',
+      operatorSlug: 'hanif',
       registrationNumber: 'HN-NA-001',
       seatCapacity: 40,
       busType: BusType.NON_AC,
@@ -107,7 +107,7 @@ export class BusSeederService {
     },
     {
       name: 'Hanif Sleeper AC 1',
-      operatorName: 'Hanif',
+      operatorSlug: 'hanif',
       registrationNumber: 'HN-SL-001',
       seatCapacity: 36,
       busType: BusType.SLEEPER,
@@ -133,13 +133,34 @@ export class BusSeederService {
         continue;
       }
 
-      const created = await this.prismaService.bus.create({ data: bus });
+      const operator = await this.prismaService.operator.findUnique({
+        where: { slug: bus.operatorSlug },
+        select: { id: true, companyName: true },
+      });
+
+      if (!operator) {
+        this.logger.warn(
+          `Skipping bus ${bus.name}: operator with slug "${bus.operatorSlug}" not found`,
+        );
+        continue;
+      }
+
+      const created = await this.prismaService.bus.create({
+        data: {
+          name: bus.name,
+          registrationNumber: bus.registrationNumber,
+          seatCapacity: bus.seatCapacity,
+          busType: bus.busType,
+          busClass: bus.busClass,
+          operatorId: operator.id,
+        },
+      });
       await this.seatsService.createForBus(created.id, {
         forceRegenerate: false,
       });
       createdBuses += 1;
       this.logger.log(
-        `Created bus: ${created.operatorName} (${created.busType}) [${created.registrationNumber}]`,
+        `Created bus: ${operator.companyName} (${created.busType}) [${created.registrationNumber}]`,
       );
     }
 

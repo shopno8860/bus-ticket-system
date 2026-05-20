@@ -6,7 +6,7 @@ const Ticket = ({ booking, ticketRef }) => {
   if (!booking) return null;
 
   // =======================
-  // ✅ SAFE DATA
+  // SAFE DATA
   // =======================
   const bookingReference = booking?.bookingReference ?? 'N/A';
 
@@ -42,7 +42,7 @@ const Ticket = ({ booking, ticketRef }) => {
     booking?.bookingSeats?.map(s => s?.seat?.seatNumber).join(", ") || "N/A";
 
   // =======================
-  // ✅ FARE
+  // FARE with discount support
   // =======================
   const seatCount = booking?.bookingSeats?.length ?? 0;
   const seatPrice = Number(booking?.trip?.price ?? 0);
@@ -54,10 +54,19 @@ const Ticket = ({ booking, ticketRef }) => {
   const platformFee = seatCount * platformFeePerSeat;
   const insuranceFee = seatCount * insurancePerSeat;
   const fallbackTotal = seatTotal + platformFee + insuranceFee;
-  const total = Number(booking?.totalAmount ?? fallbackTotal);
+
+  // Discount fields from admin booking
+  const discountType = booking?.discountType;
+  const discountValue = booking?.discountValue;
+  const discountAmount = Number(booking?.discountAmount ?? 0);
+  const finalAmount = Number(booking?.finalAmount ?? 0);
+
+  // Determine display total: admin bookings use finalAmount, user bookings use totalAmount
+  const isAdminBooking = booking?.bookingSource === 'ADMIN_BOOKING';
+  const displayTotal = isAdminBooking && finalAmount > 0 ? finalAmount : Number(booking?.totalAmount ?? fallbackTotal);
 
   // =======================
-  // ✅ DYNAMIC LOGO
+  // DYNAMIC LOGO
   // =======================
   const getInitials = (name) => {
     if (!name) return "NA";
@@ -187,25 +196,48 @@ const Ticket = ({ booking, ticketRef }) => {
             <div className="border bg-[#eff6ff] rounded-md p-4">
               <p className="font-bold text-green-600 mb-2">PRICE DETAILS</p>
 
-              <div className="flex justify-between">
-                <span>Seat Total ({seatCount} × ৳{seatPrice})</span>
-                <span>৳{seatTotal}</span>
-              </div>
+              {isAdminBooking ? (
+                <>
+                  <div className="flex justify-between">
+                    <span>Seat Total ({seatCount} &times; ৳{seatPrice})</span>
+                    <span>৳{seatTotal}</span>
+                  </div>
 
-              <div className="flex justify-between mt-1">
-                <span>Platform Fee ({seatCount} × ৳{platformFeePerSeat})</span>
-                <span>৳{platformFee}</span>
-              </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between mt-1 text-green-600">
+                      <span>Discount {discountType === 'PERCENTAGE' ? `(${discountValue}%)` : '(Fixed)'}</span>
+                      <span>-৳{discountAmount}</span>
+                    </div>
+                  )}
 
-              <div className="flex justify-between mt-1">
-                <span>Insurance ({seatCount} × ৳{insurancePerSeat})</span>
-                <span>৳{insuranceFee}</span>
-              </div>
+                  <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
+                    <span>Final Amount</span>
+                    <span>৳{displayTotal}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span>Seat Total ({seatCount} &times; ৳{seatPrice})</span>
+                    <span>৳{seatTotal}</span>
+                  </div>
 
-              <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
-                <span>Total Payable</span>
-                <span>৳{total}</span>
-              </div>
+                  <div className="flex justify-between mt-1">
+                    <span>Platform Fee ({seatCount} &times; ৳{platformFeePerSeat})</span>
+                    <span>৳{platformFee}</span>
+                  </div>
+
+                  <div className="flex justify-between mt-1">
+                    <span>Insurance ({seatCount} &times; ৳{insurancePerSeat})</span>
+                    <span>৳{insuranceFee}</span>
+                  </div>
+
+                  <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
+                    <span>Total Payable</span>
+                    <span>৳{displayTotal}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="border border-red-300 bg-red-50 p-4 text-red-600 text-sm">
@@ -234,8 +266,10 @@ const Ticket = ({ booking, ticketRef }) => {
           </div>
 
           <div>
-            <p className="text-xs text-gray-400 uppercase">Transaction</p>
-            <p className="text-xs">{txn}</p>
+            <p className="text-xs text-gray-400 uppercase">
+              {isAdminBooking ? 'Booking Source' : 'Transaction'}
+            </p>
+            <p className="text-xs">{isAdminBooking ? 'Admin Booking' : txn}</p>
           </div>
         </div>
 
@@ -252,10 +286,20 @@ const Ticket = ({ booking, ticketRef }) => {
           </div>
 
           <div>
-            <p className="font-bold mb-2">PAYMENT INFO</p>
-            <p>Method: SSLCommerz</p>
-            <p>Transaction: {txn}</p>
-            <p>Status: PAID</p>
+            <p className="font-bold mb-2">{isAdminBooking ? 'BOOKING INFO' : 'PAYMENT INFO'}</p>
+            {isAdminBooking ? (
+              <>
+                <p>Booking Type: Admin Booking</p>
+                <p>Reference: {bookingReference}</p>
+                <p>Status: CONFIRMED</p>
+              </>
+            ) : (
+              <>
+                <p>Method: SSLCommerz</p>
+                <p>Transaction: {txn}</p>
+                <p>Status: PAID</p>
+              </>
+            )}
           </div>
         </div>
 

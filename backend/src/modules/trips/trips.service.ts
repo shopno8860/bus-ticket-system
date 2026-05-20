@@ -53,7 +53,18 @@ export class TripsService {
     return new Date(year, month - 1, day);
   }
 
-  async create(createTripDto: CreateTripDto): Promise<Trip> {
+  async findByOperator(operatorId: string) {
+    return this.prismaService.trip.findMany({
+      where: { operatorId },
+      include: { bus: true, route: true },
+      orderBy: { departureTime: 'asc' },
+    });
+  }
+
+  async create(
+    createTripDto: CreateTripDto,
+    operatorId: string,
+  ): Promise<Trip> {
     const departureDate = new Date(createTripDto.departureTime);
     const arrivalDate = new Date(createTripDto.arrivalTime);
 
@@ -77,6 +88,7 @@ export class TripsService {
         data: {
           busId: createTripDto.busId,
           routeId: createTripDto.routeId,
+          operatorId,
           boardingPoint: route.origin,
           droppingPoint: route.destination,
           departureTime: departureDate,
@@ -138,14 +150,18 @@ export class TripsService {
       BusClass.ECONOMY,
     ]);
 
-    if (busTypes.length > 0 || busClasses.length > 0) {
-      where.bus = {
-        is: {
-          ...(busTypes.length > 0 && { busType: { in: busTypes } }),
-          ...(busClasses.length > 0 && { busClass: { in: busClasses } }),
-        },
-      };
+    const busWhere: Prisma.BusWhereInput = {
+      operator: { status: { not: 'SUSPENDED' as const } },
+    };
+
+    if (busTypes.length > 0) {
+      busWhere.busType = { in: busTypes };
     }
+    if (busClasses.length > 0) {
+      busWhere.busClass = { in: busClasses };
+    }
+
+    where.bus = { is: busWhere };
 
     if (searchTripsDto.boardingPoint) {
       where.boardingPoint = {
@@ -243,9 +259,7 @@ export class TripsService {
     });
   }
 
-  async findAllAdmin(
-    filters: AdminTripsFilterDto,
-  ): Promise<{
+  async findAllAdmin(filters: AdminTripsFilterDto): Promise<{
     items: Array<Trip & { availableSeats: number }>;
     total: number;
     page: number;
@@ -254,7 +268,10 @@ export class TripsService {
   }> {
     const now = new Date();
     const page = this.parsePageNumber(filters.page ?? '1', 1);
-    const limit = Math.min(this.parsePageNumber(filters.limit ?? '10', 10), 100);
+    const limit = Math.min(
+      this.parsePageNumber(filters.limit ?? '10', 10),
+      100,
+    );
     const skip = (page - 1) * limit;
     const where: Prisma.TripWhereInput = {};
 
@@ -284,9 +301,11 @@ export class TripsService {
     if (filters.busOperator?.trim()) {
       where.bus = {
         is: {
-          operatorName: {
-            contains: filters.busOperator.trim(),
-            mode: 'insensitive',
+          operator: {
+            companyName: {
+              contains: filters.busOperator.trim(),
+              mode: 'insensitive',
+            },
           },
         },
       };
@@ -322,7 +341,10 @@ export class TripsService {
               tripId: { in: tripIds },
               OR: [
                 { status: BookingSeatStatus.RESERVED },
-                { status: BookingSeatStatus.LOCKED, lockExpiresAt: { gt: now } },
+                {
+                  status: BookingSeatStatus.LOCKED,
+                  lockExpiresAt: { gt: now },
+                },
               ],
             },
             _count: { _all: true },
@@ -541,6 +563,7 @@ export class TripsService {
             bookingId: booking.id,
             paymentId: payment.id,
             userId: booking.userId,
+            operatorId: booking.operatorId,
             reason: `Auto refund request due to trip cancellation`,
             amount: booking.totalAmount,
             status: RefundStatus.PENDING,

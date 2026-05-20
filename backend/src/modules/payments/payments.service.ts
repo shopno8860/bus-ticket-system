@@ -124,6 +124,7 @@ export class PaymentsService {
               totalAmount: true,
               status: true,
               paymentExpiresAt: true,
+              operatorId: true,
             },
           });
 
@@ -190,6 +191,7 @@ export class PaymentsService {
             data: {
               bookingId: booking.id,
               userId: booking.userId,
+              operatorId: booking.operatorId,
               amount: booking.totalAmount,
               method: createPaymentDto.method,
               status: PaymentStatus.PENDING,
@@ -219,7 +221,10 @@ export class PaymentsService {
             paymentUrl,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 15000,
+        },
       )
       .then(async (result) => {
         await this.notificationsService.notifyBookingUpdate({
@@ -314,7 +319,9 @@ export class PaymentsService {
               ...(bankMeta.bankTranId !== undefined
                 ? { bankTranId: bankMeta.bankTranId }
                 : {}),
-              ...(bankMeta.valId !== undefined ? { valId: bankMeta.valId } : {}),
+              ...(bankMeta.valId !== undefined
+                ? { valId: bankMeta.valId }
+                : {}),
             },
             select: paymentSafeSelect,
           });
@@ -343,7 +350,10 @@ export class PaymentsService {
             shouldSendEmail: true,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 15000,
+        },
       )
       .then(async ({ payment, shouldSendEmail }) => {
         if (!shouldSendEmail) {
@@ -472,7 +482,10 @@ export class PaymentsService {
 
           return updatedPayment;
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000 },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 15000,
+        },
       )
       .then(async (updatedPayment) => {
         await this.notificationsService.notifyBookingUpdate({
@@ -583,12 +596,17 @@ export class PaymentsService {
    * Admin payment list with optional filters (status, method, date).
    * Admin panel এ payment table/filter এর জন্য payment + booking(trip) + user data সহ রিটার্ন করে।
    */
-  async findAllAdmin(filters: AdminPaymentsFilterDto) {
+  async findAllAdmin(filters: AdminPaymentsFilterDto, operatorId?: string) {
     const where: {
       status?: PaymentStatus;
       method?: PaymentMethod;
       createdAt?: { gte: Date; lt: Date };
+      operatorId?: string;
     } = {};
+
+    if (operatorId) {
+      where.operatorId = operatorId;
+    }
 
     if (filters.status) {
       where.status = filters.status;
@@ -717,7 +735,9 @@ export class PaymentsService {
         const text = await response.text();
         const parsed: unknown = JSON.parse(text);
         raw =
-          typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          !Array.isArray(parsed)
             ? (parsed as Record<string, unknown>)
             : {};
       } catch (e) {
@@ -754,7 +774,11 @@ export class PaymentsService {
         }
       }
 
-      const bankTran = this.pickPayloadString(raw, 'bank_tran_id', 'bankTranId');
+      const bankTran = this.pickPayloadString(
+        raw,
+        'bank_tran_id',
+        'bankTranId',
+      );
       return {
         bankTranId: bankTran,
         valId,

@@ -12,7 +12,14 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  OPERATOR
+  STAFF
   USER
+}
+
+enum OperatorStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum Gender {
@@ -78,6 +85,36 @@ enum RefundStatus {
 }
 
 //////////////////////////////////////////////////////
+// OPERATOR
+//////////////////////////////////////////////////////
+
+model Operator {
+  id          String          @id @default(cuid())
+  companyName String          @unique
+  slug        String          @unique
+  logo        String?
+  email       String?
+  phone       String?
+  address     String?
+  description String?
+  status      OperatorStatus  @default(ACTIVE)
+
+  users       User[]
+  buses       Bus[]
+  routes      Route[]
+  trips       Trip[]
+  bookings    Booking[]
+  payments    Payment[]
+  refunds     Refund[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([slug])
+}
+
+//////////////////////////////////////////////////////
 // USER
 //////////////////////////////////////////////////////
 
@@ -94,16 +131,21 @@ model User {
   passportNumber    String?
   visaInfo          String?
   role              UserRole @default(USER)
+  operatorId        String?
   refreshTokenHash  String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
 
+  operator          Operator? @relation(fields: [operatorId], references: [id], onDelete: Cascade)
   bookings          Booking[]
   payments          Payment[]
   refunds           Refund[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([operatorId])
+  @@index([role])
 }
 
 //////////////////////////////////////////////////////
@@ -113,20 +155,22 @@ model User {
 model Bus {
   id                 String   @id @default(cuid())
   name               String
-  operatorName       String
+  operatorId         String
   registrationNumber String   @unique
   seatCapacity       Int
   busType            BusType
   busClass           BusClass @default(ECONOMY)
   status             BusStatus @default(ACTIVE)
 
+  operator           Operator @relation(fields: [operatorId], references: [id])
   seats              Seat[]
   trips              Trip[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  @@index([operatorName])
+  @@index([operatorId])
+  @@index([operatorId, status])
 }
 
 //////////////////////////////////////////////////////
@@ -135,15 +179,18 @@ model Bus {
 
 model Route {
   id          String   @id @default(cuid())
+  operatorId  String
   origin      String
   destination String
 
+  operator    Operator @relation(fields: [operatorId], references: [id])
   trips       Trip[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([origin, destination])
+  @@unique([operatorId, origin, destination])
+  @@index([operatorId])
   @@index([origin, destination])
 }
 
@@ -155,6 +202,7 @@ model Trip {
   id             String      @id @default(cuid())
   busId          String
   routeId        String
+  operatorId     String
   boardingPoint  String
   droppingPoint  String
 
@@ -169,6 +217,7 @@ model Trip {
 
   bus            Bus         @relation(fields: [busId], references: [id], onDelete: Restrict)
   route          Route       @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  operator       Operator    @relation(fields: [operatorId], references: [id])
 
   bookings       Booking[]
   bookingSeats   BookingSeat[]
@@ -178,6 +227,7 @@ model Trip {
 
   @@index([busId])
   @@index([routeId])
+  @@index([operatorId])
   @@index([departureTime])
   @@index([status, departureTime])
   @@unique([routeId, busId, departureTime])
@@ -214,16 +264,21 @@ model Booking {
 
   userId           String
   tripId           String
+  operatorId       String
 
   passengerName    String
   passengerPhone   String
 
   totalAmount      Decimal        @db.Decimal(10, 2)
 
-  /** After confirm: user must complete payment before this instant (Asia/server time). */
   paymentExpiresAt DateTime?
 
   status           BookingStatus  @default(PENDING)
+  bookingSource    String         @default("USER_BOOKING")
+  discountType     String?
+  discountValue    Decimal?       @db.Decimal(10, 2)
+  discountAmount   Decimal?       @db.Decimal(10, 2)
+  finalAmount      Decimal?       @db.Decimal(10, 2)
   refundAmount     Decimal?       @db.Decimal(10, 2)
   cancelledAt      DateTime?
   cancelReason     String?
@@ -231,6 +286,7 @@ model Booking {
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   trip             Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  operator         Operator       @relation(fields: [operatorId], references: [id])
 
   bookingSeats     BookingSeat[]
   payments         Payment[]
@@ -238,6 +294,11 @@ model Booking {
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([operatorId])
+  @@index([tripId])
+  @@index([status])
 }
 
 //////////////////////////////////////////////////////
@@ -261,7 +322,7 @@ model BookingSeat {
 
   createdAt     DateTime          @default(now())
 
-  @@unique([tripId, seatId]) // 🔥 prevents double booking
+  @@unique([tripId, seatId])
 }
 
 //////////////////////////////////////////////////////
@@ -273,6 +334,7 @@ model Payment {
 
   bookingId     String
   userId        String
+  operatorId    String
 
   amount        Decimal       @db.Decimal(10, 2)
   method        PaymentMethod
@@ -286,10 +348,15 @@ model Payment {
 
   booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operator      Operator      @relation(fields: [operatorId], references: [id])
 
   refunds       Refund[]
 
   createdAt     DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([operatorId])
+  @@index([status])
 }
 
 //////////////////////////////////////////////////////
@@ -302,6 +369,7 @@ model Refund {
   bookingId   String
   paymentId   String?
   userId      String
+  operatorId  String
 
   reason      String
   amount      Decimal      @db.Decimal(10, 2)
@@ -319,6 +387,11 @@ model Refund {
   booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   payment     Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operator    Operator     @relation(fields: [operatorId], references: [id])
 
   createdAt   DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([operatorId])
+  @@index([status])
 }

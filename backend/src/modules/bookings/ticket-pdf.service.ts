@@ -19,7 +19,13 @@ export class TicketPdfService {
         trip: {
           include: {
             route: true,
-            bus: true,
+            bus: {
+              include: {
+                operator: {
+                  select: { companyName: true },
+                },
+              },
+            },
           },
         },
         bookingSeats: {
@@ -44,7 +50,8 @@ export class TicketPdfService {
     }
 
     const bookingReference = booking.bookingReference ?? 'N/A';
-    const busOperator = booking.trip.bus.operatorName ?? 'Bus Operator';
+    const busOperator =
+      booking.trip.bus.operator?.companyName ?? 'Bus Operator';
     const busName = booking.trip.bus.name ?? 'N/A';
     const busType = booking.trip.bus.busType ?? 'N/A';
     const coach = booking.trip.bus.registrationNumber ?? 'N/A';
@@ -81,7 +88,9 @@ export class TicketPdfService {
     const seatTotal = seatCount * seatPrice;
     const platformFee = seatCount * platformFeePerSeat;
     const insuranceFee = seatCount * insurancePerSeat;
-    const totalPayable = Number(booking.totalAmount ?? seatTotal + platformFee + insuranceFee);
+    const totalPayable = Number(
+      booking.totalAmount ?? seatTotal + platformFee + insuranceFee,
+    );
 
     const drawKeyValue = (
       doc: any,
@@ -92,7 +101,10 @@ export class TicketPdfService {
       width = 500,
     ) => {
       doc.fontSize(9).fillColor('#6b7280').text(label, x, y, { width });
-      doc.fontSize(12).fillColor('#111827').text(value, x, y + 12, { width });
+      doc
+        .fontSize(12)
+        .fillColor('#111827')
+        .text(value, x, y + 12, { width });
     };
 
     return new Promise<Buffer>((resolve, reject) => {
@@ -110,12 +122,18 @@ export class TicketPdfService {
         .strokeColor('#e5e7eb')
         .stroke();
       doc.fontSize(22).fillColor('#111827').text(busOperator, 65, 62);
-      doc.fontSize(12).fillColor('#6b7280').text(`${busName} (${busType})`, 65, 92);
+      doc
+        .fontSize(12)
+        .fillColor('#6b7280')
+        .text(`${busName} (${busType})`, 65, 92);
       doc.fontSize(11).fillColor('#111827').text(contact, 65, 110);
       doc
         .fontSize(11)
         .fillColor('#111827')
-        .text(`PNR: ${bookingReference}`, 390, 80, { width: 140, align: 'right' });
+        .text(`PNR: ${bookingReference}`, 390, 80, {
+          width: 140,
+          align: 'right',
+        });
 
       // Left/Middle information blocks
       doc
@@ -126,7 +144,14 @@ export class TicketPdfService {
       drawKeyValue(doc, 'FROM', routeFrom, 165, 65, 210);
       drawKeyValue(doc, 'TO', routeTo, 205, 65, 210);
       drawKeyValue(doc, 'BOARDING POINT', routeFrom, 245, 65, 210);
-      drawKeyValue(doc, 'DEPARTURE TIME', `${journeyDate}  ${journeyTime}`, 285, 65, 210);
+      drawKeyValue(
+        doc,
+        'DEPARTURE TIME',
+        `${journeyDate}  ${journeyTime}`,
+        285,
+        65,
+        210,
+      );
 
       doc
         .roundedRect(305, 150, 240, 205, 8)
@@ -150,15 +175,15 @@ export class TicketPdfService {
         .fillColor('#111827')
         .text(`Seat Total (${seatCount} × BDT ${seatPrice})`, 65, 410)
         .text(`BDT ${seatTotal}`, 450, 410, { width: 80, align: 'right' })
-        .text(`Platform Fee (${seatCount} × BDT ${platformFeePerSeat})`, 65, 427)
+        .text(
+          `Platform Fee (${seatCount} × BDT ${platformFeePerSeat})`,
+          65,
+          427,
+        )
         .text(`BDT ${platformFee}`, 450, 427, { width: 80, align: 'right' })
         .text(`Insurance (${seatCount} × BDT ${insurancePerSeat})`, 65, 444)
         .text(`BDT ${insuranceFee}`, 450, 444, { width: 80, align: 'right' });
-      doc
-        .moveTo(65, 461)
-        .lineTo(530, 461)
-        .strokeColor('#93c5fd')
-        .stroke();
+      doc.moveTo(65, 461).lineTo(530, 461).strokeColor('#93c5fd').stroke();
       doc
         .fontSize(12)
         .fillColor('#166534')

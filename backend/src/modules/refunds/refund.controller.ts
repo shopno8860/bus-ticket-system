@@ -1,9 +1,5 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
@@ -23,9 +19,6 @@ export class RefundController {
     @Param('refundRefId') refundRefId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.refundsService.getSslRefundStatusForUser(
-      refundRefId,
-      user.sub,
-    );
+    return this.refundsService.getSslRefundStatusForUser(refundRefId, user.sub);
   }
 }

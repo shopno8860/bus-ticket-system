@@ -1,11 +1,11 @@
-import {
-  BadGatewayException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-export type SslRefundGatewayStatus = 'SUCCESS' | 'FAILED' | 'PROCESSING' | 'UNKNOWN';
+export type SslRefundGatewayStatus =
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'PROCESSING'
+  | 'UNKNOWN';
 
 export type SslRefundInitResult = {
   raw: Record<string, unknown>;
@@ -86,7 +86,10 @@ export class SslCommerzRefundService {
     }
   }
 
-  pickString(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
+  pickString(
+    obj: Record<string, unknown>,
+    ...keys: string[]
+  ): string | undefined {
     for (const k of keys) {
       const v = obj[k];
       if (v !== undefined && v !== null && String(v).trim() !== '') {
@@ -112,7 +115,11 @@ export class SslCommerzRefundService {
     for (const [k, v] of Object.entries(obj)) {
       const fullPath = path ? `${path}.${k}` : k;
       if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-        const inner = this.detectDeclinedApprovalInResponse(v, depth + 1, fullPath);
+        const inner = this.detectDeclinedApprovalInResponse(
+          v,
+          depth + 1,
+          fullPath,
+        );
         if (inner) return inner;
         continue;
       }
@@ -145,7 +152,9 @@ export class SslCommerzRefundService {
     return undefined;
   }
 
-  private resolveApprovalStatusString(raw: Record<string, unknown>): string | undefined {
+  private resolveApprovalStatusString(
+    raw: Record<string, unknown>,
+  ): string | undefined {
     const direct = this.pickString(
       raw,
       'approval_status',
@@ -194,7 +203,9 @@ export class SslCommerzRefundService {
    * - Optional `ApprovalStatus` / `approval_status` must not indicate cancel/fail.
    * - `success` + refund_ref_id is the documented happy path.
    */
-  private interpretInitiateRefundResponse(raw: Record<string, unknown>): SslRefundInitResult {
+  private interpretInitiateRefundResponse(
+    raw: Record<string, unknown>,
+  ): SslRefundInitResult {
     const apiConnect =
       this.pickString(raw, 'APIConnect', 'APICONNECT', 'ApiConnect') ?? '';
     const apiConnectUpper = apiConnect.toUpperCase();
@@ -224,8 +235,7 @@ export class SslCommerzRefundService {
         normalizedStatus: 'FAILED',
         refundRefId,
         errorReason:
-          errorReason ||
-          `SSL APIConnect is not DONE (got ${apiConnect})`,
+          errorReason || `SSL APIConnect is not DONE (got ${apiConnect})`,
         apiConnect: apiConnect || undefined,
         sslStatus,
         approvalStatus,
@@ -235,9 +245,16 @@ export class SslCommerzRefundService {
     const approvalLower = (approvalStatus ?? '').toLowerCase();
     if (
       approvalLower &&
-      ['cancel', 'cancelled', 'canceled', 'fail', 'failed', 'reject', 'declined', 'denied'].some(
-        (token) => approvalLower.includes(token),
-      )
+      [
+        'cancel',
+        'cancelled',
+        'canceled',
+        'fail',
+        'failed',
+        'reject',
+        'declined',
+        'denied',
+      ].some((token) => approvalLower.includes(token))
     ) {
       return {
         raw,
@@ -260,7 +277,8 @@ export class SslCommerzRefundService {
         normalizedStatus: 'FAILED',
         refundRefId,
         errorReason:
-          errorReason || 'SSL response missing APIConnect; cannot verify refund outcome',
+          errorReason ||
+          'SSL response missing APIConnect; cannot verify refund outcome',
         sslStatus,
         approvalStatus,
       };
@@ -295,7 +313,8 @@ export class SslCommerzRefundService {
         raw,
         normalizedStatus: 'UNKNOWN',
         refundRefId,
-        errorReason: errorReason || 'Missing status and refund_ref_id in SSL response',
+        errorReason:
+          errorReason || 'Missing status and refund_ref_id in SSL response',
         apiConnect: apiConnect || undefined,
         sslStatus,
         approvalStatus,
@@ -372,8 +391,7 @@ export class SslCommerzRefundService {
     if (!apiConnectUpper) {
       return {
         normalizedStatus: 'FAILED',
-        errorReason:
-          errorReason || 'SSL query response missing APIConnect',
+        errorReason: errorReason || 'SSL query response missing APIConnect',
       };
     }
 
@@ -503,7 +521,9 @@ export class SslCommerzRefundService {
     }
   }
 
-  async queryRefundStatus(refundRefId: string): Promise<Record<string, unknown>> {
+  async queryRefundStatus(
+    refundRefId: string,
+  ): Promise<Record<string, unknown>> {
     const storeId = this.getStoreId();
     const storePass = this.getStorePass();
     if (!storeId || !storePass) {

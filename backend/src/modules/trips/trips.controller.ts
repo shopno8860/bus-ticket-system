@@ -13,7 +13,8 @@ export class TripsController {
   @Get()
   @ApiOperation({
     summary: 'Search trips',
-    description: 'Query: origin, destination, date, busType, busClass, price filters, etc.',
+    description:
+      'Query: origin, destination, date, busType, busClass, price filters, etc.',
   })
   async findAll(
     @Query() searchTripsDto: SearchTripsDto,
@@ -22,7 +23,9 @@ export class TripsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Trip with bus, route, seats, and availability counts' })
+  @ApiOperation({
+    summary: 'Trip with bus, route, seats, and availability counts',
+  })
   async findOne(@Param('id') id: string) {
     return this.tripsService.findOneWithSeats(id);
   }
