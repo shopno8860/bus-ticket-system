@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -198,10 +199,15 @@ export class OperatorsService {
       password?: string;
       phoneNumber?: string;
     },
+    operatorId?: string,
   ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user || user.role !== 'STAFF')
       throw new NotFoundException('Staff user not found');
+
+    if (operatorId && user.operatorId !== operatorId) {
+      throw new ForbiddenException('Staff does not belong to your operator');
+    }
 
     const data: any = {};
     if (dto.fullName) data.fullName = dto.fullName;
@@ -222,10 +228,14 @@ export class OperatorsService {
     });
   }
 
-  async deleteStaff(id: string) {
+  async deleteStaff(id: string, operatorId?: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user || user.role !== 'STAFF')
       throw new NotFoundException('Staff user not found');
+
+    if (operatorId && user.operatorId !== operatorId) {
+      throw new ForbiddenException('Staff does not belong to your operator');
+    }
 
     await this.prisma.user.delete({ where: { id } });
     return { message: 'Staff user deleted' };

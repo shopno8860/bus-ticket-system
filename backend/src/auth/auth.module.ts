@@ -6,6 +6,7 @@ import { MailModule } from '../mail/mail.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RolesGuard } from './guards/roles.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { AccessTokenStrategy } from './strategies/access-token.strategy';
 
 @Module({
@@ -22,7 +23,7 @@ import { AccessTokenStrategy } from './strategies/access-token.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccessTokenStrategy, RolesGuard],
-  exports: [AuthService],
+  providers: [AuthService, AccessTokenStrategy, RolesGuard, PermissionsGuard],
+  exports: [AuthService, RolesGuard, PermissionsGuard],
 })
 export class AuthModule {}

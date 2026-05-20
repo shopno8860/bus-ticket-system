@@ -27,11 +27,9 @@ const LoginPage = () => {
 
     switch (normalizeRole(role)) {
       case 'ADMIN':
-        return '/admin/dashboard';
       case 'OPERATOR':
-        return '/operator/dashboard';
       case 'STAFF':
-        return '/staff/dashboard';
+        return '/dashboard/dashboard';
       default:
         return '/';
     }

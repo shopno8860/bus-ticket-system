@@ -36,7 +36,7 @@ import { UpdateStaffDto } from './dto/update-staff.dto';
 @ApiBearerAuth('JWT')
 @Controller('operator')
 @UseGuards(AccessTokenGuard, RolesGuard)
-@Roles(UserRole.OPERATOR, UserRole.STAFF)
+@Roles(UserRole.OPERATOR)
 export class OperatorsController {
   constructor(
     private readonly operatorsService: OperatorsService,

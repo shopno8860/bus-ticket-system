@@ -17,7 +17,7 @@ import { SeatsModule } from '../seats/seats.module';
     BookingsModule,
     SeatsModule,
   ],
-  controllers: [OperatorsController, StaffController, OperatorPublicController],
+  controllers: [OperatorPublicController],
   providers: [OperatorsService],
   exports: [OperatorsService],
 })

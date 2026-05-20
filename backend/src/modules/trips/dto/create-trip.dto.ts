@@ -3,10 +3,11 @@ import {
   IsDateString,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTripDto {
   @ApiProperty({
@@ -42,4 +43,11 @@ export class CreateTripDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
+
+  @ApiPropertyOptional({
+    description: 'Required when platform admin creates a trip',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

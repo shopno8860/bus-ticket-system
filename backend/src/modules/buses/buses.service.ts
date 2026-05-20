@@ -17,7 +17,10 @@ export class BusesService {
   ) {}
 
   async create(createBusDto: CreateBusDto, operatorId: string): Promise<Bus> {
-    const normalizedCreateBusDto = this.normalizeCreateDto(createBusDto);
+    const { operatorId: _ignored, ...busFields } = createBusDto;
+    const normalizedCreateBusDto = this.normalizeCreateDto(
+      busFields as CreateBusDto,
+    );
 
     try {
       const bus = await this.prismaService.bus.create({
@@ -65,6 +68,11 @@ export class BusesService {
     }
 
     return bus;
+  }
+
+  async getOperatorId(id: string): Promise<string> {
+    const bus = await this.findOneById(id);
+    return bus.operatorId;
   }
 
   async update(id: string, updateBusDto: UpdateBusDto): Promise<Bus> {

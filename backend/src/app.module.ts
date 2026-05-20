@@ -13,6 +13,8 @@ import { SeatsModule } from './modules/seats/seats.module';
 import { TripsModule } from './modules/trips/trips.module';
 import { UsersModule } from './modules/users/users.module';
 import { OperatorsModule } from './modules/operators/operators.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ScopingModule } from './common/scoping/scoping.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -20,8 +22,10 @@ import { PrismaModule } from './prisma/prisma.module';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    ScopingModule,
     AuthModule,
     AdminModule,
+    DashboardModule,
     BookingsModule,
     BusesModule,
     PaymentsModule,

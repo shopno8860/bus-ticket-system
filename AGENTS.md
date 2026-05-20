@@ -48,9 +48,11 @@ npm run dev             # http://localhost:5173
 
 | Role | Dashboard | Can manage |
 |------|-----------|------------|
-| ADMIN | `/admin/*` | Global: operators, all bookings, all buses, all trips |
-| OPERATOR | `/operator/*` | Own buses, routes, trips, bookings, payments, refunds, staff |
-| STAFF | `/staff/*` | Own bookings only (book tickets, view history) |
+| ADMIN | `/dashboard/*` | Global: operators, all bookings, all buses, all trips |
+| OPERATOR | `/dashboard/*` | Own buses, routes, trips, bookings, payments, refunds, staff |
+| STAFF | `/dashboard/*` | Own bookings only (book tickets, view history) |
+
+Legacy aliases `/admin/*`, `/operator/*`, `/staff/*` forward to `/dashboard/*`.
 | USER | Public site | Personal bookings only |
 
 JWT payload includes `operatorId` for OPERATOR/STAFF users. Suspended operators block all logins.
@@ -58,8 +60,8 @@ JWT payload includes `operatorId` for OPERATOR/STAFF users. Suspended operators 
 ## Architecture
 
 - **Backend**: NestJS modules, Controllers → Services pattern, `class-validator` DTOs with global `ValidationPipe` (`whitelist: true`, `forbidNonWhitelisted: true`).
-- **Admin endpoints**: Centralized in `modules/admin/`. Guarded by `Roles('ADMIN')`.
-- **Operator endpoints**: `modules/operators/` with `Roles('OPERATOR', 'STAFF')`.
+- **Dashboard endpoints**: Centralized in `modules/dashboard/` at `/dashboard/*`. Permission guard per route (`manage_buses`, etc.).
+- **Legacy aliases**: `/admin/*`, `/operator/*`, `/staff/*` delegate to dashboard handlers.
 - **Prisma 7**: Uses `prisma.config.ts` with `defineConfig`. Run `prisma:generate` after schema changes.
 - **Critical DB ops** (booking, payment, refund) use Prisma `$transaction({isolationLevel: 'Serializable'})` with `maxWait: 15000`.
 - **Cron jobs**: Trip generation (midnight + on startup), seat lock cleanup (30s), payment expiry (30s).
@@ -94,7 +96,5 @@ JWT payload includes `operatorId` for OPERATOR/STAFF users. Suspended operators 
 - `frontend/src/app/App.jsx` — Route definitions
 - `frontend/src/services/api.js` — Fetch wrapper with auto JWT attachment
 - `frontend/src/services/endpoints.js` — Centralized API paths
-- `frontend/src/features/operator/` — Operator dashboard pages
-- `frontend/src/features/staff/` — Staff dashboard pages
-- `frontend/src/features/admin/pages/OperatorsPage.jsx` — Admin operator management
+- `frontend/src/features/dashboard/` — Unified role-based dashboard (replaces admin/operator/staff)
 - `frontend/vercel.json` — SPA rewrites for Vercel deployment

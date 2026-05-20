@@ -1,7 +1,14 @@
 import { BusClass, BusType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBusDto {
   @ApiProperty({
@@ -37,4 +44,12 @@ export class CreateBusDto {
   })
   @IsEnum(BusClass)
   busClass: BusClass;
+
+  @ApiPropertyOptional({
+    description: 'Required when platform admin creates a bus',
+    example: 'operator-cuid',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

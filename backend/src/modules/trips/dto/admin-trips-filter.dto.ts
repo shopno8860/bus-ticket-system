@@ -43,4 +43,11 @@ export class AdminTripsFilterDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter trips by operator (platform admin)',
+  })
+  @IsOptional()
+  @IsString()
+  operatorId?: string;
 }

@@ -16,13 +16,19 @@ export class RoutesService {
     private readonly routeSeederService: RouteSeederService,
   ) {}
 
+  async getOperatorId(id: string): Promise<string> {
+    const route = await this.findOneById(id);
+    return route.operatorId;
+  }
+
   async create(
     createRouteDto: CreateRouteDto,
     operatorId: string,
   ): Promise<Route> {
+    const { operatorId: _ignored, ...routeData } = createRouteDto;
     try {
       const route = await this.prismaService.route.create({
-        data: { ...createRouteDto, operatorId },
+        data: { ...routeData, operatorId },
       });
       await this.routeSeederService.ensureReverseRoute(
         createRouteDto.origin,

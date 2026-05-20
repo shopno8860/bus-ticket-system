@@ -1,0 +1,42 @@
+-- Dashboard audit fields (createdBy / updatedBy)
+
+ALTER TABLE "Bus" ADD COLUMN IF NOT EXISTS "createdById" TEXT;
+ALTER TABLE "Bus" ADD COLUMN IF NOT EXISTS "updatedById" TEXT;
+ALTER TABLE "Route" ADD COLUMN IF NOT EXISTS "createdById" TEXT;
+ALTER TABLE "Route" ADD COLUMN IF NOT EXISTS "updatedById" TEXT;
+ALTER TABLE "Trip" ADD COLUMN IF NOT EXISTS "createdById" TEXT;
+ALTER TABLE "Trip" ADD COLUMN IF NOT EXISTS "updatedById" TEXT;
+ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "createdById" TEXT;
+ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "updatedById" TEXT;
+ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "createdById" TEXT;
+ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "updatedById" TEXT;
+ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Refund" ADD COLUMN IF NOT EXISTS "createdById" TEXT;
+ALTER TABLE "Refund" ADD COLUMN IF NOT EXISTS "updatedById" TEXT;
+ALTER TABLE "Refund" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "Bus" ADD CONSTRAINT "Bus_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Bus" ADD CONSTRAINT "Bus_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Route" ADD CONSTRAINT "Route_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Route" ADD CONSTRAINT "Route_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Trip" ADD CONSTRAINT "Trip_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Trip" ADD CONSTRAINT "Trip_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Booking" ADD CONSTRAINT "Booking_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Booking" ADD CONSTRAINT "Booking_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Refund" ADD CONSTRAINT "Refund_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+CREATE INDEX IF NOT EXISTS "Bus_createdById_idx" ON "Bus"("createdById");
+CREATE INDEX IF NOT EXISTS "Bus_updatedById_idx" ON "Bus"("updatedById");
+CREATE INDEX IF NOT EXISTS "Route_createdById_idx" ON "Route"("createdById");
+CREATE INDEX IF NOT EXISTS "Route_updatedById_idx" ON "Route"("updatedById");
+CREATE INDEX IF NOT EXISTS "Trip_createdById_idx" ON "Trip"("createdById");
+CREATE INDEX IF NOT EXISTS "Trip_updatedById_idx" ON "Trip"("updatedById");
+CREATE INDEX IF NOT EXISTS "Booking_createdById_idx" ON "Booking"("createdById");
+CREATE INDEX IF NOT EXISTS "Booking_updatedById_idx" ON "Booking"("updatedById");
+CREATE INDEX IF NOT EXISTS "Payment_createdById_idx" ON "Payment"("createdById");
+CREATE INDEX IF NOT EXISTS "Payment_updatedById_idx" ON "Payment"("updatedById");
+CREATE INDEX IF NOT EXISTS "Refund_createdById_idx" ON "Refund"("createdById");
+CREATE INDEX IF NOT EXISTS "Refund_updatedById_idx" ON "Refund"("updatedById");

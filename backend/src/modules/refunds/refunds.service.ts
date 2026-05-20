@@ -169,6 +169,18 @@ export class RefundsService {
    * - PROCESSING: refund stays PENDING and payment.refundStatus=SSL_PROCESSING
    * - SUCCESS (or SSL call not possible): finalize locally (payment REFUNDED, booking CANCELLED, seats released)
    */
+  async findOneById(id: string): Promise<Refund> {
+    const refund = await this.prismaService.refund.findUnique({
+      where: { id },
+    });
+
+    if (!refund) {
+      throw new NotFoundException('Refund not found');
+    }
+
+    return refund;
+  }
+
   async approve(
     refundId: string,
     adminUserId: string,

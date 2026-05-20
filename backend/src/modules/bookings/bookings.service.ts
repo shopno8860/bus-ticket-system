@@ -449,6 +449,19 @@ export class BookingsService {
     return this.prismaService.booking.count({ where: { operatorId } });
   }
 
+  async findOneForDashboard(id: string): Promise<{ operatorId: string }> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id },
+      select: { operatorId: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    return booking;
+  }
+
   async createStaffBooking(
     dto: {
       tripId: string;

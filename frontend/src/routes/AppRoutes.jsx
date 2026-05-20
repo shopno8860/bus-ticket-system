@@ -12,9 +12,8 @@ import SeatSelection from "../features/seats/pages/SeatSelection";
 import SearchResults from "../features/trips/pages/SearchResults";
 import ProfilePage from "../features/users/pages/ProfilePage";
 import ProtectedRoute from "../features/auth/components/ProtectedRoute";
-import AdminRoutes from "../features/admin/routes/AdminRoutes";
-import OperatorRoutes from "../features/operator/routes/OperatorRoutes";
-import StaffRoutes from "../features/staff/routes/StaffRoutes";
+import DashboardRoutes from "../features/dashboard/routes/DashboardRoutes";
+import LegacyDashboardRedirect from "./LegacyDashboardRedirect";
 
 import PaymentSuccess from "../features/payments/pages/PaymentSuccess";
 import PaymentFailed from "../features/payments/pages/PaymentFailed";
@@ -109,29 +108,16 @@ function AppRoutes() {
       />
 
       <Route
-        path="/admin/*"
+        path="/dashboard/*"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN']}>
-            <AdminRoutes />
+          <ProtectedRoute allowedRoles={['ADMIN', 'OPERATOR', 'STAFF']}>
+            <DashboardRoutes />
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/operator/*"
-        element={
-          <ProtectedRoute allowedRoles={['OPERATOR']}>
-            <OperatorRoutes />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/staff/*"
-        element={
-          <ProtectedRoute allowedRoles={['STAFF']}>
-            <StaffRoutes />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/admin/*" element={<LegacyDashboardRedirect />} />
+      <Route path="/operator/*" element={<LegacyDashboardRedirect />} />
+      <Route path="/staff/*" element={<LegacyDashboardRedirect />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

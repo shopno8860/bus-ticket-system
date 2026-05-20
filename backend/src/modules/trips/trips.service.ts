@@ -117,10 +117,15 @@ export class TripsService {
 
   async findAll(
     searchTripsDto: SearchTripsDto,
+    scopedOperatorId?: string,
   ): Promise<Array<Trip & { availableSeats: number }>> {
     const where: Prisma.TripWhereInput = {};
     const routeFilters: Prisma.RouteWhereInput = {};
     const now = new Date();
+
+    if (scopedOperatorId) {
+      where.operatorId = scopedOperatorId;
+    }
 
     if (searchTripsDto.origin) {
       routeFilters.origin = {
@@ -259,7 +264,10 @@ export class TripsService {
     });
   }
 
-  async findAllAdmin(filters: AdminTripsFilterDto): Promise<{
+  async findAllAdmin(
+    filters: AdminTripsFilterDto,
+    scopedOperatorId?: string,
+  ): Promise<{
     items: Array<Trip & { availableSeats: number }>;
     total: number;
     page: number;
@@ -274,6 +282,11 @@ export class TripsService {
     );
     const skip = (page - 1) * limit;
     const where: Prisma.TripWhereInput = {};
+
+    const operatorId = scopedOperatorId ?? filters.operatorId;
+    if (operatorId) {
+      where.operatorId = operatorId;
+    }
 
     if (filters.route?.trim()) {
       const routeText = filters.route.trim();
@@ -369,6 +382,11 @@ export class TripsService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async getOperatorId(id: string): Promise<string> {
+    const trip = await this.findOneById(id);
+    return trip.operatorId;
   }
 
   async findOneById(id: string): Promise<Trip> {
