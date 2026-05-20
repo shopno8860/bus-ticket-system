@@ -1,8 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../../../../services/api';
+import { endpoints } from '../../../../services/endpoints';
+import { showError, showLoading, showSuccess } from '../../../../utils/toastHelper';
 import SeatGrid from '../../../../components/seats/SeatGrid';
+import { lockDashboardSeats } from '../../services/dashboardApi';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
+
+const MAX_SELECTABLE = 4;
 
 function AdminSeatSelection() {
   const { tripId } = useParams();
@@ -14,6 +19,7 @@ function AdminSeatSelection() {
 
   const [tripData, setTripData] = useState(trip || null);
   const [loading, setLoading] = useState(!trip);
+  const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
 
@@ -28,7 +34,7 @@ function AdminSeatSelection() {
     const fetchTripDetails = async ({ silent = false } = {}) => {
       if (!silent) setLoading(true);
       try {
-        const data = await apiFetch(`/trips/${tripId}`);
+        const data = await apiFetch(endpoints.trips.details(tripId));
         if (!isMounted) return;
         setTripData(data);
         setError('');
@@ -82,8 +88,6 @@ function AdminSeatSelection() {
 
   const totalPrice = selectedSeats.length * PRICE_PER_SEAT;
 
-  const MAX_SELECTABLE = 10;
-
   const handleSeatClick = (seat) => {
     if (seat.seatState === 'reserved' || seat.seatState === 'locked') return;
     setSelectedSeats((prev) => {
@@ -93,19 +97,40 @@ function AdminSeatSelection() {
     });
   };
 
-  const handleContinue = () => {
+  const handleBack = () => {
+    navigate(-1);
+  };
+
+  const handleContinue = async () => {
     if (selectedSeats.length === 0) return;
-    navigate(bookingSummary, {
-      state: {
-        trip: tripData,
+
+    const loadingToastId = showLoading('Locking seats...');
+    setLocking(true);
+    try {
+      const lockResponse = await lockDashboardSeats({
         tripId,
-        selectedSeats,
-        selectedSeatNumbers: selectedSeatDetails.map((s) => s.seatNumber),
-        seatPrice: PRICE_PER_SEAT,
-        busType,
-        busClass,
-      },
-    });
+        seatIds: selectedSeats,
+      });
+      showSuccess('Seats held — complete booking before the timer expires', {
+        id: loadingToastId,
+      });
+      navigate(bookingSummary, {
+        state: {
+          trip: tripData,
+          tripId,
+          selectedSeats,
+          selectedSeatNumbers: selectedSeatDetails.map((s) => s.seatNumber),
+          seatPrice: PRICE_PER_SEAT,
+          busType,
+          busClass,
+          lockExpiresAt: lockResponse.lockExpiresAt,
+        },
+      });
+    } catch (err) {
+      showError(err.message || 'Could not lock seats', { id: loadingToastId });
+    } finally {
+      setLocking(false);
+    }
   };
 
   if (loading) {
@@ -165,7 +190,8 @@ function AdminSeatSelection() {
           </p>
         </div>
         <button
-          onClick={() => navigate(-1)}
+          type="button"
+          onClick={handleBack}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
           Back
@@ -173,9 +199,7 @@ function AdminSeatSelection() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Seat Grid */}
         <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          {/* Legend */}
           <div className="mb-5 flex flex-wrap gap-x-5 gap-y-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-3.5 w-3.5 rounded bg-gray-100 border border-gray-200"></span> Available
@@ -202,12 +226,11 @@ function AdminSeatSelection() {
               onSeatClick={handleSeatClick}
               busClass={busClass}
               busType={busType}
-              maxSelectable={10}
+              maxSelectable={MAX_SELECTABLE}
             />
           )}
         </div>
 
-        {/* Summary Sidebar */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm h-fit space-y-4">
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
             Selected Seats
@@ -224,6 +247,7 @@ function AdminSeatSelection() {
                 >
                   {s.seatNumber}
                   <button
+                    type="button"
                     onClick={() => setSelectedSeats((prev) => prev.filter((id) => id !== s.id))}
                     className="ml-1.5 text-emerald-400 hover:text-emerald-600"
                   >
@@ -250,11 +274,12 @@ function AdminSeatSelection() {
           </div>
 
           <button
+            type="button"
             onClick={handleContinue}
-            disabled={selectedSeats.length === 0}
+            disabled={selectedSeats.length === 0 || locking}
             className="w-full rounded-lg bg-[#0f172a] py-3 text-sm font-bold text-white uppercase tracking-wider transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-40 shadow-sm"
           >
-            Continue to Booking
+            {locking ? 'Locking...' : 'Continue to Booking'}
           </button>
         </div>
       </div>

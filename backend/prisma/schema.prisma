@@ -153,6 +153,7 @@ model User {
   paymentsUpdated   Payment[] @relation("PaymentUpdatedBy")
   refundsCreated    Refund[]  @relation("RefundCreatedBy")
   refundsUpdated    Refund[]  @relation("RefundUpdatedBy")
+  bookingSeatsLocked BookingSeat[] @relation("BookingSeatLockedBy")
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -356,14 +357,17 @@ model BookingSeat {
   price         Decimal           @db.Decimal(10, 2)
   status        BookingSeatStatus @default(LOCKED)
   lockExpiresAt DateTime?
+  lockedByUserId String?
 
   booking       Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   trip          Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
   seat          Seat              @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  lockedByUser  User?             @relation("BookingSeatLockedBy", fields: [lockedByUserId], references: [id], onDelete: SetNull)
 
   createdAt     DateTime          @default(now())
 
   @@unique([tripId, seatId])
+  @@index([tripId, lockedByUserId])
 }
 
 //////////////////////////////////////////////////////

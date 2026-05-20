@@ -190,6 +190,20 @@ export function cancelDashboardTrip(id, reason) {
   });
 }
 
+export function lockDashboardSeats(payload) {
+  return apiFetch(endpoints.dashboard.lockSeats, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function releaseDashboardSeats(payload) {
+  return apiFetch(endpoints.dashboard.releaseSeats, {
+    method: 'DELETE',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function createDashboardBooking(payload) {
   return apiFetch(endpoints.dashboard.createBooking, {
     method: 'POST',

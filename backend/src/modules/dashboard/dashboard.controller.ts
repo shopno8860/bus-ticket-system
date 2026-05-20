@@ -23,6 +23,7 @@ import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user
 import { TenantScopeService } from '../../common/scoping/tenant-scope.service';
 import { AdminBookingsFilterDto } from '../bookings/dto/admin-bookings-filter.dto';
 import { CancelBookingDto } from '../bookings/dto/cancel-booking.dto';
+import { CreateBookingDto } from '../bookings/dto/create-booking.dto';
 import { BookingsService } from '../bookings/bookings.service';
 import { BusesService } from '../buses/buses.service';
 import { CreateBusDto } from '../buses/dto/create-bus.dto';
@@ -193,6 +194,32 @@ export class DashboardController {
     }
 
     return cancelled;
+  }
+
+  @Post('bookings/lock')
+  @RequirePermissions(Permission.BOOK_TICKET)
+  @ApiOperation({ summary: 'Lock seats for manual booking (staff/operator hold)' })
+  lockSeatsForBooking(
+    @Body() dto: CreateBookingDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.dashboardBookingsService.lockSeatsForDashboard(
+      dto,
+      currentUser,
+    );
+  }
+
+  @Delete('bookings/lock')
+  @RequirePermissions(Permission.BOOK_TICKET)
+  @ApiOperation({ summary: 'Release own seat holds before confirm' })
+  releaseSeatsForBooking(
+    @Body() dto: CreateBookingDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.dashboardBookingsService.releaseSeatsForDashboard(
+      dto,
+      currentUser,
+    );
   }
 
   @Post('bookings')

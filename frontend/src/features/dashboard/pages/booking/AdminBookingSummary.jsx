@@ -1,21 +1,97 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createDashboardBooking } from '../../services/dashboardApi';
+import {
+  createDashboardBooking,
+  releaseDashboardSeats,
+} from '../../services/dashboardApi';
+import { showError } from '../../../../utils/toastHelper';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 
 function AdminBookingSummary() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { booking: bookingPath, bookingConfirm } = useOperatorHubPaths();
+  const { booking: bookingPath, bookingConfirm, bookingSeats } = useOperatorHubPaths();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [isExpired, setIsExpired] = useState(false);
 
-  // Discount state
   const [discountType, setDiscountType] = useState('none');
   const [discountValue, setDiscountValue] = useState('');
+
+  const tripId = state?.tripId;
+  const selectedSeats = state?.selectedSeats ?? [];
+  const lockExpiresAt = state?.lockExpiresAt;
+
+  const releaseHeldSeats = useCallback(async () => {
+    if (!tripId || !selectedSeats.length) return;
+    try {
+      await releaseDashboardSeats({ tripId, seatIds: selectedSeats });
+    } catch {
+      // best-effort
+    }
+  }, [tripId, selectedSeats]);
+
+  useEffect(() => {
+    if (!tripId) return undefined;
+
+    const storageKey = `dashboard_lock_expiry_${tripId}`;
+    const stored = localStorage.getItem(storageKey);
+    let expiryMs;
+    if (stored != null && stored !== '') {
+      expiryMs = Number(stored);
+      if (!Number.isFinite(expiryMs)) expiryMs = null;
+    }
+    if (expiryMs == null && lockExpiresAt) {
+      expiryMs = new Date(lockExpiresAt).getTime();
+      localStorage.setItem(storageKey, String(expiryMs));
+    }
+    if (expiryMs == null) {
+      expiryMs = Date.now() + 2 * 60 * 1000;
+      localStorage.setItem(storageKey, String(expiryMs));
+    }
+
+    const timer = setInterval(() => {
+      const distance = expiryMs - Date.now();
+      if (distance <= 0) {
+        clearInterval(timer);
+        setTimeLeft(0);
+        setIsExpired(true);
+        localStorage.removeItem(storageKey);
+      } else {
+        setTimeLeft(Math.floor(distance / 1000));
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [tripId, lockExpiresAt]);
+
+  useEffect(() => {
+    if (!isExpired || !tripId) return undefined;
+
+    const redirect = async () => {
+      await releaseHeldSeats();
+      showError('Your seat hold expired. Please select seats again.');
+      navigate(bookingSeats(tripId), { replace: true });
+    };
+
+    redirect();
+    return undefined;
+  }, [isExpired, tripId, navigate, bookingSeats, releaseHeldSeats]);
+
+  useEffect(() => {
+    return () => {
+      if (!tripId || !selectedSeats.length) return;
+      const storageKey = `dashboard_lock_expiry_${tripId}`;
+      if (localStorage.getItem(storageKey)) {
+        releaseDashboardSeats({ tripId, seatIds: selectedSeats }).catch(() => {});
+        localStorage.removeItem(storageKey);
+      }
+    };
+  }, [tripId, selectedSeats]);
 
   if (!state) {
     return (
@@ -30,11 +106,10 @@ function AdminBookingSummary() {
     );
   }
 
-  const { trip, tripId, selectedSeats, selectedSeatNumbers, seatPrice } = state;
+  const { trip, selectedSeatNumbers, seatPrice } = state;
 
   const seatTotal = selectedSeats.length * seatPrice;
 
-  // Calculate discount and final amount
   const { discountAmount, finalAmount, discountError } = useMemo(() => {
     const result = { discountAmount: 0, finalAmount: seatTotal, discountError: '' };
 
@@ -55,7 +130,6 @@ function AdminBookingSummary() {
       }
       result.discountAmount = (seatTotal * val) / 100;
     } else {
-      // FIXED
       result.discountAmount = val;
     }
 
@@ -69,7 +143,19 @@ function AdminBookingSummary() {
     return result;
   }, [discountType, discountValue, seatTotal]);
 
+  const formatTime = (seconds) => {
+    if (seconds === null) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleBookTicket = async () => {
+    if (isExpired) {
+      setError('Seat hold expired. Please select seats again.');
+      return;
+    }
+
     if (!name.trim() || !phone.trim()) {
       setError('Please enter passenger name and phone');
       return;
@@ -98,6 +184,8 @@ function AdminBookingSummary() {
 
       const result = await createDashboardBooking(payload);
 
+      localStorage.removeItem(`dashboard_lock_expiry_${tripId}`);
+
       navigate(bookingConfirm, {
         state: { booking: result },
       });
@@ -108,6 +196,12 @@ function AdminBookingSummary() {
     }
   };
 
+  const handleBack = async () => {
+    await releaseHeldSeats();
+    localStorage.removeItem(`dashboard_lock_expiry_${tripId}`);
+    navigate(bookingSeats(tripId), { replace: true });
+  };
+
   return (
     <div className="space-y-4 bg-slate-50 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -115,7 +209,21 @@ function AdminBookingSummary() {
           <h1 className="text-xl font-semibold text-slate-900">Booking Summary</h1>
           <p className="text-sm text-slate-500">Review booking details and confirm</p>
         </div>
+        <button
+          type="button"
+          onClick={handleBack}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+        >
+          Back to Seats
+        </button>
       </div>
+
+      {timeLeft !== null && !isExpired ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="font-semibold">Seat hold expires in {formatTime(timeLeft)}</span>
+          <span className="text-amber-700"> — complete booking before time runs out.</span>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
@@ -125,7 +233,6 @@ function AdminBookingSummary() {
               <div>
                 <p className="text-xs text-slate-500 uppercase">Bus</p>
                 <p className="font-semibold text-slate-800">{trip?.bus?.name ?? '-'}</p>
-                <p className="text-xs text-slate-500">{trip?.bus?.operatorName ?? '-'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 uppercase">Route</p>
@@ -181,7 +288,6 @@ function AdminBookingSummary() {
         </div>
 
         <div className="space-y-4">
-          {/* Price Details */}
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3">
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Price Details</h2>
 
@@ -207,7 +313,6 @@ function AdminBookingSummary() {
             </div>
           </div>
 
-          {/* Discount Section */}
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3">
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Apply Discount (Optional)</h2>
 
@@ -242,14 +347,13 @@ function AdminBookingSummary() {
               </label>
             )}
 
-            {discountError && (
+            {discountError ? (
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {discountError}
               </p>
-            )}
+            ) : null}
           </div>
 
-          {/* Book Button */}
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3">
             {error ? (
               <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -258,8 +362,9 @@ function AdminBookingSummary() {
             ) : null}
 
             <button
+              type="button"
               onClick={handleBookTicket}
-              disabled={loading || !!discountError}
+              disabled={loading || !!discountError || isExpired}
               className="w-full rounded-md bg-emerald-600 py-3 text-sm font-bold text-white uppercase tracking-wider transition hover:bg-emerald-700 disabled:opacity-50 shadow-lg shadow-emerald-100"
             >
               {loading ? (
@@ -274,8 +379,7 @@ function AdminBookingSummary() {
             </button>
 
             <p className="text-[10px] text-center text-slate-400">
-              By clicking "Book Ticket", the booking will be instantly confirmed.
-              No payment required from the passenger.
+              Seats are held until the timer expires. Booking is confirmed instantly with no passenger payment.
             </p>
           </div>
         </div>
