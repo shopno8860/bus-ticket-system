@@ -1,8 +1,13 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { tripApi } from "../../trips/services/tripApi";
 import { lockSeats } from "../../bookings/services/bookingApi";
 import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
+import { useTripSeatSync } from "../hooks/useTripSeatSync";
+import {
+  buildSeatsWithState,
+  mergeBookingSeatsSnapshots,
+} from "../utils/seatState";
 
 const SeatSelection = () => {
   // Route params: which trip we are selecting seats for.
@@ -13,7 +18,10 @@ const SeatSelection = () => {
   // API data + UI state
   const [tripData, setTripData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [locking, setLocking] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const realtimeBookingSeatsRef = useRef(null);
+  const fetchGenerationRef = useRef(0);
 
   useEffect(() => {
     // If user returned from SSLCommerz/payment flow, show a toast once based on `?payment=...`
@@ -50,74 +58,55 @@ const SeatSelection = () => {
     return undefined;
   }, [searchParams, setSearchParams, tripId]);
 
-  useEffect(() => {
-    // Fetch trip details (including current bookingSeats locks/reservations) and keep them fresh.
-    // This lets users see seats getting locked/reserved by others in near-real-time.
-    let isMounted = true;
-
-    const fetchTripDetails = async ({ silent = false } = {}) => {
+  const fetchTripDetails = useCallback(async ({ silent = false } = {}) => {
+    const generation = fetchGenerationRef.current + 1;
+    fetchGenerationRef.current = generation;
+    if (!silent) {
+      setLoading(true);
+    }
+    try {
+      const data = await tripApi.getTripDetails(tripId);
+      if (fetchGenerationRef.current !== generation) {
+        return;
+      }
+      const bookingSeats = mergeBookingSeatsSnapshots(
+        data.bookingSeats,
+        realtimeBookingSeatsRef.current,
+      );
+      setTripData({ ...data, bookingSeats });
+    } catch (err) {
+      if (fetchGenerationRef.current !== generation) {
+        return;
+      }
+      console.error("Failed to fetch trip details:", err);
       if (!silent) {
-        setLoading(true);
+        showError("Failed to load trip details");
       }
-      try {
-        const data = await tripApi.getTripDetails(tripId);
-        if (!isMounted) return;
-        setTripData(data);
-      } catch (err) {
-        if (!isMounted) return;
-        console.error("Failed to fetch trip details:", err);
-        if (!silent) {
-          showError("Failed to load trip details");
-        }
-      } finally {
-        if (isMounted && !silent) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchTripDetails();
-
-    // Keep seat states fresh so users can see locked seats quickly.
-    const refreshTimer = setInterval(() => {
-      fetchTripDetails({ silent: true });
-    }, 10000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(refreshTimer);
-    };
-  }, [tripId]);
-
-  const allSeats = useMemo(() => {
-    // Derive a seat list for rendering with a computed `seatState`:
-    // - reserved: already booked
-    // - locked: temporarily held by someone else (not expired yet)
-    // - available: can be selected
-    if (!tripData || !tripData.bus || !tripData.bus.seats) return [];
-
-    const now = Date.now();
-    const seatStatusById = new Map();
-    for (const bookingSeat of tripData.bookingSeats || []) {
-      if (bookingSeat.status === "RESERVED") {
-        seatStatusById.set(bookingSeat.seatId, "reserved");
-        continue;
-      }
-
-      if (
-        bookingSeat.status === "LOCKED" &&
-        bookingSeat.lockExpiresAt &&
-        new Date(bookingSeat.lockExpiresAt).getTime() > now
-      ) {
-        seatStatusById.set(bookingSeat.seatId, "locked");
+    } finally {
+      if (!silent && fetchGenerationRef.current === generation) {
+        setLoading(false);
       }
     }
+  }, [tripId]);
 
-    return tripData.bus.seats.map((seat) => ({
-      ...seat,
-      seatState: seatStatusById.get(seat.id) || "available",
-    }));
-  }, [tripData]);
+  useEffect(() => {
+    fetchTripDetails();
+  }, [fetchTripDetails]);
+
+  useTripSeatSync(tripId, {
+    enabled: Boolean(tripId),
+    onSeatsUpdated: (bookingSeats) => {
+      const rows = Array.isArray(bookingSeats) ? bookingSeats : [];
+      realtimeBookingSeatsRef.current = rows;
+      setTripData((prev) => (prev ? { ...prev, bookingSeats: rows } : prev));
+    },
+    onFallbackPoll: () => fetchTripDetails({ silent: true }),
+  });
+
+  const allSeats = useMemo(
+    () => buildSeatsWithState(tripData?.bus?.seats, tripData?.bookingSeats, null),
+    [tripData],
+  );
 
   // Per-seat price comes from the trip (string/number) so normalize as float.
   const PRICE_PER_SEAT = tripData ? parseFloat(tripData.price) : 0;
@@ -241,7 +230,7 @@ const SeatSelection = () => {
     
     const loadingToastId = showLoading("Locking seats...");
     try {
-      setLoading(true);
+      setLocking(true);
       const lockResponse = await lockSeats({
         tripId,
         seatIds: selectedSeats,
@@ -267,11 +256,11 @@ const SeatSelection = () => {
       console.error("Failed to lock seats:", err);
       showError("Seat already booked", { id: loadingToastId });
     } finally {
-      setLoading(false);
+      setLocking(false);
     }
   };
 
-  if (loading) {
+  if (loading && !tripData) {
     // Initial load / lock request in progress.
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -447,10 +436,10 @@ const SeatSelection = () => {
 
           <button
             onClick={handleContinue}
-            disabled={selectedSeats.length === 0}
+            disabled={selectedSeats.length === 0 || locking}
             className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold text-sm tracking-widest disabled:bg-gray-100 disabled:text-gray-300 transition-all active:scale-[0.98] shadow-lg shadow-green-100 uppercase"
           >
-            CONTINUE
+            {locking ? "LOCKING..." : "CONTINUE"}
           </button>
         </div>
       </div>
@@ -482,6 +471,18 @@ const SeatButton = ({ seat, isSelected, onClick }) => {
         disabled
         title="Temporarily locked by another user"
         className={`${base} bg-orange-100 border-orange-200 text-orange-500/60 cursor-not-allowed`}
+      >
+        {seatNumber}
+      </button>
+    );
+  }
+
+  if (seatState === "heldByMe") {
+    return (
+      <button
+        disabled
+        title="Held by you"
+        className={`${base} bg-green-600 border-green-800 text-white shadow-md cursor-default`}
       >
         {seatNumber}
       </button>

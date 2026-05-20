@@ -19,6 +19,7 @@ describe('DashboardBookingsService', () => {
   };
   let tenantScope: { assertResourceOwnership: jest.Mock };
   let configService: { get: jest.Mock };
+  let seatSyncService: { broadcastTripSeats: jest.Mock };
 
   const tripId = 'trip-1';
   const seatIds = ['seat-1', 'seat-2'];
@@ -35,11 +36,15 @@ describe('DashboardBookingsService', () => {
     configService = {
       get: jest.fn(() => undefined),
     };
+    seatSyncService = {
+      broadcastTripSeats: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new DashboardBookingsService(
       prisma as never,
       tenantScope as never,
       configService as unknown as ConfigService,
+      seatSyncService as never,
     );
   });
 
@@ -130,6 +135,55 @@ describe('DashboardBookingsService', () => {
           lockExpiresAt: null,
         },
       });
+    });
+  });
+
+  describe('extendDashboardSeatLocks', () => {
+    it('extends lock expiry for seats held by the current user', async () => {
+      prisma.trip.findUnique.mockResolvedValue({
+        id: tripId,
+        operatorId: 'operator-a',
+        status: 'SCHEDULED',
+      });
+      prisma.bookingSeat.updateMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.extendDashboardSeatLocks(
+        { tripId, seatIds },
+        staffUser,
+      );
+
+      expect(result.tripId).toBe(tripId);
+      expect(result.seatIds).toEqual(seatIds);
+      expect(result.extendedCount).toBe(2);
+      expect(result.lockExpiresAt).toBeInstanceOf(Date);
+      expect(prisma.bookingSeat.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            tripId,
+            seatId: { in: seatIds },
+            status: BookingSeatStatus.LOCKED,
+            lockedByUserId: staffUser.sub,
+            bookingId: null,
+          },
+          data: expect.objectContaining({
+            lockExpiresAt: expect.any(Date),
+          }),
+        }),
+      );
+      expect(seatSyncService.broadcastTripSeats).toHaveBeenCalledWith(tripId);
+    });
+
+    it('throws when not all seats are actively held', async () => {
+      prisma.trip.findUnique.mockResolvedValue({
+        id: tripId,
+        operatorId: 'operator-a',
+        status: 'SCHEDULED',
+      });
+      prisma.bookingSeat.updateMany.mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.extendDashboardSeatLocks({ tripId, seatIds }, staffUser),
+      ).rejects.toThrow(ConflictException);
     });
   });
 

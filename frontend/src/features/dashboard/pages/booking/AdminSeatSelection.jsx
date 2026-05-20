@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../../../../services/api';
 import { endpoints } from '../../../../services/endpoints';
@@ -6,6 +6,16 @@ import { showError, showLoading, showSuccess } from '../../../../utils/toastHelp
 import SeatGrid from '../../../../components/seats/SeatGrid';
 import { lockDashboardSeats } from '../../services/dashboardApi';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
+import { useAuth } from '../../../auth/context/AuthContext';
+import { useTripSeatSync } from '../../../seats/hooks/useTripSeatSync';
+import {
+  buildSeatsWithState,
+  mergeBookingSeatsSnapshots,
+} from '../../../seats/utils/seatState';
+import {
+  markDashboardHoldActive,
+  persistLockExpiry,
+} from '../../utils/dashboardSeatHold';
 
 const MAX_SELECTABLE = 4;
 
@@ -14,6 +24,7 @@ function AdminSeatSelection() {
   const location = useLocation();
   const navigate = useNavigate();
   const { bookingSummary } = useOperatorHubPaths();
+  const { user } = useAuth();
 
   const trip = location.state?.trip;
 
@@ -22,60 +33,63 @@ function AdminSeatSelection() {
   const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const realtimeBookingSeatsRef = useRef(null);
+  const fetchGenerationRef = useRef(0);
 
-  useEffect(() => {
-    if (trip && trip.bus?.seats) {
-      setLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const fetchTripDetails = async ({ silent = false } = {}) => {
+  const fetchTripDetails = useCallback(
+    async ({ silent = false } = {}) => {
+      const generation = fetchGenerationRef.current + 1;
+      fetchGenerationRef.current = generation;
       if (!silent) setLoading(true);
       try {
         const data = await apiFetch(endpoints.trips.details(tripId));
-        if (!isMounted) return;
-        setTripData(data);
+        if (fetchGenerationRef.current !== generation) {
+          return;
+        }
+        const bookingSeats = mergeBookingSeatsSnapshots(
+          data.bookingSeats,
+          realtimeBookingSeatsRef.current,
+        );
+        setTripData({ ...data, bookingSeats });
         setError('');
       } catch (err) {
-        if (!isMounted) return;
+        if (fetchGenerationRef.current !== generation) {
+          return;
+        }
         if (!silent) {
           setError(err.message || 'Failed to load trip details');
         }
       } finally {
-        if (isMounted && !silent) setLoading(false);
+        if (!silent && fetchGenerationRef.current === generation) {
+          setLoading(false);
+        }
       }
-    };
+    },
+    [tripId],
+  );
 
-    fetchTripDetails();
-
-    const refreshTimer = setInterval(() => {
-      fetchTripDetails({ silent: true });
-    }, 10000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(refreshTimer);
-    };
-  }, [tripId, trip]);
-
-  const allSeats = useMemo(() => {
-    if (!tripData?.bus?.seats) return [];
-    const now = Date.now();
-    const seatStatusById = new Map();
-    for (const bs of tripData.bookingSeats || []) {
-      if (bs.status === 'RESERVED') {
-        seatStatusById.set(bs.seatId, 'reserved');
-      } else if (bs.status === 'LOCKED' && bs.lockExpiresAt && new Date(bs.lockExpiresAt).getTime() > now) {
-        seatStatusById.set(bs.seatId, 'locked');
-      }
+  useEffect(() => {
+    if (trip?.bus?.seats) {
+      setLoading(false);
+      return;
     }
-    return tripData.bus.seats.map((seat) => ({
-      ...seat,
-      seatState: seatStatusById.get(seat.id) || 'available',
-    }));
-  }, [tripData]);
+    fetchTripDetails();
+  }, [tripId, trip, fetchTripDetails]);
+
+  useTripSeatSync(tripId, {
+    enabled: Boolean(tripId),
+    onSeatsUpdated: (bookingSeats) => {
+      const rows = Array.isArray(bookingSeats) ? bookingSeats : [];
+      realtimeBookingSeatsRef.current = rows;
+      setTripData((prev) => (prev ? { ...prev, bookingSeats: rows } : prev));
+    },
+    onFallbackPoll: () => fetchTripDetails({ silent: true }),
+  });
+
+  const allSeats = useMemo(
+    () => buildSeatsWithState(tripData?.bus?.seats, tripData?.bookingSeats, user?.id),
+    [tripData, user?.id],
+  );
 
   const PRICE_PER_SEAT = tripData ? parseFloat(tripData.price) : 0;
   const busClass = tripData?.bus?.busClass ?? 'ECONOMY';
@@ -89,7 +103,13 @@ function AdminSeatSelection() {
   const totalPrice = selectedSeats.length * PRICE_PER_SEAT;
 
   const handleSeatClick = (seat) => {
-    if (seat.seatState === 'reserved' || seat.seatState === 'locked') return;
+    if (
+      seat.seatState === 'reserved' ||
+      seat.seatState === 'locked' ||
+      seat.seatState === 'heldByMe'
+    ) {
+      return;
+    }
     setSelectedSeats((prev) => {
       if (prev.includes(seat.id)) return prev.filter((s) => s !== seat.id);
       if (prev.length >= MAX_SELECTABLE) return prev;
@@ -111,6 +131,8 @@ function AdminSeatSelection() {
         tripId,
         seatIds: selectedSeats,
       });
+      persistLockExpiry(tripId, lockResponse.lockExpiresAt);
+      markDashboardHoldActive(tripId, selectedSeats);
       showSuccess('Seats held — complete booking before the timer expires', {
         id: loadingToastId,
       });

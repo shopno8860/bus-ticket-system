@@ -401,6 +401,28 @@ export class TripsService {
     return trip;
   }
 
+  async getActiveBookingSeatsForTrip(tripId: string) {
+    const now = new Date();
+    return this.prismaService.bookingSeat.findMany({
+      where: {
+        tripId,
+        OR: [
+          { status: BookingSeatStatus.RESERVED },
+          {
+            status: BookingSeatStatus.LOCKED,
+            lockExpiresAt: { gt: now },
+          },
+        ],
+      },
+      select: {
+        seatId: true,
+        status: true,
+        lockExpiresAt: true,
+        lockedByUserId: true,
+      },
+    });
+  }
+
   async findOneWithSeats(
     id: string,
   ): Promise<Trip & { availableSeats: number }> {

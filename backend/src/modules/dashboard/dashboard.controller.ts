@@ -222,6 +222,21 @@ export class DashboardController {
     );
   }
 
+  @Post('bookings/lock/extend')
+  @RequirePermissions(Permission.BOOK_TICKET)
+  @ApiOperation({
+    summary: 'Extend active manual-booking seat holds (heartbeat)',
+  })
+  extendSeatsForBooking(
+    @Body() dto: CreateBookingDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.dashboardBookingsService.extendDashboardSeatLocks(
+      dto,
+      currentUser,
+    );
+  }
+
   @Post('bookings')
   @RequirePermissions(Permission.BOOK_TICKET)
   @ApiOperation({ summary: 'Create confirmed manual booking' })

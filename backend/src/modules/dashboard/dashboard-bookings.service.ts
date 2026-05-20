@@ -19,6 +19,7 @@ import { dashboardSeatLockMs } from '../bookings/booking-timeouts.util';
 import { CreateBookingDto } from '../bookings/dto/create-booking.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAdminBookingDto } from '../admin-bookings/dto/create-admin-booking.dto';
+import { SeatSyncService } from '../seat-sync/seat-sync.service';
 
 @Injectable()
 export class DashboardBookingsService {
@@ -26,6 +27,7 @@ export class DashboardBookingsService {
     private readonly prismaService: PrismaService,
     private readonly tenantScope: TenantScopeService,
     private readonly configService: ConfigService,
+    private readonly seatSyncService: SeatSyncService,
   ) {}
 
   async lockSeatsForDashboard(
@@ -42,7 +44,7 @@ export class DashboardBookingsService {
     );
 
     try {
-      return await this.prismaService.$transaction(
+      const result = await this.prismaService.$transaction(
         async (transactionClient) => {
           const trip = await transactionClient.trip.findUnique({
             where: { id: dto.tripId },
@@ -182,6 +184,8 @@ export class DashboardBookingsService {
           maxWait: 15000,
         },
       );
+      await this.seatSyncService.broadcastTripSeats(result.tripId);
+      return result;
     } catch (error: unknown) {
       if (error instanceof ForbiddenException) {
         throw error;
@@ -227,7 +231,73 @@ export class DashboardBookingsService {
       },
     });
 
+    if (result.count > 0) {
+      await this.seatSyncService.broadcastTripSeats(dto.tripId);
+    }
+
     return { released: result.count };
+  }
+
+  /**
+   * Sliding-window extension while staff completes passenger info / summary.
+   * Keeps orphan LOCKED rows alive and out of cleanup until confirm or release.
+   */
+  async extendDashboardSeatLocks(
+    dto: CreateBookingDto,
+    user: AuthenticatedUser,
+  ): Promise<{
+    tripId: string;
+    seatIds: string[];
+    lockExpiresAt: Date;
+    extendedCount: number;
+  }> {
+    const now = new Date();
+    const lockExpiresAt = new Date(
+      now.getTime() + dashboardSeatLockMs(this.configService),
+    );
+
+    const trip = await this.prismaService.trip.findUnique({
+      where: { id: dto.tripId },
+      select: { id: true, operatorId: true, status: true },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    if (trip.status !== 'SCHEDULED') {
+      throw new BadRequestException('Trip is not available for booking');
+    }
+
+    this.tenantScope.assertResourceOwnership(user, trip.operatorId);
+
+    const result = await this.prismaService.bookingSeat.updateMany({
+      where: {
+        tripId: dto.tripId,
+        seatId: { in: dto.seatIds },
+        status: BookingSeatStatus.LOCKED,
+        lockedByUserId: user.sub,
+        bookingId: null,
+      },
+      data: {
+        lockExpiresAt,
+      },
+    });
+
+    if (result.count !== dto.seatIds.length) {
+      throw new ConflictException(
+        'Seat hold missing or expired. Lock seats again.',
+      );
+    }
+
+    await this.seatSyncService.broadcastTripSeats(dto.tripId);
+
+    return {
+      tripId: dto.tripId,
+      seatIds: dto.seatIds,
+      lockExpiresAt,
+      extendedCount: result.count,
+    };
   }
 
   async createManualBooking(
@@ -237,7 +307,7 @@ export class DashboardBookingsService {
     const now = new Date();
 
     try {
-      return await this.prismaService.$transaction(
+      const booking = await this.prismaService.$transaction(
         async (tx) => {
           const trip = await tx.trip.findUnique({
             where: { id: dto.tripId },
@@ -436,6 +506,8 @@ export class DashboardBookingsService {
           maxWait: 15000,
         },
       );
+      await this.seatSyncService.broadcastTripSeats(dto.tripId);
+      return booking;
     } catch (error: unknown) {
       if (error instanceof ForbiddenException) {
         throw error;

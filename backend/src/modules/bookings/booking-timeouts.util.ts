@@ -42,12 +42,15 @@ export function paymentWindowMs(config: ConfigService): number {
 
 /**
  * Lock duration for dashboard/staff seat holds (POST /dashboard/bookings/lock).
- * Falls back to SEAT_SELECTION_LOCK_MINUTES when DASHBOARD_SEAT_LOCK_MINUTES is unset.
+ * Uses DASHBOARD_SEAT_LOCK_MINUTES when set; otherwise same window as public seat lock.
+ * Holds are released explicitly when staff leaves the summary page (frontend + broadcast).
  */
 export function dashboardSeatLockMs(config: ConfigService): number {
   const dedicated = config.get<string>('DASHBOARD_SEAT_LOCK_MINUTES');
   if (dedicated != null && dedicated !== '') {
-    return clampPositiveMinutes(dedicated, 2) * 60 * 1000;
+    return (
+      clampPositiveMinutes(dedicated, 2) * 60 * 1000
+    );
   }
   return seatLockMs(config);
 }

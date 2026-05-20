@@ -1,11 +1,10 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  createDashboardBooking,
-  releaseDashboardSeats,
-} from '../../services/dashboardApi';
+import { createDashboardBooking } from '../../services/dashboardApi';
 import { showError } from '../../../../utils/toastHelper';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
+import { useDashboardSummarySeatLifecycle } from '../../hooks/useDashboardSummarySeatLifecycle';
+import { readLockExpiryMs } from '../../utils/dashboardSeatHold';
 
 function AdminBookingSummary() {
   const { state } = useLocation();
@@ -18,6 +17,7 @@ function AdminBookingSummary() {
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
   const [isExpired, setIsExpired] = useState(false);
+  const expiryHandledRef = useRef(false);
 
   const [discountType, setDiscountType] = useState('none');
   const [discountValue, setDiscountValue] = useState('');
@@ -26,43 +26,37 @@ function AdminBookingSummary() {
   const selectedSeats = state?.selectedSeats ?? [];
   const lockExpiresAt = state?.lockExpiresAt;
 
-  const releaseHeldSeats = useCallback(async () => {
-    if (!tripId || !selectedSeats.length) return;
-    try {
-      await releaseDashboardSeats({ tripId, seatIds: selectedSeats });
-    } catch {
-      // best-effort
+  const { markBookingCompleted, releaseHeldSeats } = useDashboardSummarySeatLifecycle({
+    tripId,
+    seatIds: selectedSeats,
+    enabled: Boolean(tripId && selectedSeats.length),
+  });
+
+  const handleHoldExpired = useCallback(async () => {
+    if (expiryHandledRef.current) {
+      return;
     }
-  }, [tripId, selectedSeats]);
+    expiryHandledRef.current = true;
+    await releaseHeldSeats();
+    showError('Your seat hold expired. Please select seats again.');
+    navigate(bookingSeats(tripId), { replace: true });
+  }, [releaseHeldSeats, navigate, bookingSeats, tripId]);
 
   useEffect(() => {
     if (!tripId) return undefined;
 
-    const storageKey = `dashboard_lock_expiry_${tripId}`;
-    const stored = localStorage.getItem(storageKey);
-    let expiryMs;
-    if (stored != null && stored !== '') {
-      expiryMs = Number(stored);
-      if (!Number.isFinite(expiryMs)) expiryMs = null;
-    }
-    if (expiryMs == null && lockExpiresAt) {
-      expiryMs = new Date(lockExpiresAt).getTime();
-      localStorage.setItem(storageKey, String(expiryMs));
-    }
-    if (expiryMs == null) {
-      expiryMs = Date.now() + 2 * 60 * 1000;
-      localStorage.setItem(storageKey, String(expiryMs));
-    }
-
     const timer = setInterval(() => {
+      const expiryMs = readLockExpiryMs(tripId, lockExpiresAt);
+      if (expiryMs == null) {
+        return;
+      }
       const distance = expiryMs - Date.now();
       if (distance <= 0) {
-        clearInterval(timer);
         setTimeLeft(0);
         setIsExpired(true);
-        localStorage.removeItem(storageKey);
       } else {
         setTimeLeft(Math.floor(distance / 1000));
+        setIsExpired(false);
       }
     }, 1000);
 
@@ -71,27 +65,9 @@ function AdminBookingSummary() {
 
   useEffect(() => {
     if (!isExpired || !tripId) return undefined;
-
-    const redirect = async () => {
-      await releaseHeldSeats();
-      showError('Your seat hold expired. Please select seats again.');
-      navigate(bookingSeats(tripId), { replace: true });
-    };
-
-    redirect();
+    handleHoldExpired();
     return undefined;
-  }, [isExpired, tripId, navigate, bookingSeats, releaseHeldSeats]);
-
-  useEffect(() => {
-    return () => {
-      if (!tripId || !selectedSeats.length) return;
-      const storageKey = `dashboard_lock_expiry_${tripId}`;
-      if (localStorage.getItem(storageKey)) {
-        releaseDashboardSeats({ tripId, seatIds: selectedSeats }).catch(() => {});
-        localStorage.removeItem(storageKey);
-      }
-    };
-  }, [tripId, selectedSeats]);
+  }, [isExpired, tripId, handleHoldExpired]);
 
   if (!state) {
     return (
@@ -184,7 +160,7 @@ function AdminBookingSummary() {
 
       const result = await createDashboardBooking(payload);
 
-      localStorage.removeItem(`dashboard_lock_expiry_${tripId}`);
+      markBookingCompleted();
 
       navigate(bookingConfirm, {
         state: { booking: result },
@@ -198,7 +174,6 @@ function AdminBookingSummary() {
 
   const handleBack = async () => {
     await releaseHeldSeats();
-    localStorage.removeItem(`dashboard_lock_expiry_${tripId}`);
     navigate(bookingSeats(tripId), { replace: true });
   };
 
@@ -379,7 +354,7 @@ function AdminBookingSummary() {
             </button>
 
             <p className="text-[10px] text-center text-slate-400">
-              Seats are held until the timer expires. Booking is confirmed instantly with no passenger payment.
+              Seats stay locked while you are on this page. Leaving releases them for other staff.
             </p>
           </div>
         </div>

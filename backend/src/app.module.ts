@@ -14,6 +14,7 @@ import { TripsModule } from './modules/trips/trips.module';
 import { UsersModule } from './modules/users/users.module';
 import { OperatorsModule } from './modules/operators/operators.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { SeatSyncModule } from './modules/seat-sync/seat-sync.module';
 import { ScopingModule } from './common/scoping/scoping.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -36,6 +37,7 @@ import { PrismaModule } from './prisma/prisma.module';
     TripsModule,
     UsersModule,
     OperatorsModule,
+    SeatSyncModule,
   ],
 })
 export class AppModule {}

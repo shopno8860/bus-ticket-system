@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Ticket from '../../../../components/ticket/Ticket';
 import { downloadPDF } from '../../../../utils/pdf';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
+import { clearDashboardHoldSession } from '../../utils/dashboardSeatHold';
 
 function AdminBookingConfirm() {
   const { state } = useLocation();
@@ -24,6 +25,13 @@ function AdminBookingConfirm() {
   }
 
   const { booking } = state;
+  const tripId = booking?.tripId ?? booking?.trip?.id;
+
+  useEffect(() => {
+    if (tripId) {
+      clearDashboardHoldSession(tripId);
+    }
+  }, [tripId]);
 
   const handlePrint = () => {
     window.print();

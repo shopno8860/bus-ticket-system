@@ -18,6 +18,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SeatSyncService } from '../seat-sync/seat-sync.service';
 import { AdminPaymentsFilterDto } from './dto/admin-payments-filter.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
@@ -53,6 +54,7 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
+    private readonly seatSyncService: SeatSyncService,
   ) {}
 
   /**
@@ -366,6 +368,9 @@ export class PaymentsService {
           status: payment.status,
           message: 'Payment successful. Booking confirmed.',
         });
+
+        const tripId = paymentRow.booking.tripId;
+        await this.seatSyncService.broadcastTripSeats(tripId);
 
         return payment;
       });

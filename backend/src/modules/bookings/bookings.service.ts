@@ -25,6 +25,7 @@ import {
 } from '../../common/policies/cancellation-policy';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SeatSyncService } from '../seat-sync/seat-sync.service';
 import { paymentWindowMs, seatLockMs } from './booking-timeouts.util';
 import { AdminBookingsFilterDto } from './dto/admin-bookings-filter.dto';
 import { ConfirmBookingDto } from './dto/confirm-booking.dto';
@@ -66,6 +67,7 @@ export class BookingsService {
     private readonly prismaService: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
+    private readonly seatSyncService: SeatSyncService,
   ) {}
 
   /**
@@ -99,7 +101,7 @@ export class BookingsService {
     );
 
     try {
-      return await this.prismaService.$transaction(
+      const result = await this.prismaService.$transaction(
         async (transactionClient) => {
           const trip = await transactionClient.trip.findUnique({
             where: { id: createBookingDto.tripId },
@@ -221,6 +223,8 @@ export class BookingsService {
           maxWait: 15000,
         },
       );
+      await this.seatSyncService.broadcastTripSeats(result.tripId);
+      return result;
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -242,7 +246,7 @@ export class BookingsService {
   ): Promise<Booking> {
     const now = new Date();
     try {
-      return await this.prismaService.$transaction(
+      const booking = await this.prismaService.$transaction(
         async (transactionClient) => {
           console.log(
             'Confirming booking for trip:',
@@ -428,6 +432,8 @@ export class BookingsService {
           maxWait: 15000,
         },
       );
+      await this.seatSyncService.broadcastTripSeats(confirmBookingDto.tripId);
+      return booking;
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -496,7 +502,7 @@ export class BookingsService {
       (totalSeatPrice * Math.min(Math.max(discountPercent, 0), 100)) / 100;
     const finalAmount = totalSeatPrice - discountAmount;
 
-    return this.prismaService.$transaction(async (tx) => {
+    const booking = await this.prismaService.$transaction(async (tx) => {
       for (const seatId of dto.seatIds) {
         const existing = await tx.bookingSeat.findUnique({
           where: {
@@ -509,7 +515,7 @@ export class BookingsService {
 
       const bookingReference = `BKG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      const booking = await tx.booking.create({
+      return tx.booking.create({
         data: {
           bookingReference,
           tripId: dto.tripId,
@@ -538,9 +544,9 @@ export class BookingsService {
           bookingSeats: { include: { seat: true } },
         },
       });
-
-      return booking;
     });
+    await this.seatSyncService.broadcastTripSeats(dto.tripId);
+    return booking;
   }
 
   async findByOperator(operatorId: string) {

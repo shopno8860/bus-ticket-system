@@ -89,6 +89,7 @@ export const endpoints = {
     cancelBooking: (id) => `/dashboard/bookings/${id}/cancel`,
     createBooking: '/dashboard/bookings',
     lockSeats: '/dashboard/bookings/lock',
+    extendSeatLocks: '/dashboard/bookings/lock/extend',
     releaseSeats: '/dashboard/bookings/lock',
     payments: '/dashboard/payments',
     refunds: '/dashboard/refunds',

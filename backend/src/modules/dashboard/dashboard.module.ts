@@ -4,6 +4,7 @@ import { AdminModule } from '../admin/admin.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { BusesModule } from '../buses/buses.module';
 import { OperatorsModule } from '../operators/operators.module';
+import { SeatSyncModule } from '../seat-sync/seat-sync.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { RefundsModule } from '../refunds/refunds.module';
 import { RoutesModule } from '../routes/routes.module';
@@ -30,6 +31,7 @@ import {
     RoutesModule,
     SeatsModule,
     OperatorsModule,
+    SeatSyncModule,
   ],
   controllers: [
     DashboardController,

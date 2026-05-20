@@ -204,6 +204,13 @@ export function releaseDashboardSeats(payload) {
   });
 }
 
+export function extendDashboardSeatLocks(payload) {
+  return apiFetch(endpoints.dashboard.extendSeatLocks, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function createDashboardBooking(payload) {
   return apiFetch(endpoints.dashboard.createBooking, {
     method: 'POST',

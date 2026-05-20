@@ -123,6 +123,18 @@ function SeatButton({ seat, isSelected, onClick, maxSelectable, selectedCount })
     return <button disabled title="Temporarily locked by another user" className={`${base} bg-orange-100 border-orange-200 text-orange-500/60 cursor-not-allowed`}>{seatNumber}</button>;
   }
 
+  if (seatState === 'heldByMe') {
+    return (
+      <button
+        disabled
+        title="Held by you"
+        className={`${base} bg-emerald-600 border-emerald-800 text-white shadow-md cursor-default`}
+      >
+        {seatNumber}
+      </button>
+    );
+  }
+
   if (isSelected) {
     return <button onClick={onClick} className={`${base} bg-emerald-600 border-emerald-800 text-white shadow-md active:translate-y-0.5 active:border-b-0`}>{seatNumber}</button>;
   }
