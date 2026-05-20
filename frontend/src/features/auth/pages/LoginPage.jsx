@@ -20,16 +20,20 @@ const LoginPage = () => {
     ? `${fromState.pathname || ''}${fromState.search || ''}${fromState.hash || ''}`
     : null;
 
-  const resolvePostLoginRedirect = (role) => {
+  const resolvePostLoginRedirect = (authUser) => {
     if (requestedRedirect && !requestedRedirect.startsWith('/auth')) {
       return requestedRedirect;
     }
 
-    switch (normalizeRole(role)) {
+    const role = normalizeRole(authUser?.role);
+    switch (role) {
       case 'ADMIN':
+        return '/dashboard';
       case 'OPERATOR':
       case 'STAFF':
-        return '/dashboard/dashboard';
+        return authUser?.operatorId
+          ? `/dashboard/operators/${authUser.operatorId}`
+          : '/dashboard/dashboard';
       default:
         return '/';
     }
@@ -40,7 +44,7 @@ const LoginPage = () => {
     if (!token || authLoading || !user) {
       return;
     }
-    navigate(resolvePostLoginRedirect(user.role), { replace: true });
+    navigate(resolvePostLoginRedirect(user), { replace: true });
   }, [token, user, authLoading, navigate, requestedRedirect]);
 
   const handleSubmit = async (e) => {

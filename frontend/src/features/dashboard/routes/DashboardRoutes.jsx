@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import DashboardLayout from '../../../layouts/DashboardLayout';
 import BookingPage from '../pages/BookingPage';
 import BusPage from '../pages/BusPage';
-import Dashboard from '../pages/Dashboard';
+import OperatorDashboardRedirect from '../components/OperatorDashboardRedirect';
 import PaymentPage from '../pages/PaymentPage';
 import RefundPage from '../pages/RefundPage';
 import RoutePage from '../pages/RoutePage';
@@ -40,15 +40,7 @@ function DashboardRoutes() {
     <Routes>
       <Route element={<DashboardLayout />}>
         <Route index element={<RoleLandingRedirect />} />
-        <Route
-          path="dashboard"
-          element={
-            <>
-              <PageTitle title="Dashboard" />
-              <Dashboard />
-            </>
-          }
-        />
+        <Route path="dashboard" element={<OperatorDashboardRedirect />} />
         <Route
           path="users"
           element={

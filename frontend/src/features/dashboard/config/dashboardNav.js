@@ -12,6 +12,7 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 import { Permission } from './permissions';
+import { getOperatorHubTabPath, operatorHubTabs } from './operatorHubNav';
 
 /** Platform-level sidebar items (Super Admin primary navigation). */
 export const platformMenuItems = [
@@ -98,28 +99,25 @@ export const operationalMenuItems = [
   },
 ];
 
-export function getDashboardMenuItems({ isAdmin, operatorId }) {
-  const platform = platformMenuItems.filter((item) => {
-    if (item.adminOnly && !isAdmin) {
-      return false;
-    }
-    return true;
-  });
+/** Sidebar links for operator/staff company hub (matches horizontal tabs). */
+export function getOperatorHubMenuItems(operatorId) {
+  return operatorHubTabs.map((tab) => ({
+    to: getOperatorHubTabPath(operatorId, tab.segment),
+    label: tab.label,
+    icon: tab.icon,
+    permissions: tab.permissions,
+    adminOnly: false,
+    end: tab.segment === '' || tab.segment === 'booking',
+  }));
+}
 
+export function getDashboardMenuItems({ isAdmin, operatorId }) {
   if (isAdmin) {
-    return platform;
+    return platformMenuItems;
   }
 
   if (operatorId) {
-    return [
-      {
-        to: `/dashboard/operators/${operatorId}`,
-        label: 'My Company',
-        icon: FaBuilding,
-        permissions: [Permission.VIEW_DASHBOARD],
-        adminOnly: false,
-      },
-    ];
+    return getOperatorHubMenuItems(operatorId);
   }
 
   return [
@@ -129,6 +127,7 @@ export function getDashboardMenuItems({ isAdmin, operatorId }) {
       icon: FaChartPie,
       permissions: [Permission.VIEW_DASHBOARD],
       adminOnly: false,
+      end: true,
     },
   ];
 }
@@ -146,6 +145,17 @@ export const getDashboardPageTitle = (pathname, operatorName) => {
     if (pathname.endsWith('/refund')) return `${operatorName} — Refunds`;
     if (pathname.endsWith('/staff')) return `${operatorName} — Staff`;
     return operatorName;
+  }
+
+  const operatorMatch = pathname.match(/\/dashboard\/operators\/([^/]+)/);
+  if (operatorMatch) {
+    const hubItems = getOperatorHubMenuItems(operatorMatch[1]);
+    const activeHub = [...hubItems]
+      .sort((a, b) => b.to.length - a.to.length)
+      .find((item) => pathname.startsWith(item.to));
+    if (activeHub) {
+      return operatorName ? `${operatorName} — ${activeHub.label}` : activeHub.label;
+    }
   }
 
   const allItems = [...platformMenuItems, ...operationalMenuItems];

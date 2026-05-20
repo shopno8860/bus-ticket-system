@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   activateDashboardOperator,
   getDashboardOperators,
   suspendDashboardOperator,
 } from '../services/dashboardApi';
-import { operatorHubTabs, getOperatorHubTabPath } from '../config/operatorHubNav';
 import { useOperatorScope } from '../context/OperatorScopeContext';
 import { usePermissions } from '../hooks/usePermissions';
 
 function OperatorDetailLayout() {
   const { operatorId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { operator, loading, error } = useOperatorScope();
-  const { canAny, isAdmin } = usePermissions();
+  const { isAdmin } = usePermissions();
   const [allOperators, setAllOperators] = useState([]);
 
   useEffect(() => {
@@ -25,10 +25,6 @@ function OperatorDetailLayout() {
       .then((res) => setAllOperators(Array.isArray(res) ? res : res?.items ?? []))
       .catch(() => {});
   }, [isAdmin]);
-
-  const visibleTabs = operatorHubTabs.filter((tab) =>
-    canAny(...tab.permissions),
-  );
 
   const handleSuspend = useCallback(async () => {
     try {
@@ -55,12 +51,11 @@ function OperatorDetailLayout() {
     if (!nextId || nextId === operatorId) {
       return;
     }
-    const currentTab =
-      visibleTabs.find((tab) => {
-        const path = getOperatorHubTabPath(operatorId, tab.segment);
-        return window.location.pathname.startsWith(path) && tab.segment !== '';
-      })?.segment ?? '';
-    navigate(getOperatorHubTabPath(nextId, currentTab));
+    const hubPrefix = `/dashboard/operators/${operatorId}`;
+    const suffix = location.pathname.startsWith(hubPrefix)
+      ? location.pathname.slice(hubPrefix.length)
+      : '';
+    navigate(`/dashboard/operators/${nextId}${suffix}`);
   };
 
   if (loading) {
@@ -148,29 +143,6 @@ function OperatorDetailLayout() {
             ) : null}
           </div>
         </div>
-
-        <nav className="mt-6 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-          {visibleTabs.map(({ segment, label }) => {
-            const to = getOperatorHubTabPath(operatorId, segment);
-            const isBookingRoot = segment === 'booking';
-            return (
-              <NavLink
-                key={segment || 'overview'}
-                to={to}
-                end={segment === '' || isBookingRoot}
-                className={({ isActive }) =>
-                  `rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            );
-          })}
-        </nav>
       </section>
 
       <Outlet />

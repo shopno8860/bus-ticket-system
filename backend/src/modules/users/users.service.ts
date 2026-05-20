@@ -23,6 +23,7 @@ export type UserResponse = {
   passportNumber: string | null;
   visaInfo: string | null;
   role: UserRole;
+  operatorId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -61,6 +62,7 @@ const userProfileSelect = {
   passportNumber: true,
   visaInfo: true,
   role: true,
+  operatorId: true,
   createdAt: true,
   updatedAt: true,
 } as any;

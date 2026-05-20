@@ -10,10 +10,10 @@ function DashboardSidebar({
   onCloseMobile,
   onLogout,
 }) {
-  const { can, isAdmin, operatorId } = usePermissions();
+  const { canAny, isAdmin, operatorId } = usePermissions();
 
   const visibleItems = getDashboardMenuItems({ isAdmin, operatorId }).filter((item) =>
-    item.permissions.every((permission) => can(permission)),
+    canAny(...item.permissions),
   );
 
   return (
@@ -62,10 +62,11 @@ function DashboardSidebar({
           </div>
 
           <nav className="flex-1 space-y-2 px-3 py-4">
-            {visibleItems.map(({ to, label, icon: Icon }) => (
+            {visibleItems.map(({ to, label, icon: Icon, end = false }) => (
               <NavLink
                 key={to}
                 to={to}
+                end={end}
                 onClick={onCloseMobile}
                 className={({ isActive }) =>
                   `group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-all duration-200 ${

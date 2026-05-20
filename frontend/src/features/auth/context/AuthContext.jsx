@@ -30,7 +30,10 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, [token]);
 
-  const role = useMemo(() => user?.role ?? null, [user]);
+  const role = useMemo(() => {
+    const value = user?.role;
+    return typeof value === 'string' ? value.toUpperCase() : null;
+  }, [user]);
   const isAdmin = role === 'ADMIN';
   const isOperator = role === 'OPERATOR';
   const isStaff = role === 'STAFF';

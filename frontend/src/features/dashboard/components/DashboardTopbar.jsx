@@ -2,7 +2,16 @@ import { useState } from 'react';
 import { FaBell, FaCaretDown, FaUserCircle } from 'react-icons/fa';
 import { SidebarMobileToggle } from './DashboardSidebar';
 
+const roleLabels = {
+  ADMIN: 'Administrator',
+  OPERATOR: 'Operator',
+  STAFF: 'Staff',
+  USER: 'Passenger',
+};
+
 function Topbar({ pageTitle, user, onOpenMobile, onLogout }) {
+  const roleLabel =
+    roleLabels[typeof user?.role === 'string' ? user.role.toUpperCase() : ''] ?? 'User';
   const [profileOpen, setProfileOpen] = useState(false);
 
   return (
@@ -35,7 +44,7 @@ function Topbar({ pageTitle, user, onOpenMobile, onLogout }) {
                 <p className="text-sm font-bold leading-tight text-slate-800">
                   {user?.fullName || 'Admin User'}
                 </p>
-                <p className="text-xs text-slate-500">Administrator</p>
+                <p className="text-xs text-slate-500">{roleLabel}</p>
               </div>
               <FaCaretDown className="text-slate-500" />
             </button>

@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   getDashboardOperatorStats,
   getDashboardStats,
 } from '../services/dashboardApi';
-import { operatorHubTabs, getOperatorHubTabPath } from '../config/operatorHubNav';
 import { usePermissions } from '../hooks/usePermissions';
 
 function OperatorOverviewPage() {
   const { operatorId } = useParams();
-  const { canAny, isAdmin } = usePermissions();
+  const { isAdmin } = usePermissions();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,10 +28,6 @@ function OperatorOverviewPage() {
       .catch((err) => setError(err.message || 'Failed to load stats'))
       .finally(() => setLoading(false));
   }, [operatorId, isAdmin]);
-
-  const visibleTabs = operatorHubTabs.filter(
-    (tab) => tab.segment && canAny(...tab.permissions),
-  );
 
   if (loading) {
     return <p className="text-sm text-slate-500">Loading overview...</p>;
@@ -73,21 +68,6 @@ function OperatorOverviewPage() {
           </div>
         ))}
       </div>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Quick actions</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {visibleTabs.map(({ segment, label }) => (
-            <Link
-              key={segment}
-              to={getOperatorHubTabPath(operatorId, segment)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
