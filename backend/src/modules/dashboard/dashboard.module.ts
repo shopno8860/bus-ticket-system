@@ -39,11 +39,7 @@ import {
     OperatorAliasController,
     StaffAliasController,
   ],
-  providers: [
-    DashboardController,
-    PermissionsGuard,
-    DashboardBookingsService,
-  ],
+  providers: [DashboardController, PermissionsGuard, DashboardBookingsService],
   exports: [DashboardBookingsService],
 })
 export class DashboardModule {}

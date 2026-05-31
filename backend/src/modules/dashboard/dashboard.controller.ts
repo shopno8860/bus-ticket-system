@@ -141,10 +141,7 @@ export class DashboardController {
   }
 
   @Get('bookings')
-  @RequireAnyPermissions(
-    Permission.VIEW_BOOKINGS,
-    Permission.MANAGE_BOOKINGS,
-  )
+  @RequireAnyPermissions(Permission.VIEW_BOOKINGS, Permission.MANAGE_BOOKINGS)
   @ApiOperation({ summary: 'Filtered bookings, paginated' })
   async getBookings(
     @Query() filters: AdminBookingsFilterDto,
@@ -172,10 +169,7 @@ export class DashboardController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const booking = await this.bookingsService.findOneForDashboard(id);
-    this.tenantScope.assertResourceOwnership(
-      currentUser,
-      booking.operatorId,
-    );
+    this.tenantScope.assertResourceOwnership(currentUser, booking.operatorId);
 
     const cancelled = await this.bookingsService.cancelByAdmin(
       id,
@@ -198,7 +192,9 @@ export class DashboardController {
 
   @Post('bookings/lock')
   @RequirePermissions(Permission.BOOK_TICKET)
-  @ApiOperation({ summary: 'Lock seats for manual booking (staff/operator hold)' })
+  @ApiOperation({
+    summary: 'Lock seats for manual booking (staff/operator hold)',
+  })
   lockSeatsForBooking(
     @Body() dto: CreateBookingDto,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -266,7 +262,8 @@ export class DashboardController {
   @Get('trips/search')
   @RequirePermissions(Permission.BOOK_TICKET)
   @ApiOperation({
-    summary: 'Search trips for manual booking (operator-scoped for OPERATOR/STAFF)',
+    summary:
+      'Search trips for manual booking (operator-scoped for OPERATOR/STAFF)',
   })
   async searchTripsForBooking(
     @Query() searchTripsDto: SearchTripsDto,
@@ -280,10 +277,7 @@ export class DashboardController {
   }
 
   @Get('payments')
-  @RequireAnyPermissions(
-    Permission.VIEW_PAYMENTS,
-    Permission.MANAGE_PAYMENTS,
-  )
+  @RequireAnyPermissions(Permission.VIEW_PAYMENTS, Permission.MANAGE_PAYMENTS)
   @ApiOperation({ summary: 'Filtered payments, paginated' })
   async getPayments(
     @Query() filters: AdminPaymentsFilterDto,
@@ -327,10 +321,7 @@ export class DashboardController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<Refund> {
     const refund = await this.refundsService.findOneById(id);
-    this.tenantScope.assertResourceOwnership(
-      currentUser,
-      refund.operatorId,
-    );
+    this.tenantScope.assertResourceOwnership(currentUser, refund.operatorId);
 
     const approved = await this.refundsService.approve(
       id,
@@ -359,10 +350,7 @@ export class DashboardController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<Refund> {
     const refund = await this.refundsService.findOneById(id);
-    this.tenantScope.assertResourceOwnership(
-      currentUser,
-      refund.operatorId,
-    );
+    this.tenantScope.assertResourceOwnership(currentUser, refund.operatorId);
 
     const rejected = await this.refundsService.reject(
       id,
@@ -390,10 +378,7 @@ export class DashboardController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     const refund = await this.refundsService.findOneById(id);
-    this.tenantScope.assertResourceOwnership(
-      currentUser,
-      refund.operatorId,
-    );
+    this.tenantScope.assertResourceOwnership(currentUser, refund.operatorId);
 
     const result = await this.refundsService.adminSyncSslRefundStatus(
       id,
@@ -676,7 +661,11 @@ export class DashboardController {
   ) {
     const resourceOperatorId = await this.tripsService.getOperatorId(id);
     this.tenantScope.assertResourceOwnership(currentUser, resourceOperatorId);
-    const trip = await this.tripsService.cancel(id, dto.reason, currentUser.sub);
+    const trip = await this.tripsService.cancel(
+      id,
+      dto.reason,
+      currentUser.sub,
+    );
 
     if (currentUser.role === UserRole.ADMIN) {
       await this.auditLogService.logAction({
@@ -771,10 +760,7 @@ export class DashboardController {
   }
 
   @Get('operators/:id/stats')
-  @RequireAnyPermissions(
-    Permission.VIEW_DASHBOARD,
-    Permission.MANAGE_OPERATORS,
-  )
+  @RequireAnyPermissions(Permission.VIEW_DASHBOARD, Permission.MANAGE_OPERATORS)
   async getOperatorStats(@Param('id') id: string) {
     return this.operatorsService.getStats(id);
   }

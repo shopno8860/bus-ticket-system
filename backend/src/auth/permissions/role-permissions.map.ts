@@ -26,7 +26,10 @@ export function getPermissionsForRole(role: UserRole): Permission[] {
   return ROLE_PERMISSIONS[role] ?? [];
 }
 
-export function roleHasPermission(role: UserRole, permission: Permission): boolean {
+export function roleHasPermission(
+  role: UserRole,
+  permission: Permission,
+): boolean {
   return getPermissionsForRole(role).includes(permission);
 }
 

@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -30,7 +24,9 @@ export class StaffController {
   @ApiOperation({ summary: 'Staff dashboard stats' })
   async getStats(@CurrentUser() user: AuthenticatedUser) {
     const op = await this.operatorsService.findOne(user.operatorId!);
-    const bookings = await this.bookingsService.countByOperator(user.operatorId!);
+    const bookings = await this.bookingsService.countByOperator(
+      user.operatorId!,
+    );
     return {
       operatorName: op.companyName,
       operatorLogo: op.logo,
@@ -47,6 +43,10 @@ export class StaffController {
   @Post('bookings')
   @ApiOperation({ summary: 'Staff creates a confirmed booking' })
   createBooking(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
-    return this.bookingsService.createStaffBooking(dto, user.operatorId!, user.sub);
+    return this.bookingsService.createStaffBooking(
+      dto,
+      user.operatorId!,
+      user.sub,
+    );
   }
 }

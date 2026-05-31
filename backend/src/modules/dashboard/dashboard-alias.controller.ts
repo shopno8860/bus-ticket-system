@@ -258,12 +258,18 @@ export class AdminAliasController {
   }
 
   @Post('operators/:id/suspend')
-  suspendOperator(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  suspendOperator(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.dashboard.suspendOperator(id, user);
   }
 
   @Post('operators/:id/activate')
-  activateOperator(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  activateOperator(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.dashboard.activateOperator(id, user);
   }
 
@@ -402,7 +408,10 @@ export class OperatorAliasController {
   }
 
   @Post('staff')
-  createStaff(@Body() dto: CreateStaffDto, @CurrentUser() user: AuthenticatedUser) {
+  createStaff(
+    @Body() dto: CreateStaffDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.dashboard.createStaff(dto, user);
   }
 

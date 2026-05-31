@@ -54,7 +54,9 @@ describe('SeatSyncService', () => {
     expect(tripsService.getActiveBookingSeatsForTrip).toHaveBeenCalledWith(
       'trip-abc',
     );
-    expect(seatSyncGateway.server.to).toHaveBeenCalledWith(tripRoom('trip-abc'));
+    expect(seatSyncGateway.server.to).toHaveBeenCalledWith(
+      tripRoom('trip-abc'),
+    );
     expect(emit).toHaveBeenCalledWith('seats.updated', {
       type: 'seats.updated',
       tripId: 'trip-abc',

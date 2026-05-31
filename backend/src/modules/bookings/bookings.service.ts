@@ -540,7 +540,13 @@ export class BookingsService {
           },
         },
         include: {
-          trip: { include: { route: true, bus: true } },
+          trip: {
+            include: {
+              route: true,
+              operator: { select: { companyName: true } },
+              bus: { include: { operator: { select: { companyName: true } } } },
+            },
+          },
           bookingSeats: { include: { seat: true } },
         },
       });
@@ -556,7 +562,13 @@ export class BookingsService {
         user: {
           select: { id: true, fullName: true, email: true, phoneNumber: true },
         },
-        trip: { include: { route: true, bus: true } },
+        trip: {
+          include: {
+            route: true,
+            operator: { select: { companyName: true } },
+            bus: { include: { operator: { select: { companyName: true } } } },
+          },
+        },
         bookingSeats: { include: { seat: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -570,7 +582,8 @@ export class BookingsService {
         trip: {
           include: {
             route: true,
-            bus: true,
+            operator: { select: { companyName: true } },
+            bus: { include: { operator: { select: { companyName: true } } } },
           },
         },
         bookingSeats: {

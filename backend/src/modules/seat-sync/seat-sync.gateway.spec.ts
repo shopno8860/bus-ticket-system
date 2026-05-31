@@ -38,7 +38,10 @@ describe('SeatSyncGateway', () => {
         tripId: 'missing',
       });
 
-      expect(result).toEqual({ ok: false, error: 'Not allowed to join this trip' });
+      expect(result).toEqual({
+        ok: false,
+        error: 'Not allowed to join this trip',
+      });
       expect(client.join).not.toHaveBeenCalled();
     });
 
@@ -61,7 +64,10 @@ describe('SeatSyncGateway', () => {
         tripId: 'trip-1',
       });
 
-      expect(result).toEqual({ ok: false, error: 'Not allowed to join this trip' });
+      expect(result).toEqual({
+        ok: false,
+        error: 'Not allowed to join this trip',
+      });
     });
 
     it('allows staff from the same operator', async () => {

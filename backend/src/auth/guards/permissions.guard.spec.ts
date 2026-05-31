@@ -99,17 +99,15 @@ describe('PermissionsGuard', () => {
 
 describe('ADMIN platform permissions', () => {
   it('has view permissions but not manage operational permissions', () => {
-    expect(roleHasPermission(UserRole.ADMIN, Permission.VIEW_BUSES)).toBe(
-      true,
-    );
+    expect(roleHasPermission(UserRole.ADMIN, Permission.VIEW_BUSES)).toBe(true);
     expect(roleHasPermission(UserRole.ADMIN, Permission.MANAGE_BUSES)).toBe(
       false,
     );
     expect(roleHasPermission(UserRole.ADMIN, Permission.BOOK_TICKET)).toBe(
       false,
     );
-    expect(
-      roleHasPermission(UserRole.ADMIN, Permission.MANAGE_OPERATORS),
-    ).toBe(true);
+    expect(roleHasPermission(UserRole.ADMIN, Permission.MANAGE_OPERATORS)).toBe(
+      true,
+    );
   });
 });

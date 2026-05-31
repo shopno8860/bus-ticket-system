@@ -91,7 +91,9 @@ export class TenantScopeService {
     }
 
     if (dtoOperatorId && dtoOperatorId !== user.operatorId) {
-      throw new ForbiddenException('Cannot assign resources to another operator');
+      throw new ForbiddenException(
+        'Cannot assign resources to another operator',
+      );
     }
 
     this.requireOperatorContext(user);

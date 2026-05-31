@@ -10,7 +10,11 @@ const Ticket = ({ booking, ticketRef }) => {
   // =======================
   const bookingReference = booking?.bookingReference ?? 'N/A';
 
-  const busOperator = booking?.trip?.bus?.operatorName ?? 'Bus Operator';
+  const busOperator =
+    booking?.trip?.bus?.operator?.companyName ??
+    booking?.trip?.operator?.companyName ??
+    booking?.trip?.bus?.operatorName ??
+    'Bus Operator';
   const busName = booking?.trip?.bus?.name ?? '';
   const busType = booking?.trip?.bus?.busType ?? 'N/A';
   const coach = booking?.trip?.bus?.registrationNumber ?? 'N/A';
@@ -240,9 +244,7 @@ const Ticket = ({ booking, ticketRef }) => {
               )}
             </div>
 
-            <div className="border border-red-300 bg-red-50 p-4 text-red-600 text-sm">
-              NON-CANCELLABLE, NON-REFUNDABLE & NON-TRANSFERABLE
-            </div>
+
           </div>
         </div>
 
@@ -279,7 +281,6 @@ const Ticket = ({ booking, ticketRef }) => {
             <p className="font-bold mb-2">TERMS & CONDITIONS</p>
             <ul className="list-disc ml-4 space-y-1">
               <li>Arrive 30 minutes before departure</li>
-              <li>Tickets are non-refundable</li>
               <li>Carry valid ID</li>
               <li>Schedule may change</li>
             </ul>

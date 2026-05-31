@@ -48,9 +48,7 @@ export function paymentWindowMs(config: ConfigService): number {
 export function dashboardSeatLockMs(config: ConfigService): number {
   const dedicated = config.get<string>('DASHBOARD_SEAT_LOCK_MINUTES');
   if (dedicated != null && dedicated !== '') {
-    return (
-      clampPositiveMinutes(dedicated, 2) * 60 * 1000
-    );
+    return clampPositiveMinutes(dedicated, 2) * 60 * 1000;
   }
   return seatLockMs(config);
 }

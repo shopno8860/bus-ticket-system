@@ -48,7 +48,13 @@ export class DashboardBookingsService {
         async (transactionClient) => {
           const trip = await transactionClient.trip.findUnique({
             where: { id: dto.tripId },
-            select: { id: true, busId: true, price: true, operatorId: true, status: true },
+            select: {
+              id: true,
+              busId: true,
+              price: true,
+              operatorId: true,
+              status: true,
+            },
           });
 
           if (!trip) {

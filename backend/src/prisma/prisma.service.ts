@@ -61,14 +61,11 @@ export class PrismaService
 
     // Localhost হলে SSL off, Online DB হলে SSL on
     const isLocalDatabase =
-      url.hostname === 'localhost' ||
-      url.hostname === '127.0.0.1';
+      url.hostname === 'localhost' || url.hostname === '127.0.0.1';
 
     const pool = new Pool({
       connectionString: cleanConnectionString,
-      ssl: isLocalDatabase
-        ? false
-        : { rejectUnauthorized: false },
+      ssl: isLocalDatabase ? false : { rejectUnauthorized: false },
       max: 10,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,

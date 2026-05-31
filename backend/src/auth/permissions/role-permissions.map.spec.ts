@@ -1,6 +1,9 @@
 import { UserRole } from '@prisma/client';
 import { Permission } from './permission.enum';
-import { getPermissionsForRole, roleHasPermission } from './role-permissions.map';
+import {
+  getPermissionsForRole,
+  roleHasPermission,
+} from './role-permissions.map';
 
 describe('role-permissions.map', () => {
   it('grants all permissions to ADMIN', () => {
@@ -22,7 +25,9 @@ describe('role-permissions.map', () => {
   });
 
   it('limits STAFF to bookings and book_ticket', () => {
-    expect(roleHasPermission(UserRole.STAFF, Permission.BOOK_TICKET)).toBe(true);
+    expect(roleHasPermission(UserRole.STAFF, Permission.BOOK_TICKET)).toBe(
+      true,
+    );
     expect(roleHasPermission(UserRole.STAFF, Permission.MANAGE_BUSES)).toBe(
       false,
     );

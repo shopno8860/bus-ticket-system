@@ -255,7 +255,7 @@ function BookingPage() {
                     <td className="px-3 py-2">
                       <p className="font-semibold text-slate-800">{booking.trip?.bus?.name ?? '-'}</p>
                       <p className="text-xs text-slate-500">
-                        {booking.trip?.operator?.name ?? booking.trip?.bus?.operatorName ?? '-'}
+                        {booking.trip?.bus?.operator?.companyName ?? booking.trip?.operator?.companyName ?? booking.trip?.bus?.operatorName ?? '-'}
                       </p>
                       <p className="text-xs text-slate-600">
                         {booking.trip?.route?.origin ?? '-'} {'->'} {booking.trip?.route?.destination ?? '-'}

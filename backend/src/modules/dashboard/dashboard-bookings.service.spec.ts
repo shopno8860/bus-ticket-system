@@ -62,7 +62,9 @@ describe('DashboardBookingsService', () => {
           }),
         },
         seat: {
-          findMany: jest.fn().mockResolvedValue([{ id: 'seat-1' }, { id: 'seat-2' }]),
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'seat-1' }, { id: 'seat-2' }]),
         },
         bookingSeat: {
           updateMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -71,15 +73,20 @@ describe('DashboardBookingsService', () => {
         },
       };
 
-      prisma.$transaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => {
-        for (const seatId of seatIds) {
-          tx.bookingSeat.updateMany.mockResolvedValueOnce({ count: 0 });
-          tx.bookingSeat.create.mockResolvedValueOnce({ seatId });
-        }
-        return fn(tx);
-      });
+      prisma.$transaction.mockImplementation(
+        async (fn: (client: typeof tx) => unknown) => {
+          for (const seatId of seatIds) {
+            tx.bookingSeat.updateMany.mockResolvedValueOnce({ count: 0 });
+            tx.bookingSeat.create.mockResolvedValueOnce({ seatId });
+          }
+          return fn(tx);
+        },
+      );
 
-      const result = await service.lockSeatsForDashboard({ tripId, seatIds }, staffUser);
+      const result = await service.lockSeatsForDashboard(
+        { tripId, seatIds },
+        staffUser,
+      );
 
       expect(result.tripId).toBe(tripId);
       expect(result.seatIds).toEqual(seatIds);
@@ -99,8 +106,8 @@ describe('DashboardBookingsService', () => {
       const tx = {
         trip: { findUnique: jest.fn().mockResolvedValue(null) },
       };
-      prisma.$transaction.mockImplementation((fn: (client: typeof tx) => unknown) =>
-        fn(tx),
+      prisma.$transaction.mockImplementation(
+        (fn: (client: typeof tx) => unknown) => fn(tx),
       );
 
       await expect(
@@ -201,7 +208,9 @@ describe('DashboardBookingsService', () => {
           }),
         },
         seat: {
-          findMany: jest.fn().mockResolvedValue([{ id: 'seat-1' }, { id: 'seat-2' }]),
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'seat-1' }, { id: 'seat-2' }]),
         },
         bookingSeat: {
           findFirst: jest.fn().mockResolvedValue(null),
@@ -209,8 +218,8 @@ describe('DashboardBookingsService', () => {
         },
       };
 
-      prisma.$transaction.mockImplementation((fn: (client: typeof tx) => unknown) =>
-        fn(tx),
+      prisma.$transaction.mockImplementation(
+        (fn: (client: typeof tx) => unknown) => fn(tx),
       );
 
       await expect(
@@ -249,8 +258,8 @@ describe('DashboardBookingsService', () => {
         },
       };
 
-      prisma.$transaction.mockImplementation((fn: (client: typeof tx) => unknown) =>
-        fn(tx),
+      prisma.$transaction.mockImplementation(
+        (fn: (client: typeof tx) => unknown) => fn(tx),
       );
 
       await expect(

@@ -174,7 +174,10 @@ export class OperatorsController {
 
   @Post('staff')
   @ApiOperation({ summary: 'Create staff user' })
-  createStaff(@Body() dto: CreateStaffDto, @CurrentUser() user: AuthenticatedUser) {
+  createStaff(
+    @Body() dto: CreateStaffDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.operatorsService.createStaff(user.operatorId!, dto);
   }
 

@@ -52,7 +52,9 @@ export class PermissionsGuard implements CanActivate {
           );
 
     if (!allowed) {
-      throw new ForbiddenException('You do not have permission for this action');
+      throw new ForbiddenException(
+        'You do not have permission for this action',
+      );
     }
 
     return true;
