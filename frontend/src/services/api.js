@@ -39,7 +39,11 @@ export async function apiFetch(path, options = {}) {
       errorData = { message: errorText };
     }
 
-    const error = new Error(errorData.message || 'Request failed');
+    const rawMessage = errorData.message;
+    const normalizedMessage = Array.isArray(rawMessage)
+      ? rawMessage.join(', ')
+      : rawMessage;
+    const error = new Error(normalizedMessage || 'Request failed');
     error.status = response.status;
     error.data = errorData;
     throw error;

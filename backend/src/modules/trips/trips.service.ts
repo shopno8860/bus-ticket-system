@@ -9,9 +9,7 @@ import {
   BusClass,
   BusType,
   BookingStatus,
-  PaymentStatus,
   Prisma,
-  RefundStatus,
   Trip,
   TripStatus,
 } from '@prisma/client';
@@ -21,9 +19,53 @@ import { CreateTripDto } from './dto/create-trip.dto';
 import { SearchTripsDto } from './dto/search-trips.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 
+/** Booking statuses that block trip cancellation (seat reserved or ticket sold). */
+const TRIP_CANCEL_BLOCKED_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.PENDING,
+  BookingStatus.CONFIRMED,
+];
+
+const TRIP_CANCEL_BLOCKED_MESSAGE =
+  'This trip cannot be cancelled because tickets have already been booked for it.';
+
 @Injectable()
 export class TripsService {
   constructor(private readonly prismaService: PrismaService) {}
+
+  private async assertTripHasNoActiveBookings(
+    tx: Prisma.TransactionClient,
+    tripId: string,
+  ): Promise<void> {
+    const now = new Date();
+
+    const activeBookingCount = await tx.booking.count({
+      where: {
+        tripId,
+        status: { in: TRIP_CANCEL_BLOCKED_BOOKING_STATUSES },
+      },
+    });
+
+    if (activeBookingCount > 0) {
+      throw new ConflictException(TRIP_CANCEL_BLOCKED_MESSAGE);
+    }
+
+    const activeSeatHoldCount = await tx.bookingSeat.count({
+      where: {
+        tripId,
+        OR: [
+          { status: BookingSeatStatus.RESERVED },
+          {
+            status: BookingSeatStatus.LOCKED,
+            lockExpiresAt: { gt: now },
+          },
+        ],
+      },
+    });
+
+    if (activeSeatHoldCount > 0) {
+      throw new ConflictException(TRIP_CANCEL_BLOCKED_MESSAGE);
+    }
+  }
 
   private parsePageNumber(value: string, fallback: number): number {
     const parsed = Number.parseInt(value, 10);
@@ -547,7 +589,9 @@ export class TripsService {
     }
 
     return this.prismaService.$transaction(async (tx) => {
-      const cancelledTrip = await tx.trip.update({
+      await this.assertTripHasNoActiveBookings(tx, id);
+
+      return tx.trip.update({
         where: { id },
         data: {
           status: TripStatus.CANCELLED,
@@ -556,67 +600,6 @@ export class TripsService {
           cancelledBy: adminUserId,
         },
       });
-
-      const bookings = await tx.booking.findMany({
-        where: {
-          tripId: id,
-          status: {
-            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-          },
-        },
-        include: {
-          payments: {
-            where: { status: PaymentStatus.SUCCESS },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-            },
-          },
-        },
-      });
-
-      if (bookings.length > 0) {
-        const bookingIds = bookings.map((booking) => booking.id);
-        await tx.booking.updateMany({
-          where: { id: { in: bookingIds } },
-          data: {
-            status: BookingStatus.CANCELLED,
-            cancelledAt: new Date(),
-            cancelReason: `Trip cancelled: ${reason}`,
-            cancelledBy: adminUserId,
-          },
-        });
-
-        await tx.bookingSeat.deleteMany({
-          where: {
-            bookingId: { in: bookingIds },
-          },
-        });
-      }
-
-      const refundsData = bookings
-        .filter((booking) => booking.payments.length > 0)
-        .map((booking) => {
-          const payment = booking.payments[0];
-          return {
-            bookingId: booking.id,
-            paymentId: payment.id,
-            userId: booking.userId,
-            operatorId: booking.operatorId,
-            reason: `Auto refund request due to trip cancellation`,
-            amount: booking.totalAmount,
-            status: RefundStatus.PENDING,
-          };
-        });
-
-      if (refundsData.length > 0) {
-        await tx.refund.createMany({
-          data: refundsData,
-        });
-      }
-
-      return cancelledTrip;
     });
   }
 }
