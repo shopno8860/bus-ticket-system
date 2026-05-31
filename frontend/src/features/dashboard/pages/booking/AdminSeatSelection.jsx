@@ -17,7 +17,7 @@ import {
   persistLockExpiry,
 } from '../../utils/dashboardSeatHold';
 
-const MAX_SELECTABLE = 4;
+const MAX_SELECTABLE = 999;
 
 function AdminSeatSelection() {
   const { tripId } = useParams();
@@ -133,7 +133,7 @@ function AdminSeatSelection() {
       });
       persistLockExpiry(tripId, lockResponse.lockExpiresAt);
       markDashboardHoldActive(tripId, selectedSeats);
-      showSuccess('Seats held — complete booking before the timer expires', {
+      showSuccess('Seats held for manual booking', {
         id: loadingToastId,
       });
       navigate(bookingSummary, {

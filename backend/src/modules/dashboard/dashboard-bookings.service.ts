@@ -15,7 +15,6 @@ import {
 import { randomBytes } from 'crypto';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { TenantScopeService } from '../../common/scoping/tenant-scope.service';
-import { dashboardSeatLockMs } from '../bookings/booking-timeouts.util';
 import { CreateBookingDto } from '../bookings/dto/create-booking.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAdminBookingDto } from '../admin-bookings/dto/create-admin-booking.dto';
@@ -36,12 +35,10 @@ export class DashboardBookingsService {
   ): Promise<{
     tripId: string;
     seatIds: string[];
-    lockExpiresAt: Date;
+    lockExpiresAt: Date | null;
   }> {
     const now = new Date();
-    const lockExpiresAt = new Date(
-      now.getTime() + dashboardSeatLockMs(this.configService),
-    );
+    const lockExpiresAt: Date | null = null;
 
     try {
       const result = await this.prismaService.$transaction(
@@ -106,10 +103,19 @@ export class DashboardBookingsService {
                   { status: BookingSeatStatus.RESERVED },
                   {
                     status: BookingSeatStatus.LOCKED,
-                    lockExpiresAt: { gt: now },
-                    OR: [
-                      { lockedByUserId: null },
-                      { lockedByUserId: { not: user.sub } },
+                    AND: [
+                      {
+                        OR: [
+                          { lockExpiresAt: { gt: now } },
+                          { lockExpiresAt: null },
+                        ],
+                      },
+                      {
+                        OR: [
+                          { lockedByUserId: null },
+                          { lockedByUserId: { not: user.sub } },
+                        ],
+                      },
                     ],
                   },
                 ],
@@ -145,7 +151,7 @@ export class DashboardBookingsService {
                 data: {
                   status: BookingSeatStatus.LOCKED,
                   bookingId: null,
-                  lockExpiresAt,
+                  lockExpiresAt: null,
                   lockedByUserId: user.sub,
                   price: trip.price,
                 },
@@ -254,13 +260,11 @@ export class DashboardBookingsService {
   ): Promise<{
     tripId: string;
     seatIds: string[];
-    lockExpiresAt: Date;
+    lockExpiresAt: Date | null;
     extendedCount: number;
   }> {
     const now = new Date();
-    const lockExpiresAt = new Date(
-      now.getTime() + dashboardSeatLockMs(this.configService),
-    );
+    void now;
 
     const trip = await this.prismaService.trip.findUnique({
       where: { id: dto.tripId },
@@ -277,7 +281,7 @@ export class DashboardBookingsService {
 
     this.tenantScope.assertResourceOwnership(user, trip.operatorId);
 
-    const result = await this.prismaService.bookingSeat.updateMany({
+    const existingCount = await this.prismaService.bookingSeat.count({
       where: {
         tripId: dto.tripId,
         seatId: { in: dto.seatIds },
@@ -285,12 +289,9 @@ export class DashboardBookingsService {
         lockedByUserId: user.sub,
         bookingId: null,
       },
-      data: {
-        lockExpiresAt,
-      },
     });
 
-    if (result.count !== dto.seatIds.length) {
+    if (existingCount !== dto.seatIds.length) {
       throw new ConflictException(
         'Seat hold missing or expired. Lock seats again.',
       );
@@ -301,8 +302,8 @@ export class DashboardBookingsService {
     return {
       tripId: dto.tripId,
       seatIds: dto.seatIds,
-      lockExpiresAt,
-      extendedCount: result.count,
+      lockExpiresAt: null,
+      extendedCount: existingCount,
     };
   }
 
@@ -394,7 +395,7 @@ export class DashboardBookingsService {
               tripId: dto.tripId,
               seatId: { in: requestedSeatIds },
               status: BookingSeatStatus.LOCKED,
-              lockExpiresAt: { gt: now },
+              OR: [{ lockExpiresAt: { gt: now } }, { lockExpiresAt: null }],
               lockedByUserId: user.sub,
               bookingId: null,
             },

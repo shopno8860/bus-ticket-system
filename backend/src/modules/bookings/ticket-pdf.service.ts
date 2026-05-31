@@ -62,6 +62,10 @@ export class TicketPdfService {
     const txn = booking.payments[0]?.transactionId ?? 'N/A';
     const paymentMethod = booking.payments[0]?.method ?? 'N/A';
     const paymentStatus = booking.payments[0]?.status ?? 'PAID';
+    const isStaffIssued =
+      booking.bookingSource === 'ADMIN_BOOKING' ||
+      booking.bookingSource === 'STAFF_BOOKING' ||
+      booking.bookingSource === 'MANUAL';
 
     const seatNumbers = booking.bookingSeats
       .map((entry) => entry.seat.seatNumber)
@@ -83,13 +87,11 @@ export class TicketPdfService {
 
     const seatCount = booking.bookingSeats.length;
     const seatPrice = Number(booking.trip.price ?? 0);
-    const platformFeePerSeat = booking.trip.bus.busType === 'NON_AC' ? 40 : 70;
-    const insurancePerSeat = 10;
     const seatTotal = seatCount * seatPrice;
-    const platformFee = seatCount * platformFeePerSeat;
-    const insuranceFee = seatCount * insurancePerSeat;
     const totalPayable = Number(
-      booking.totalAmount ?? seatTotal + platformFee + insuranceFee,
+      (isStaffIssued
+        ? booking.finalAmount ?? booking.totalAmount
+        : booking.totalAmount) ?? seatTotal,
     );
 
     const drawKeyValue = (
@@ -174,16 +176,28 @@ export class TicketPdfService {
         .fontSize(11)
         .fillColor('#111827')
         .text(`Seat Total (${seatCount} × BDT ${seatPrice})`, 65, 410)
-        .text(`BDT ${seatTotal}`, 450, 410, { width: 80, align: 'right' })
-        .text(
-          `Platform Fee (${seatCount} × BDT ${platformFeePerSeat})`,
-          65,
-          427,
-        )
-        .text(`BDT ${platformFee}`, 450, 427, { width: 80, align: 'right' })
-        .text(`Insurance (${seatCount} × BDT ${insurancePerSeat})`, 65, 444)
-        .text(`BDT ${insuranceFee}`, 450, 444, { width: 80, align: 'right' });
-      doc.moveTo(65, 461).lineTo(530, 461).strokeColor('#93c5fd').stroke();
+        .text(`BDT ${seatTotal}`, 450, 410, { width: 80, align: 'right' });
+
+      if (!isStaffIssued) {
+        const platformFeePerSeat =
+          booking.trip.bus.busType === 'NON_AC' ? 40 : 70;
+        const insurancePerSeat = 10;
+        const platformFee = seatCount * platformFeePerSeat;
+        const insuranceFee = seatCount * insurancePerSeat;
+
+        doc
+          .text(
+            `Platform Fee (${seatCount} × BDT ${platformFeePerSeat})`,
+            65,
+            427,
+          )
+          .text(`BDT ${platformFee}`, 450, 427, { width: 80, align: 'right' })
+          .text(`Insurance (${seatCount} × BDT ${insurancePerSeat})`, 65, 444)
+          .text(`BDT ${insuranceFee}`, 450, 444, { width: 80, align: 'right' });
+        doc.moveTo(65, 461).lineTo(530, 461).strokeColor('#93c5fd').stroke();
+      } else {
+        doc.moveTo(65, 435).lineTo(530, 435).strokeColor('#93c5fd').stroke();
+      }
       doc
         .fontSize(12)
         .fillColor('#166534')

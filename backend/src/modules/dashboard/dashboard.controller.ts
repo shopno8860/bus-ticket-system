@@ -193,7 +193,8 @@ export class DashboardController {
   @Post('bookings/lock')
   @RequirePermissions(Permission.BOOK_TICKET)
   @ApiOperation({
-    summary: 'Lock seats for manual booking (staff/operator hold)',
+    summary:
+      'Hold seats for manual booking (staff/operator). No timeout is applied.',
   })
   lockSeatsForBooking(
     @Body() dto: CreateBookingDto,

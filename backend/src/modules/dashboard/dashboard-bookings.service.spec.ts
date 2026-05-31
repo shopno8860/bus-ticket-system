@@ -90,8 +90,7 @@ describe('DashboardBookingsService', () => {
 
       expect(result.tripId).toBe(tripId);
       expect(result.seatIds).toEqual(seatIds);
-      expect(result.lockExpiresAt).toBeInstanceOf(Date);
-      expect(result.lockExpiresAt.getTime()).toBeGreaterThan(Date.now());
+      expect(result.lockExpiresAt).toBeNull();
       expect(tx.bookingSeat.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

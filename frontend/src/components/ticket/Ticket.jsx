@@ -48,16 +48,19 @@ const Ticket = ({ booking, ticketRef }) => {
   // =======================
   // FARE with discount support
   // =======================
+  const isStaffIssued =
+    booking?.bookingSource === 'ADMIN_BOOKING' ||
+    booking?.bookingSource === 'STAFF_BOOKING' ||
+    booking?.bookingSource === 'MANUAL';
   const seatCount = booking?.bookingSeats?.length ?? 0;
   const seatPrice = Number(booking?.trip?.price ?? 0);
-  const platformFeePerSeat = busType === "AC" ? 70 : 40;
-  const insurancePerSeat = 10;
   const seatTotal = seatCount > 0 && seatPrice > 0
     ? seatCount * seatPrice
     : Number(booking?.totalAmount ?? 0);
+  const platformFeePerSeat = !isStaffIssued ? (busType === "AC" ? 70 : 40) : 0;
+  const insurancePerSeat = !isStaffIssued ? 10 : 0;
   const platformFee = seatCount * platformFeePerSeat;
   const insuranceFee = seatCount * insurancePerSeat;
-  const fallbackTotal = seatTotal + platformFee + insuranceFee;
 
   // Discount fields from admin booking
   const discountType = booking?.discountType;
@@ -65,9 +68,13 @@ const Ticket = ({ booking, ticketRef }) => {
   const discountAmount = Number(booking?.discountAmount ?? 0);
   const finalAmount = Number(booking?.finalAmount ?? 0);
 
-  // Determine display total: admin bookings use finalAmount, user bookings use totalAmount
+  // Determine display total:
+  // - staff/operator-issued bookings: fare only (discounts allowed)
+  // - online bookings: keep existing totalAmount
   const isAdminBooking = booking?.bookingSource === 'ADMIN_BOOKING';
-  const displayTotal = isAdminBooking && finalAmount > 0 ? finalAmount : Number(booking?.totalAmount ?? fallbackTotal);
+  const displayTotal = isStaffIssued && finalAmount > 0
+    ? finalAmount
+    : Number(booking?.totalAmount ?? seatTotal);
 
   // =======================
   // DYNAMIC LOGO
@@ -226,15 +233,26 @@ const Ticket = ({ booking, ticketRef }) => {
                     <span>৳{seatTotal}</span>
                   </div>
 
-                  <div className="flex justify-between mt-1">
-                    <span>Platform Fee ({seatCount} &times; ৳{platformFeePerSeat})</span>
-                    <span>৳{platformFee}</span>
-                  </div>
+                  {!isStaffIssued ? (
+                    <>
+                      <div className="flex justify-between mt-1">
+                        <span>Platform Fee ({seatCount} &times; ৳{platformFeePerSeat})</span>
+                        <span>৳{platformFee}</span>
+                      </div>
 
-                  <div className="flex justify-between mt-1">
-                    <span>Insurance ({seatCount} &times; ৳{insurancePerSeat})</span>
-                    <span>৳{insuranceFee}</span>
-                  </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Insurance ({seatCount} &times; ৳{insurancePerSeat})</span>
+                        <span>৳{insuranceFee}</span>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between mt-1 text-green-600">
+                      <span>Discount {discountType === 'PERCENTAGE' ? `(${discountValue}%)` : '(Fixed)'}</span>
+                      <span>-৳{discountAmount}</span>
+                    </div>
+                  )}
 
                   <div className="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
                     <span>Total Payable</span>
