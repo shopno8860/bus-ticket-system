@@ -34,7 +34,7 @@ function TripPage() {
   const { data: routeData, loading: routeLoading } = useFetch(loadRoutes);
 
   const [filters, setFilters] = useState({
-    route: '',
+    routeId: '',
     departureDate: '',
     busOperator: '',
     status: '',
@@ -77,14 +77,14 @@ function TripPage() {
     void execute({
       page,
       limit,
-      route: filters.route,
+      routeId: filters.routeId,
       departureDate: filters.departureDate,
       busOperator: filters.busOperator,
       status: filters.status,
     }).catch(() => {
       // errors are kept in hook state
     });
-  }, [execute, page, limit, filters.route, filters.departureDate, filters.busOperator, filters.status]);
+  }, [execute, page, limit, filters.routeId, filters.departureDate, filters.busOperator, filters.status]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -186,7 +186,7 @@ function TripPage() {
       await execute({
         page,
         limit,
-        route: filters.route,
+        routeId: filters.routeId,
         departureDate: filters.departureDate,
         busOperator: filters.busOperator,
         status: filters.status,
@@ -229,7 +229,7 @@ function TripPage() {
       await execute({
         page,
         limit,
-        route: filters.route,
+        routeId: filters.routeId,
         departureDate: filters.departureDate,
         busOperator: filters.busOperator,
         status: filters.status,
@@ -268,13 +268,13 @@ function TripPage() {
         <div className="flex flex-wrap items-end gap-3">
           <FilterField label="Route">
             <select
-              value={filters.route}
-              onChange={(event) => handleFilterChange('route', event.target.value)}
+              value={filters.routeId}
+              onChange={(event) => handleFilterChange('routeId', event.target.value)}
               className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               <option value="">All routes</option>
               {routes.map((route) => (
-                <option key={route.id} value={`${route.origin} ${route.destination}`}>
+                <option key={route.id} value={route.id}>
                   {route.origin} {'->'} {route.destination}
                 </option>
               ))}

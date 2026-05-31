@@ -9,7 +9,8 @@ import { TripsService } from './trips.service';
 describe('TripsService', () => {
   let service: TripsService;
   let prisma: {
-    trip: { findUnique: jest.Mock };
+    trip: { findUnique: jest.Mock; count: jest.Mock; findMany: jest.Mock };
+    bookingSeat: { groupBy: jest.Mock };
     $transaction: jest.Mock;
   };
 
@@ -21,10 +22,59 @@ describe('TripsService', () => {
 
   beforeEach(() => {
     prisma = {
-      trip: { findUnique: jest.fn() },
+      trip: { findUnique: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+      bookingSeat: { groupBy: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(),
     };
     service = new TripsService(prisma as never);
+  });
+
+  describe('findAllAdmin', () => {
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation(async (ops) => {
+        if (Array.isArray(ops)) {
+          return Promise.all(ops.map((op) => op));
+        }
+        return ops;
+      });
+      prisma.trip.count.mockResolvedValue(0);
+      prisma.trip.findMany.mockResolvedValue([]);
+    });
+
+    it('filters by routeId when provided', async () => {
+      const routeId = 'clroute123456789012345';
+
+      await service.findAllAdmin({ routeId }, 'operator-a');
+
+      expect(prisma.trip.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({ routeId, operatorId: 'operator-a' }),
+      });
+    });
+
+    it('treats route query param as routeId when it looks like a cuid', async () => {
+      const routeId = 'clroute123456789012345';
+
+      await service.findAllAdmin({ route: routeId }, 'operator-a');
+
+      expect(prisma.trip.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({ routeId }),
+      });
+    });
+
+    it('matches legacy "origin destination" route labels', async () => {
+      await service.findAllAdmin({ route: 'Dhaka Chattogram' }, 'operator-a');
+
+      expect(prisma.trip.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          route: {
+            is: {
+              origin: { equals: 'Dhaka', mode: 'insensitive' },
+              destination: { equals: 'Chattogram', mode: 'insensitive' },
+            },
+          },
+        }),
+      });
+    });
   });
 
   describe('cancel', () => {

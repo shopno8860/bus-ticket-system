@@ -17,7 +17,17 @@ export class AdminTripsFilterDto {
   limit?: string;
 
   @ApiPropertyOptional({
-    example: 'Dhaka-Chattogram',
+    description: 'Filter by route id (preferred for dashboard dropdowns)',
+    example: 'clxyz123routeid',
+  })
+  @IsOptional()
+  @IsString()
+  routeId?: string;
+
+  @ApiPropertyOptional({
+    example: 'Dhaka',
+    description:
+      'Free-text route search (origin/destination). Also accepts a route id for backward compatibility.',
   })
   @IsOptional()
   @IsString()

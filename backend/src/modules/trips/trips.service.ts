@@ -95,6 +95,73 @@ export class TripsService {
     return new Date(year, month - 1, day);
   }
 
+  private looksLikeRouteId(value: string): boolean {
+    return /^c[a-z0-9]{20,}$/i.test(value);
+  }
+
+  private applyAdminRouteFilter(
+    where: Prisma.TripWhereInput,
+    filters: AdminTripsFilterDto,
+  ): void {
+    const routeId = filters.routeId?.trim();
+    if (routeId) {
+      where.routeId = routeId;
+      return;
+    }
+
+    const routeParam = filters.route?.trim();
+    if (!routeParam) {
+      return;
+    }
+
+    if (this.looksLikeRouteId(routeParam)) {
+      where.routeId = routeParam;
+      return;
+    }
+
+    const arrowLabelParts = routeParam
+      .split(/\s*->\s*|\s+-\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (arrowLabelParts.length >= 2) {
+      const [originPart, ...destinationParts] = arrowLabelParts;
+      where.route = {
+        is: {
+          origin: { equals: originPart, mode: 'insensitive' },
+          destination: {
+            equals: destinationParts.join(' - '),
+            mode: 'insensitive',
+          },
+        },
+      };
+      return;
+    }
+
+    const spaceLabelParts = routeParam.split(/\s+/).filter(Boolean);
+    if (spaceLabelParts.length >= 2) {
+      where.route = {
+        is: {
+          origin: { equals: spaceLabelParts[0], mode: 'insensitive' },
+          destination: {
+            equals: spaceLabelParts.slice(1).join(' '),
+            mode: 'insensitive',
+          },
+        },
+      };
+      return;
+    }
+
+    where.route = {
+      is: {
+        OR: [
+          { origin: { contains: routeParam, mode: 'insensitive' } },
+          { destination: { contains: routeParam, mode: 'insensitive' } },
+        ],
+      },
+    };
+  }
+
   async findByOperator(operatorId: string) {
     return this.prismaService.trip.findMany({
       where: { operatorId },
@@ -330,17 +397,7 @@ export class TripsService {
       where.operatorId = operatorId;
     }
 
-    if (filters.route?.trim()) {
-      const routeText = filters.route.trim();
-      where.route = {
-        is: {
-          OR: [
-            { origin: { contains: routeText, mode: 'insensitive' } },
-            { destination: { contains: routeText, mode: 'insensitive' } },
-          ],
-        },
-      };
-    }
+    this.applyAdminRouteFilter(where, filters);
 
     if (filters.departureDate) {
       const startOfDay = this.parseLocalDate(filters.departureDate);
