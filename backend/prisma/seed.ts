@@ -17,6 +17,10 @@ import {
 } from '@prisma/client';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
+import {
+  formatPassengerSeatNumber,
+  formatSleeperSeatNumber,
+} from '../src/common/utils/seat-label.util';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -735,12 +739,18 @@ function buildSeats(
     return Array.from({ length: effectiveCapacity }, (_, index) => {
       const isUpperDeck = index < seatsPerDeck;
       const seatIndex = isUpperDeck ? index : index - seatsPerDeck;
+      const rowInDeck = Math.floor(seatIndex / seatsPerDeckRow) + 1;
+      const columnInDeck = (seatIndex % seatsPerDeckRow) + 1;
       const deckPrefix = isUpperDeck ? 'U' : 'L';
       return {
         busId,
-        seatNumber: `${deckPrefix}${String(seatIndex + 1).padStart(2, '0')}`,
-        rowNumber: Math.floor(seatIndex / seatsPerDeckRow) + 1 + (isUpperDeck ? 0 : deckRows),
-        columnNumber: (seatIndex % seatsPerDeckRow) + 1 + (isUpperDeck ? 0 : seatsPerDeckRow),
+        seatNumber: formatSleeperSeatNumber(
+          deckPrefix as 'U' | 'L',
+          rowInDeck,
+          columnInDeck,
+        ),
+        rowNumber: rowInDeck + (isUpperDeck ? 0 : deckRows),
+        columnNumber: columnInDeck + (isUpperDeck ? 0 : seatsPerDeckRow),
       };
     });
   }
@@ -753,7 +763,7 @@ function buildSeats(
     const columnNumber = (index % columnsPerRow) + 1;
     return {
       busId,
-      seatNumber: `R${rowNumber}C${columnNumber}`,
+      seatNumber: formatPassengerSeatNumber(rowNumber, columnNumber),
       rowNumber,
       columnNumber,
     };

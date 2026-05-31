@@ -11,6 +11,11 @@ import {
   Prisma,
   Seat,
 } from '@prisma/client';
+import {
+  formatPassengerSeatNumber,
+  formatSleeperSeatNumber,
+  withNormalizedSeatNumber,
+} from '../../common/utils/seat-label.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSeatsForBusDto } from './dto/create-seats-for-bus.dto';
 
@@ -86,10 +91,12 @@ export class SeatsService {
       throw new NotFoundException(`Bus not found for id: ${busId}`);
     }
 
-    return this.prismaService.seat.findMany({
+    const seats = await this.prismaService.seat.findMany({
       where: { busId },
       orderBy: [{ rowNumber: 'asc' }, { columnNumber: 'asc' }],
     });
+
+    return seats.map(withNormalizedSeatNumber);
   }
 
   private getDefaultColumnsPerRow(busClass: BusClass): number {
@@ -120,7 +127,7 @@ export class SeatsService {
       const columnNumber = (index % columnsPerRow) + 1;
       return {
         busId,
-        seatNumber: `R${rowNumber}C${columnNumber}`,
+        seatNumber: formatPassengerSeatNumber(rowNumber, columnNumber),
         rowNumber,
         columnNumber,
       };
@@ -139,7 +146,7 @@ export class SeatsService {
       ) {
         seatsData.push({
           busId,
-          seatNumber: `R${rowNumber}C${columnNumber}`,
+          seatNumber: formatPassengerSeatNumber(rowNumber, columnNumber),
           rowNumber,
           columnNumber,
         });
@@ -150,7 +157,7 @@ export class SeatsService {
     for (let columnNumber = 1; columnNumber <= 4; columnNumber += 1) {
       seatsData.push({
         busId,
-        seatNumber: `R${lastRowNumber}C${columnNumber}`,
+        seatNumber: formatPassengerSeatNumber(lastRowNumber, columnNumber),
         rowNumber: lastRowNumber,
         columnNumber,
       });
@@ -179,11 +186,14 @@ export class SeatsService {
         ? columnInDeck
         : seatsPerDeckRow + columnInDeck;
       const deckPrefix = isUpperDeck ? 'U' : 'L';
-      const seatSequence = String(deckOffset + 1).padStart(2, '0');
 
       seatsData.push({
         busId,
-        seatNumber: `${deckPrefix}${seatSequence}`,
+        seatNumber: formatSleeperSeatNumber(
+          deckPrefix as 'U' | 'L',
+          rowInDeck,
+          columnInDeck,
+        ),
         rowNumber,
         columnNumber,
       });

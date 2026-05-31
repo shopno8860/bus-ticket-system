@@ -8,6 +8,7 @@ import { getDashboardBookingRoutes, withOperatorQuery } from '../services/dashbo
 import { useDashboardScope } from '../hooks/useDashboardScope';
 import ReadOnlyBanner from '../components/ReadOnlyBanner';
 import { useOperatorHubPaths } from '../hooks/useOperatorHubPaths';
+import { getDisplaySeatNumber } from '../../../utils/seatLabel';
 
 const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED'];
 
@@ -546,7 +547,14 @@ function formatAmount(value) {
 function formatSeats(bookingSeats) {
   if (!Array.isArray(bookingSeats) || bookingSeats.length === 0) return '-';
   return bookingSeats
-    .map((item) => item?.seat?.seatNumber ?? item?.seatNumber ?? item?.seatNo)
+    .map((item) => {
+      if (item?.seat) {
+        return getDisplaySeatNumber(item.seat);
+      }
+      return getDisplaySeatNumber({
+        seatNumber: item?.seatNumber ?? item?.seatNo,
+      });
+    })
     .filter(Boolean)
     .join(', ');
 }

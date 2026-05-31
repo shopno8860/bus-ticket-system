@@ -5,6 +5,7 @@ import { generatePDFBlob } from '../../../utils/pdf';
 import Ticket from '../../../components/ticket/Ticket';
 import { sendConfirmationEmailWithTicket } from '../services/paymentApi';
 import { showSuccess } from '../../../utils/toastHelper';
+import { getDisplaySeatNumber } from '../../../utils/seatLabel';
 
 /** Dedupes ticket email across React Strict Mode remounts (refs reset; this persists). */
 const ticketEmailInFlight = new Map();
@@ -135,7 +136,7 @@ const PaymentSuccess = () => {
   });
 
   const seatNumbers = booking.bookingSeats
-    .map(bs => bs.seat.seatNumber)
+    .map((bs) => getDisplaySeatNumber(bs.seat))
     .join(', ');
   const seatCount = booking.bookingSeats?.length ?? 0;
   const seatPrice = Number(trip?.price ?? 0);

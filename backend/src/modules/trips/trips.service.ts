@@ -13,6 +13,7 @@ import {
   Trip,
   TripStatus,
 } from '@prisma/client';
+import { withNormalizedSeatNumber } from '../../common/utils/seat-label.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminTripsFilterDto } from './dto/admin-trips-filter.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
@@ -558,6 +559,8 @@ export class TripsService {
     const reservedOrLocked = trip.bookingSeats.length;
     const totalCapacity = trip.bus.seatCapacity;
     const availableSeats = Math.max(0, totalCapacity - reservedOrLocked);
+
+    trip.bus.seats = trip.bus.seats.map(withNormalizedSeatNumber);
 
     return {
       ...trip,

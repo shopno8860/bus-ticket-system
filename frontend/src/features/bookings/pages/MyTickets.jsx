@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import { getMyBookings, cancelBooking } from "../services/bookingApi";
 import { showError, showLoading, showSuccess } from "../../../utils/toastHelper";
+import { getDisplaySeatNumber } from "../../../utils/seatLabel";
 
 const MyTickets = () => {
   const cancellationPolicyItems = [
@@ -348,7 +349,7 @@ const MyTickets = () => {
                     >
                       {ticket.bookingSeats?.length > 0
                         ? ticket.bookingSeats
-                            .map((s) => s.seat.seatNumber)
+                            .map((s) => getDisplaySeatNumber(s.seat))
                             .join(", ")
                         : "N/A (Cancelled)"}
                     </p>

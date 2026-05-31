@@ -50,6 +50,8 @@ export function mergeBookingSeatsSnapshots(fromApi, fromRealtime) {
   return Array.from(bySeatId.values());
 }
 
+import { normalizeSeatNumber } from '../../../utils/seatLabel';
+
 /**
  * Map API bookingSeats + bus seats into renderable seat rows with seatState.
  */
@@ -88,6 +90,11 @@ export function buildSeatsWithState(busSeats, bookingSeats, currentUserId = null
 
   return busSeats.map((seat) => ({
     ...seat,
+    seatNumber: normalizeSeatNumber(
+      seat.seatNumber,
+      seat.rowNumber,
+      seat.columnNumber,
+    ),
     seatState: seatStatusById.get(seat.id) || 'available',
   }));
 }

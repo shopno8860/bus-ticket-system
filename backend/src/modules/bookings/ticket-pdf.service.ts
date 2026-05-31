@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { normalizeSeatNumber } from '../../common/utils/seat-label.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import PDFDocument from 'pdfkit';
 
@@ -78,7 +79,13 @@ export class TicketPdfService {
       booking.bookingSource === 'MANUAL';
 
     const seatNumbers = booking.bookingSeats
-      .map((entry) => entry.seat.seatNumber)
+      .map((entry) =>
+        normalizeSeatNumber(
+          entry.seat.seatNumber,
+          entry.seat.rowNumber,
+          entry.seat.columnNumber,
+        ),
+      )
       .sort((a, b) => a.localeCompare(b))
       .join(', ');
 

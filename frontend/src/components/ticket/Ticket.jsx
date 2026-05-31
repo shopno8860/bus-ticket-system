@@ -1,6 +1,7 @@
 import React from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { FaCheckCircle } from 'react-icons/fa';
+import { getDisplaySeatNumber } from '../../utils/seatLabel';
 
 const Ticket = ({ booking, ticketRef }) => {
   if (!booking) return null;
@@ -49,7 +50,8 @@ const Ticket = ({ booking, ticketRef }) => {
   });
 
   const seats =
-    booking?.bookingSeats?.map(s => s?.seat?.seatNumber).join(", ") || "N/A";
+    booking?.bookingSeats?.map((s) => getDisplaySeatNumber(s?.seat)).join(', ') ||
+    'N/A';
 
   // =======================
   // FARE with discount support

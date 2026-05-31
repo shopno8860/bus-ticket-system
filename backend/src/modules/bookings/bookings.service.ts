@@ -23,6 +23,7 @@ import {
   getHoursBeforeDeparture,
   getRefundPercentage,
 } from '../../common/policies/cancellation-policy';
+import { withNormalizedBookingSeats } from '../../common/utils/seat-label.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SeatSyncService } from '../seat-sync/seat-sync.service';
@@ -665,7 +666,7 @@ export class BookingsService {
       );
     }
 
-    return booking;
+    return withNormalizedBookingSeats(booking);
   }
 
   /**
@@ -673,7 +674,7 @@ export class BookingsService {
    * বর্তমান user-এর সব বুকিং (trip/seat/latest payment/refund) newest-first অর্ডারে দেয়।
    */
   async findMyBookings(userId: string) {
-    return this.prismaService.booking.findMany({
+    const bookings = await this.prismaService.booking.findMany({
       where: {
         userId,
       },
@@ -712,6 +713,8 @@ export class BookingsService {
         createdAt: 'desc',
       },
     });
+
+    return bookings.map(withNormalizedBookingSeats);
   }
 
   /**
