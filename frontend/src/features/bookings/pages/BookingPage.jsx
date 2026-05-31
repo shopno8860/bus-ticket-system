@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { confirmBooking } from "../services/bookingApi";
+import { tripApi } from "../../trips/services/tripApi";
 import { useAuth } from "../../auth/context/AuthContext";
 import { showError, showSuccess } from "../../../utils/toastHelper";
 
@@ -22,16 +23,37 @@ const BookingPage = () => {
     );
   }
 
-  const { tripId, selectedSeats, selectedSeatNumbers, seatPrice, busType, lockExpiresAt } = state;
+  const { tripId, routeId, selectedSeats, selectedSeatNumbers, seatPrice, busType, lockExpiresAt } = state;
 
   // Passenger info defaults to logged-in user's saved profile (if available).
   const [name, setName] = useState(user?.fullName || "");
   const [phone, setPhone] = useState(user?.phoneNumber || "");
+  const [boardingPointId, setBoardingPointId] = useState("");
+  const [droppingPointId, setDroppingPointId] = useState("");
+  const [points, setPoints] = useState({ boardingPoints: [], droppingPoints: [] });
   const [loading, setLoading] = useState(false);
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(null);
   const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    if (!routeId) return;
+    tripApi
+      .getRoutePoints(routeId)
+      .then((res) => {
+        const boardingPoints = Array.isArray(res?.boardingPoints) ? res.boardingPoints : [];
+        const droppingPoints = Array.isArray(res?.droppingPoints) ? res.droppingPoints : [];
+        setPoints({ boardingPoints, droppingPoints });
+        if (boardingPoints.length === 1) {
+          setBoardingPointId(boardingPoints[0].id);
+        }
+        if (droppingPoints.length === 1) {
+          setDroppingPointId(droppingPoints[0].id);
+        }
+      })
+      .catch(() => setPoints({ boardingPoints: [], droppingPoints: [] }));
+  }, [routeId]);
 
   // Initialize and persist timer (seat hold from backend lockExpiresAt; matches SEAT_SELECTION_LOCK_MINUTES)
   useEffect(() => {
@@ -113,6 +135,15 @@ const BookingPage = () => {
       return;
     }
 
+    if (!boardingPointId) {
+      showError("Please select a boarding point");
+      return;
+    }
+    if (!droppingPointId) {
+      showError("Please select a dropping point");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -122,6 +153,8 @@ const BookingPage = () => {
         seatIds: selectedSeats, // These are the database UUIDs
         passengerName: name,
         passengerPhone: phone,
+        boardingPointId,
+        droppingPointId,
       };
 
       console.log("Sending payload:", payload);
@@ -266,6 +299,52 @@ const BookingPage = () => {
                     onChange={(e) => setPhone(e.target.value)}
                   />
                 </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">Boarding Point</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full rounded-lg bg-gray-50 focus:bg-white"
+                    value={boardingPointId}
+                    onChange={(e) => setBoardingPointId(e.target.value)}
+                    disabled={points.boardingPoints.length === 0}
+                  >
+                    <option value="">
+                      {points.boardingPoints.length === 0
+                        ? "No boarding points available"
+                        : "Select boarding point"}
+                    </option>
+                    {points.boardingPoints.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">Dropping Point</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full rounded-lg bg-gray-50 focus:bg-white"
+                    value={droppingPointId}
+                    onChange={(e) => setDroppingPointId(e.target.value)}
+                    disabled={points.droppingPoints.length === 0}
+                  >
+                    <option value="">
+                      {points.droppingPoints.length === 0
+                        ? "No dropping points available"
+                        : "Select dropping point"}
+                    </option>
+                    {points.droppingPoints.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -302,7 +381,14 @@ const BookingPage = () => {
 
             <button
               onClick={handleBooking}
-              disabled={!name || !phone || loading || isExpired}
+              disabled={
+                !name ||
+                !phone ||
+                !boardingPointId ||
+                !droppingPointId ||
+                loading ||
+                isExpired
+              }
               className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-sm tracking-widest transition-all shadow-lg shadow-green-100 uppercase disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
             >
               {loading ? (

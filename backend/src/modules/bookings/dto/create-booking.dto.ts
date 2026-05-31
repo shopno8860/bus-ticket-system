@@ -1,5 +1,5 @@
-import { ArrayNotEmpty, ArrayUnique, IsArray, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ArrayNotEmpty, ArrayUnique, IsArray, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBookingDto {
   @ApiProperty({
@@ -7,6 +7,16 @@ export class CreateBookingDto {
   })
   @IsString()
   tripId: string;
+
+  @ApiPropertyOptional({ example: 'boarding-point-id' })
+  @IsOptional()
+  @IsString()
+  boardingPointId?: string;
+
+  @ApiPropertyOptional({ example: 'dropping-point-id' })
+  @IsOptional()
+  @IsString()
+  droppingPointId?: string;
 
   @ApiProperty({
     example: [

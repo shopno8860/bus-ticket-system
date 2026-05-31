@@ -21,6 +21,10 @@ const Ticket = ({ booking, ticketRef }) => {
 
   const routeFrom = booking?.trip?.route?.origin ?? 'N/A';
   const routeTo = booking?.trip?.route?.destination ?? 'N/A';
+  const boardingPoint =
+    booking?.boardingPoint?.name ?? booking?.trip?.boardingPoint ?? routeFrom;
+  const droppingPoint =
+    booking?.droppingPoint?.name ?? booking?.trip?.droppingPoint ?? routeTo;
 
   const passengerName = booking?.passengerName ?? 'N/A';
   const contact = booking?.passengerPhone ?? 'Contact Support';
@@ -163,7 +167,12 @@ const Ticket = ({ booking, ticketRef }) => {
 
             <div>
               <p className="text-[11px] text-gray-400 uppercase">BOARDING POINT</p>
-              <p>{routeFrom}</p>
+              <p>{boardingPoint}</p>
+            </div>
+
+            <div>
+              <p className="text-[11px] text-gray-400 uppercase">DROPPING POINT</p>
+              <p>{droppingPoint}</p>
             </div>
 
             <div>

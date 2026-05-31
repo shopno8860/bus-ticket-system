@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Route, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -8,12 +8,16 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { RoutesService } from './routes.service';
+import { PointsService } from '../points/points.service';
 
 /** Public route list; create route is ADMIN-only. */
 @ApiTags('Routes')
 @Controller('routes')
 export class RoutesController {
-  constructor(private readonly routesService: RoutesService) {}
+  constructor(
+    private readonly routesService: RoutesService,
+    private readonly pointsService: PointsService,
+  ) {}
 
   @Post()
   @UseGuards(AccessTokenGuard, RolesGuard)
@@ -31,5 +35,11 @@ export class RoutesController {
   @ApiOperation({ summary: 'List all routes' })
   async findAll(): Promise<Route[]> {
     return this.routesService.findAll();
+  }
+
+  @Get(':id/points')
+  @ApiOperation({ summary: 'List active boarding/dropping points for a route' })
+  async getPoints(@Param('id') id: string) {
+    return this.pointsService.listForRoute(id, true);
   }
 }

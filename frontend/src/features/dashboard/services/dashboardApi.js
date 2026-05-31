@@ -19,6 +19,10 @@ export function getDashboardBookingRoutes(operatorId) {
   );
 }
 
+export function getDashboardRoutePoints(routeId) {
+  return apiFetch(endpoints.dashboard.routePoints(routeId));
+}
+
 export function getDashboardStats() {
   return apiFetch(endpoints.dashboard.stats).then((res) => ({
     totalUsers: Number(res?.totalUsers ?? 0),

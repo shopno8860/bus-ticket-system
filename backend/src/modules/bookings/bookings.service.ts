@@ -86,6 +86,48 @@ export class BookingsService {
     return { start, end };
   }
 
+  private async assertPointsBelongToRouteAndActive(
+    tx: Prisma.TransactionClient,
+    params: {
+      operatorId: string;
+      routeId: string;
+      boardingPointId: string;
+      droppingPointId: string;
+    },
+  ) {
+    const [boardingPoint, droppingPoint] = await Promise.all([
+      tx.boardingPoint.findFirst({
+        where: {
+          id: params.boardingPointId,
+          operatorId: params.operatorId,
+          routeId: params.routeId,
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+      tx.droppingPoint.findFirst({
+        where: {
+          id: params.droppingPointId,
+          operatorId: params.operatorId,
+          routeId: params.routeId,
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!boardingPoint) {
+      throw new BadRequestException(
+        'Invalid boarding point for the selected route',
+      );
+    }
+    if (!droppingPoint) {
+      throw new BadRequestException(
+        'Invalid dropping point for the selected route',
+      );
+    }
+  }
+
   /**
    * Lock seats for a trip; creates a PENDING booking and returns lock expiry.
    * সিটগুলো সাময়িকভাবে LOCK করে PENDING বুকিং তৈরি করে (payment/confirm এর আগে)।
@@ -105,7 +147,7 @@ export class BookingsService {
         async (transactionClient) => {
           const trip = await transactionClient.trip.findUnique({
             where: { id: createBookingDto.tripId },
-            select: { id: true, busId: true, price: true },
+            select: { id: true, busId: true, price: true, routeId: true, operatorId: true },
           });
 
           if (!trip) {
@@ -263,6 +305,7 @@ export class BookingsService {
               price: true,
               departureTime: true,
               operatorId: true,
+              routeId: true,
               bus: { select: { busType: true } },
             },
           });
@@ -270,6 +313,13 @@ export class BookingsService {
           if (!trip) {
             throw new NotFoundException('Trip not found');
           }
+
+          await this.assertPointsBelongToRouteAndActive(transactionClient, {
+            operatorId: trip.operatorId,
+            routeId: trip.routeId,
+            boardingPointId: confirmBookingDto.boardingPointId,
+            droppingPointId: confirmBookingDto.droppingPointId,
+          });
 
           const requestedSeatIds = confirmBookingDto.seatIds;
 
@@ -388,6 +438,8 @@ export class BookingsService {
               userId,
               tripId: confirmBookingDto.tripId,
               operatorId: trip.operatorId,
+              boardingPointId: confirmBookingDto.boardingPointId,
+              droppingPointId: confirmBookingDto.droppingPointId,
               passengerName: confirmBookingDto.passengerName,
               passengerPhone: confirmBookingDto.passengerPhone,
               totalAmount,
@@ -579,6 +631,8 @@ export class BookingsService {
     const booking = await this.prismaService.booking.findUnique({
       where: { id },
       include: {
+        boardingPoint: true,
+        droppingPoint: true,
         trip: {
           include: {
             route: true,
@@ -624,6 +678,8 @@ export class BookingsService {
         userId,
       },
       include: {
+        boardingPoint: true,
+        droppingPoint: true,
         trip: {
           include: {
             route: true,

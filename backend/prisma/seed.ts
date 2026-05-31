@@ -244,6 +244,37 @@ async function main() {
     });
   }
 
+  // Default boarding/dropping points per route (required at booking confirm).
+  const routesForPoints = await prisma.route.findMany({
+    select: { id: true, operatorId: true, origin: true, destination: true },
+  });
+  for (const route of routesForPoints) {
+    const boardingName = `${route.origin} Central`;
+    const droppingName = `${route.destination} Central`;
+    await prisma.boardingPoint.upsert({
+      where: { routeId_name: { routeId: route.id, name: boardingName } },
+      update: { isActive: true },
+      create: {
+        operatorId: route.operatorId,
+        routeId: route.id,
+        name: boardingName,
+        address: `${route.origin} bus terminal`,
+        isActive: true,
+      },
+    });
+    await prisma.droppingPoint.upsert({
+      where: { routeId_name: { routeId: route.id, name: droppingName } },
+      update: { isActive: true },
+      create: {
+        operatorId: route.operatorId,
+        routeId: route.id,
+        name: droppingName,
+        address: `${route.destination} bus terminal`,
+        isActive: true,
+      },
+    });
+  }
+
   // ===== Buses (3-5) per operator + seats =====
   const busesToEnsure: Array<{
     operatorSlug: string;

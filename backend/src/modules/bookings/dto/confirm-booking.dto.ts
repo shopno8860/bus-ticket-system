@@ -40,4 +40,14 @@ export class ConfirmBookingDto {
   @ArrayUnique()
   @IsString({ each: true })
   seatIds: string[];
+
+  @ApiProperty({ example: 'boarding-point-id' })
+  @IsString()
+  @IsNotEmpty()
+  boardingPointId: string;
+
+  @ApiProperty({ example: 'dropping-point-id' })
+  @IsString()
+  @IsNotEmpty()
+  droppingPointId: string;
 }

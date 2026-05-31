@@ -5,11 +5,12 @@ export function isActiveBookingSeat(bookingSeat) {
   if (!bookingSeat) {
     return false;
   }
-  if (bookingSeat.status === 'RESERVED') {
+  const status = String(bookingSeat.status || '').toUpperCase();
+  if (status === 'RESERVED') {
     return true;
   }
   if (
-    bookingSeat.status === 'LOCKED' &&
+    status === 'LOCKED' &&
     bookingSeat.lockExpiresAt &&
     new Date(bookingSeat.lockExpiresAt).getTime() > Date.now()
   ) {
@@ -33,14 +34,16 @@ export function mergeBookingSeatsSnapshots(fromApi, fromRealtime) {
   const bySeatId = new Map();
 
   for (const row of apiRows) {
-    if (isActiveBookingSeat(row)) {
-      bySeatId.set(row.seatId, row);
+    const seatKey = row.seatId ?? row.seat?.id;
+    if (seatKey && isActiveBookingSeat(row)) {
+      bySeatId.set(seatKey, { ...row, seatId: seatKey });
     }
   }
 
   for (const row of realtimeRows) {
-    if (isActiveBookingSeat(row)) {
-      bySeatId.set(row.seatId, row);
+    const seatKey = row.seatId ?? row.seat?.id;
+    if (seatKey && isActiveBookingSeat(row)) {
+      bySeatId.set(seatKey, { ...row, seatId: seatKey });
     }
   }
 
@@ -59,13 +62,19 @@ export function buildSeatsWithState(busSeats, bookingSeats, currentUserId = null
   const seatStatusById = new Map();
 
   for (const bookingSeat of normalizeBookingSeatsList(bookingSeats)) {
-    if (bookingSeat.status === 'RESERVED') {
-      seatStatusById.set(bookingSeat.seatId, 'reserved');
+    const status = String(bookingSeat.status || '').toUpperCase();
+    const seatKey = bookingSeat.seatId ?? bookingSeat.seat?.id;
+    if (!seatKey) {
+      continue;
+    }
+
+    if (status === 'RESERVED') {
+      seatStatusById.set(seatKey, 'reserved');
       continue;
     }
 
     if (
-      bookingSeat.status === 'LOCKED' &&
+      status === 'LOCKED' &&
       bookingSeat.lockExpiresAt &&
       new Date(bookingSeat.lockExpiresAt).getTime() > now
     ) {
@@ -73,7 +82,7 @@ export function buildSeatsWithState(busSeats, bookingSeats, currentUserId = null
         currentUserId &&
         bookingSeat.lockedByUserId &&
         bookingSeat.lockedByUserId === currentUserId;
-      seatStatusById.set(bookingSeat.seatId, heldByMe ? 'heldByMe' : 'locked');
+      seatStatusById.set(seatKey, heldByMe ? 'heldByMe' : 'locked');
     }
   }
 

@@ -22,6 +22,7 @@ export async function apiFetch(path, options = {}) {
 
   const response = await fetch(`${config.apiBaseUrl}${path}`, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

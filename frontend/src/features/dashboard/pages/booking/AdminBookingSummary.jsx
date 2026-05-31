@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { createDashboardBooking } from '../../services/dashboardApi';
+import { createDashboardBooking, getDashboardRoutePoints } from '../../services/dashboardApi';
 import { showError } from '../../../../utils/toastHelper';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 import { useDashboardSummarySeatLifecycle } from '../../hooks/useDashboardSummarySeatLifecycle';
@@ -18,6 +18,9 @@ function AdminBookingSummary() {
 
   const [discountType, setDiscountType] = useState('none');
   const [discountValue, setDiscountValue] = useState('');
+  const [boardingPointId, setBoardingPointId] = useState('');
+  const [droppingPointId, setDroppingPointId] = useState('');
+  const [points, setPoints] = useState({ boardingPoints: [], droppingPoints: [] });
 
   const tripId = state?.tripId;
   const selectedSeats = state?.selectedSeats ?? [];
@@ -45,6 +48,19 @@ function AdminBookingSummary() {
   }
 
   const { trip, selectedSeatNumbers, seatPrice } = state;
+  const routeId = trip?.route?.id;
+
+  useEffect(() => {
+    if (!routeId) return;
+    getDashboardRoutePoints(routeId)
+      .then((res) => {
+        setPoints({
+          boardingPoints: Array.isArray(res?.boardingPoints) ? res.boardingPoints : [],
+          droppingPoints: Array.isArray(res?.droppingPoints) ? res.droppingPoints : [],
+        });
+      })
+      .catch(() => setPoints({ boardingPoints: [], droppingPoints: [] }));
+  }, [routeId]);
 
   const seatTotal = selectedSeats.length * seatPrice;
 
@@ -86,6 +102,14 @@ function AdminBookingSummary() {
       setError('Please enter passenger name and phone');
       return;
     }
+    if (!boardingPointId) {
+      setError('Please select a boarding point');
+      return;
+    }
+    if (!droppingPointId) {
+      setError('Please select a dropping point');
+      return;
+    }
 
     if (discountError) {
       setError(discountError);
@@ -101,6 +125,8 @@ function AdminBookingSummary() {
         seatIds: selectedSeats,
         passengerName: name.trim(),
         passengerPhone: phone.trim(),
+        boardingPointId,
+        droppingPointId,
       };
 
       if (discountType !== 'none' && discountValue && Number(discountValue) > 0) {
@@ -205,6 +231,44 @@ function AdminBookingSummary() {
                   placeholder="Passenger phone number"
                   className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
+              </label>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Boarding Point
+                </span>
+                <select
+                  value={boardingPointId}
+                  onChange={(e) => setBoardingPointId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">Select boarding point</option>
+                  {points.boardingPoints.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Dropping Point
+                </span>
+                <select
+                  value={droppingPointId}
+                  onChange={(e) => setDroppingPointId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 p-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">Select dropping point</option>
+                  {points.droppingPoints.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
           </div>

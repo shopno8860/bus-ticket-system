@@ -30,12 +30,44 @@ export class AdminBookingsService {
               price: true,
               departureTime: true,
               operatorId: true,
+              routeId: true,
               bus: { select: { id: true } },
             },
           });
 
           if (!trip) {
             throw new NotFoundException('Trip not found');
+          }
+
+          const [boardingPoint, droppingPoint] = await Promise.all([
+            tx.boardingPoint.findFirst({
+              where: {
+                id: dto.boardingPointId,
+                operatorId: trip.operatorId,
+                routeId: trip.routeId,
+                isActive: true,
+              },
+              select: { id: true },
+            }),
+            tx.droppingPoint.findFirst({
+              where: {
+                id: dto.droppingPointId,
+                operatorId: trip.operatorId,
+                routeId: trip.routeId,
+                isActive: true,
+              },
+              select: { id: true },
+            }),
+          ]);
+          if (!boardingPoint) {
+            throw new BadRequestException(
+              'Invalid boarding point for the selected route',
+            );
+          }
+          if (!droppingPoint) {
+            throw new BadRequestException(
+              'Invalid dropping point for the selected route',
+            );
           }
 
           const requestedSeatIds = dto.seatIds;
@@ -132,6 +164,8 @@ export class AdminBookingsService {
               userId: adminUserId,
               tripId: dto.tripId,
               operatorId: trip.operatorId,
+              boardingPointId: dto.boardingPointId,
+              droppingPointId: dto.droppingPointId,
               passengerName: dto.passengerName,
               passengerPhone: dto.passengerPhone,
               totalAmount: rawSeatTotal,

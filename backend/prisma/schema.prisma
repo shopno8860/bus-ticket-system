@@ -106,6 +106,8 @@ model Operator {
   bookings Booking[]
   payments Payment[]
   refunds  Refund[]
+  boardingPoints BoardingPoint[]
+  droppingPoints DroppingPoint[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -206,6 +208,8 @@ model Route {
 
   operator Operator @relation(fields: [operatorId], references: [id])
   trips    Trip[]
+  boardingPoints BoardingPoint[]
+  droppingPoints DroppingPoint[]
 
   createdById String?
   updatedById String?
@@ -220,6 +224,58 @@ model Route {
   @@index([origin, destination])
   @@index([createdById])
   @@index([updatedById])
+}
+
+//////////////////////////////////////////////////////
+// BOARDING POINT
+//////////////////////////////////////////////////////
+
+model BoardingPoint {
+  id         String @id @default(cuid())
+  operatorId String
+  routeId    String
+
+  name    String
+  address String
+  isActive Boolean @default(true)
+
+  operator Operator @relation(fields: [operatorId], references: [id])
+  route    Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeId, name])
+  @@index([operatorId])
+  @@index([routeId])
+  @@index([isActive])
+}
+
+//////////////////////////////////////////////////////
+// DROPPING POINT
+//////////////////////////////////////////////////////
+
+model DroppingPoint {
+  id         String @id @default(cuid())
+  operatorId String
+  routeId    String
+
+  name    String
+  address String
+  isActive Boolean @default(true)
+
+  operator Operator @relation(fields: [operatorId], references: [id])
+  route    Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeId, name])
+  @@index([operatorId])
+  @@index([routeId])
+  @@index([isActive])
 }
 
 //////////////////////////////////////////////////////
@@ -301,6 +357,9 @@ model Booking {
   tripId     String
   operatorId String
 
+  boardingPointId String?
+  droppingPointId String?
+
   passengerName  String
   passengerPhone String
 
@@ -322,6 +381,8 @@ model Booking {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   trip     Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   operator Operator @relation(fields: [operatorId], references: [id])
+  boardingPoint BoardingPoint? @relation(fields: [boardingPointId], references: [id], onDelete: Restrict)
+  droppingPoint DroppingPoint? @relation(fields: [droppingPointId], references: [id], onDelete: Restrict)
 
   bookingSeats BookingSeat[]
   payments     Payment[]
@@ -338,6 +399,8 @@ model Booking {
   @@index([userId])
   @@index([operatorId])
   @@index([tripId])
+  @@index([boardingPointId])
+  @@index([droppingPointId])
   @@index([status])
   @@index([createdById])
   @@index([updatedById])

@@ -23,6 +23,7 @@ export const endpoints = {
   },
   routes: {
     list: '/routes',
+    points: (id) => `/routes/${id}/points`,
     update: (id) => `/routes/${id}`,
     delete: (id) => `/routes/${id}`,
   },
@@ -99,6 +100,7 @@ export const endpoints = {
     trips: '/dashboard/trips',
     tripsSearch: '/dashboard/trips/search',
     bookingRoutes: '/dashboard/booking/routes',
+    routePoints: (routeId) => `/dashboard/routes/${routeId}/points`,
     updateTrip: (id) => `/dashboard/trips/${id}`,
     cancelTrip: (id) => `/dashboard/trips/${id}/cancel`,
     buses: '/dashboard/buses',

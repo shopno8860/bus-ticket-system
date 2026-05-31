@@ -14,6 +14,14 @@ export class CreateAdminBookingDto {
   @IsString()
   tripId: string;
 
+  @ApiProperty({ example: 'boarding-point-id' })
+  @IsString()
+  boardingPointId: string;
+
+  @ApiProperty({ example: 'dropping-point-id' })
+  @IsString()
+  droppingPointId: string;
+
   @ApiProperty({ example: ['seat-id-1', 'seat-id-2'] })
   @IsArray()
   @IsString({ each: true })

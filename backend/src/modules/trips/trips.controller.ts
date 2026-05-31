@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Trip } from '@prisma/client';
 import { SearchTripsDto } from './dto/search-trips.dto';
@@ -23,6 +23,7 @@ export class TripsController {
   }
 
   @Get(':id')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({
     summary: 'Trip with bus, route, seats, and availability counts',
   })

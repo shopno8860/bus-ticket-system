@@ -29,8 +29,10 @@ export const tripApi = {
 
     const response = await fetch(url, {
       method: 'GET',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
       },
     });
 
@@ -51,13 +53,38 @@ export const tripApi = {
 
     const response = await fetch(url, {
       method: 'GET',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
       },
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch trip details: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  /**
+   * @param {string} routeId
+   * @returns {Promise<{ boardingPoints: object[], droppingPoints: object[] }>}
+   */
+  getRoutePoints: async (routeId) => {
+    const url = `${config.apiBaseUrl}/routes/${routeId}/points`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch route points: ${response.statusText}`);
     }
 
     return response.json();

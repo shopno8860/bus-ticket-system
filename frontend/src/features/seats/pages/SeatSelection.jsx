@@ -7,6 +7,7 @@ import { useTripSeatSync } from "../hooks/useTripSeatSync";
 import {
   buildSeatsWithState,
   mergeBookingSeatsSnapshots,
+  normalizeBookingSeatsList,
 } from "../utils/seatState";
 
 const SeatSelection = () => {
@@ -22,6 +23,14 @@ const SeatSelection = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const realtimeBookingSeatsRef = useRef(null);
   const fetchGenerationRef = useRef(0);
+
+  useEffect(() => {
+    fetchGenerationRef.current += 1;
+    realtimeBookingSeatsRef.current = null;
+    setTripData(null);
+    setSelectedSeats([]);
+    setLoading(true);
+  }, [tripId]);
 
   useEffect(() => {
     // If user returned from SSLCommerz/payment flow, show a toast once based on `?payment=...`
@@ -59,14 +68,18 @@ const SeatSelection = () => {
   }, [searchParams, setSearchParams, tripId]);
 
   const fetchTripDetails = useCallback(async ({ silent = false } = {}) => {
-    const generation = fetchGenerationRef.current + 1;
-    fetchGenerationRef.current = generation;
+    const generation = silent ? null : fetchGenerationRef.current + 1;
     if (!silent) {
+      fetchGenerationRef.current = generation;
       setLoading(true);
     }
+    const requestTripId = tripId;
     try {
-      const data = await tripApi.getTripDetails(tripId);
-      if (fetchGenerationRef.current !== generation) {
+      const data = await tripApi.getTripDetails(requestTripId);
+      if (requestTripId !== tripId) {
+        return;
+      }
+      if (!silent && fetchGenerationRef.current !== generation) {
         return;
       }
       const bookingSeats = mergeBookingSeatsSnapshots(
@@ -75,7 +88,10 @@ const SeatSelection = () => {
       );
       setTripData({ ...data, bookingSeats });
     } catch (err) {
-      if (fetchGenerationRef.current !== generation) {
+      if (requestTripId !== tripId) {
+        return;
+      }
+      if (!silent && fetchGenerationRef.current !== generation) {
         return;
       }
       console.error("Failed to fetch trip details:", err);
@@ -96,9 +112,12 @@ const SeatSelection = () => {
   useTripSeatSync(tripId, {
     enabled: Boolean(tripId),
     onSeatsUpdated: (bookingSeats) => {
-      const rows = Array.isArray(bookingSeats) ? bookingSeats : [];
-      realtimeBookingSeatsRef.current = rows;
-      setTripData((prev) => (prev ? { ...prev, bookingSeats: rows } : prev));
+      const rows = normalizeBookingSeatsList(bookingSeats);
+      setTripData((prev) => {
+        const merged = mergeBookingSeatsSnapshots(prev?.bookingSeats, rows);
+        realtimeBookingSeatsRef.current = merged;
+        return prev ? { ...prev, bookingSeats: merged } : prev;
+      });
     },
     onFallbackPoll: () => fetchTripDetails({ silent: true }),
   });
@@ -245,6 +264,7 @@ const SeatSelection = () => {
       navigate("/booking", {
         state: {
           tripId,
+          routeId: tripData.route?.id,
           selectedSeats: selectedSeats, // These are UUIDs/CUIDs
           selectedSeatNumbers: selectedSeatDetails.map(s => s.seatNumber),
           seatPrice: PRICE_PER_SEAT,
@@ -254,7 +274,15 @@ const SeatSelection = () => {
       });
     } catch (err) {
       console.error("Failed to lock seats:", err);
-      showError("Seat already booked", { id: loadingToastId });
+      const raw = err?.data?.message ?? err?.message;
+      const msg = Array.isArray(raw)
+        ? raw.join(" ")
+        : String(raw ?? "Could not lock seats");
+      const friendly =
+        err.status === 409 || /unavailable|already booked|already reserved/i.test(msg)
+          ? "Seat already booked"
+          : msg;
+      showError(friendly, { id: loadingToastId });
     } finally {
       setLocking(false);
     }

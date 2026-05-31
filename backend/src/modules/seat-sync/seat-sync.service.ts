@@ -2,8 +2,11 @@ import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TripsService } from '../trips/trips.service';
 import { SeatSyncGateway } from './seat-sync.gateway';
-import type { SeatsUpdatedEvent } from './seat-sync.types';
-import { tripRoom } from './seat-sync.types';
+import {
+  buildSeatsUpdatedPayload,
+  type SeatsUpdatedEvent,
+  tripRoom,
+} from './seat-sync.types';
 
 @Injectable()
 export class SeatSyncService {
@@ -33,18 +36,10 @@ export class SeatSyncService {
       const bookingSeats =
         await this.tripsService.getActiveBookingSeatsForTrip(tripId);
 
-      const payload: SeatsUpdatedEvent = {
-        type: 'seats.updated',
+      const payload: SeatsUpdatedEvent = buildSeatsUpdatedPayload(
         tripId,
-        bookingSeats: bookingSeats.map((row) => ({
-          seatId: row.seatId,
-          status: row.status as 'LOCKED' | 'RESERVED',
-          lockExpiresAt: row.lockExpiresAt
-            ? row.lockExpiresAt.toISOString()
-            : null,
-          lockedByUserId: row.lockedByUserId ?? null,
-        })),
-      };
+        bookingSeats,
+      );
 
       this.emitSeatsUpdated(payload);
     } catch (error) {

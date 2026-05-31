@@ -14,7 +14,12 @@ import { UserRole } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
-import { SEAT_SYNC_NAMESPACE, tripRoom } from './seat-sync.types';
+import { TripsService } from '../trips/trips.service';
+import {
+  buildSeatsUpdatedPayload,
+  SEAT_SYNC_NAMESPACE,
+  tripRoom,
+} from './seat-sync.types';
 
 type SeatSyncSocket = Socket & {
   user?: AuthenticatedUser | null;
@@ -39,6 +44,7 @@ export class SeatSyncGateway
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
+    private readonly tripsService: TripsService,
   ) {}
 
   async handleConnection(client: SeatSyncSocket) {
@@ -82,6 +88,20 @@ export class SeatSyncGateway
     }
 
     await client.join(tripRoom(tripId));
+
+    try {
+      const bookingSeats =
+        await this.tripsService.getActiveBookingSeatsForTrip(tripId);
+      client.emit(
+        'seats.updated',
+        buildSeatsUpdatedPayload(tripId, bookingSeats),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send initial seat snapshot for trip ${tripId}: ${String(error)}`,
+      );
+    }
+
     return { ok: true, tripId };
   }
 

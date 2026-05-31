@@ -7,9 +7,11 @@ export class TicketPdfService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async generateBookingTicketPdf(bookingId: string): Promise<Buffer> {
-    const booking = await this.prismaService.booking.findUnique({
+      const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
       include: {
+        boardingPoint: true,
+        droppingPoint: true,
         user: {
           select: {
             fullName: true,
@@ -57,6 +59,8 @@ export class TicketPdfService {
     const coach = booking.trip.bus.registrationNumber ?? 'N/A';
     const routeFrom = booking.trip.route.origin ?? 'N/A';
     const routeTo = booking.trip.route.destination ?? 'N/A';
+    const boardingPointName = booking.boardingPoint?.name ?? routeFrom;
+    const droppingPointName = booking.droppingPoint?.name ?? routeTo;
     const passengerName = booking.passengerName ?? 'N/A';
     const contact = booking.passengerPhone ?? 'Contact Support';
     const txn = booking.payments[0]?.transactionId ?? 'N/A';
@@ -145,12 +149,13 @@ export class TicketPdfService {
         .stroke();
       drawKeyValue(doc, 'FROM', routeFrom, 165, 65, 210);
       drawKeyValue(doc, 'TO', routeTo, 205, 65, 210);
-      drawKeyValue(doc, 'BOARDING POINT', routeFrom, 245, 65, 210);
+      drawKeyValue(doc, 'BOARDING POINT', boardingPointName, 245, 65, 210);
+      drawKeyValue(doc, 'DROPPING POINT', droppingPointName, 285, 65, 210);
       drawKeyValue(
         doc,
         'DEPARTURE TIME',
         `${journeyDate}  ${journeyTime}`,
-        285,
+        325,
         65,
         210,
       );

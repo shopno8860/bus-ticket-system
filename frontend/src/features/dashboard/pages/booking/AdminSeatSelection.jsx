@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../../../../services/api';
 import { endpoints } from '../../../../services/endpoints';
 import { showError, showLoading, showSuccess } from '../../../../utils/toastHelper';
@@ -11,6 +11,7 @@ import { useTripSeatSync } from '../../../seats/hooks/useTripSeatSync';
 import {
   buildSeatsWithState,
   mergeBookingSeatsSnapshots,
+  normalizeBookingSeatsList,
 } from '../../../seats/utils/seatState';
 import {
   markDashboardHoldActive,
@@ -21,29 +22,40 @@ const MAX_SELECTABLE = 999;
 
 function AdminSeatSelection() {
   const { tripId } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
   const { bookingSummary } = useOperatorHubPaths();
   const { user } = useAuth();
 
-  const trip = location.state?.trip;
-
-  const [tripData, setTripData] = useState(trip || null);
-  const [loading, setLoading] = useState(!trip);
+  const [tripData, setTripData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
   const realtimeBookingSeatsRef = useRef(null);
   const fetchGenerationRef = useRef(0);
 
+  useEffect(() => {
+    fetchGenerationRef.current += 1;
+    realtimeBookingSeatsRef.current = null;
+    setTripData(null);
+    setSelectedSeats([]);
+    setLoading(true);
+  }, [tripId]);
+
   const fetchTripDetails = useCallback(
     async ({ silent = false } = {}) => {
-      const generation = fetchGenerationRef.current + 1;
-      fetchGenerationRef.current = generation;
-      if (!silent) setLoading(true);
+      const generation = silent ? null : fetchGenerationRef.current + 1;
+      if (!silent) {
+        fetchGenerationRef.current = generation;
+        setLoading(true);
+      }
+      const requestTripId = tripId;
       try {
-        const data = await apiFetch(endpoints.trips.details(tripId));
-        if (fetchGenerationRef.current !== generation) {
+        const data = await apiFetch(endpoints.trips.details(requestTripId));
+        if (requestTripId !== tripId) {
+          return;
+        }
+        if (!silent && fetchGenerationRef.current !== generation) {
           return;
         }
         const bookingSeats = mergeBookingSeatsSnapshots(
@@ -53,7 +65,10 @@ function AdminSeatSelection() {
         setTripData({ ...data, bookingSeats });
         setError('');
       } catch (err) {
-        if (fetchGenerationRef.current !== generation) {
+        if (requestTripId !== tripId) {
+          return;
+        }
+        if (!silent && fetchGenerationRef.current !== generation) {
           return;
         }
         if (!silent) {
@@ -69,19 +84,18 @@ function AdminSeatSelection() {
   );
 
   useEffect(() => {
-    if (trip?.bus?.seats) {
-      setLoading(false);
-      return;
-    }
     fetchTripDetails();
-  }, [tripId, trip, fetchTripDetails]);
+  }, [tripId, fetchTripDetails]);
 
   useTripSeatSync(tripId, {
     enabled: Boolean(tripId),
     onSeatsUpdated: (bookingSeats) => {
-      const rows = Array.isArray(bookingSeats) ? bookingSeats : [];
-      realtimeBookingSeatsRef.current = rows;
-      setTripData((prev) => (prev ? { ...prev, bookingSeats: rows } : prev));
+      const rows = normalizeBookingSeatsList(bookingSeats);
+      setTripData((prev) => {
+        const merged = mergeBookingSeatsSnapshots(prev?.bookingSeats, rows);
+        realtimeBookingSeatsRef.current = merged;
+        return prev ? { ...prev, bookingSeats: merged } : prev;
+      });
     },
     onFallbackPoll: () => fetchTripDetails({ silent: true }),
   });

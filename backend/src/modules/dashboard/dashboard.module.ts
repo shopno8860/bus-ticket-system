@@ -11,6 +11,7 @@ import { RoutesModule } from '../routes/routes.module';
 import { SeatsModule } from '../seats/seats.module';
 import { TripsModule } from '../trips/trips.module';
 import { UsersModule } from '../users/users.module';
+import { PointsModule } from '../points/points.module';
 import { DashboardBookingsService } from './dashboard-bookings.service';
 import { DashboardController } from './dashboard.controller';
 import {
@@ -29,6 +30,7 @@ import {
     TripsModule,
     BusesModule,
     RoutesModule,
+    PointsModule,
     SeatsModule,
     OperatorsModule,
     SeatSyncModule,

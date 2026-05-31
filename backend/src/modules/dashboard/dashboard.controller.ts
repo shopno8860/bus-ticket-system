@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -54,6 +55,11 @@ import { CreateStaffDto } from '../operators/dto/create-staff.dto';
 import { UpdateStaffDto } from '../operators/dto/update-staff.dto';
 import { AuditLogService } from '../admin/audit-log.service';
 import { DashboardBookingsService } from './dashboard-bookings.service';
+import { PointsService } from '../points/points.service';
+import { CreateBoardingPointDto } from '../points/dto/create-boarding-point.dto';
+import { UpdateBoardingPointDto } from '../points/dto/update-boarding-point.dto';
+import { CreateDroppingPointDto } from '../points/dto/create-dropping-point.dto';
+import { UpdateDroppingPointDto } from '../points/dto/update-dropping-point.dto';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth('JWT')
@@ -72,6 +78,7 @@ export class DashboardController {
     private readonly dashboardBookingsService: DashboardBookingsService,
     private readonly operatorsService: OperatorsService,
     private readonly auditLogService: AuditLogService,
+    private readonly pointsService: PointsService,
     private readonly tenantScope: TenantScopeService,
   ) {}
 
@@ -258,6 +265,101 @@ export class DashboardController {
       return this.routesService.findByOperator(scope.operatorId);
     }
     return this.routesService.findAll();
+  }
+
+  @Get('routes/:routeId/points')
+  @RequirePermissions(Permission.BOOK_TICKET)
+  @ApiOperation({
+    summary:
+      'Boarding/dropping points for a route (operator-scoped for OPERATOR/STAFF)',
+  })
+  async getRoutePoints(
+    @Param('routeId') routeId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const route = await this.routesService.findOneById(routeId);
+    this.tenantScope.assertResourceOwnership(user, route.operatorId);
+    return this.pointsService.listForRoute(routeId, true);
+  }
+
+  @Post('boarding-points')
+  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @ApiOperation({ summary: 'Create boarding point (operator-scoped)' })
+  async createBoardingPoint(
+    @Body() dto: CreateBoardingPointDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const opId = this.tenantScope.resolveListScope(user, operatorId).operatorId;
+    if (!opId) throw new BadRequestException('operatorId is required');
+    return this.pointsService.createBoardingPoint(dto, opId);
+  }
+
+  @Patch('boarding-points/:id')
+  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @ApiOperation({ summary: 'Update boarding point (operator-scoped)' })
+  async updateBoardingPoint(
+    @Param('id') id: string,
+    @Body() dto: UpdateBoardingPointDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const opId = this.tenantScope.resolveListScope(user, operatorId).operatorId;
+    if (!opId) throw new BadRequestException('operatorId is required');
+    return this.pointsService.updateBoardingPoint(id, dto, opId);
+  }
+
+  @Delete('boarding-points/:id')
+  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @ApiOperation({ summary: 'Delete boarding point (operator-scoped)' })
+  async deleteBoardingPoint(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const opId = this.tenantScope.resolveListScope(user, operatorId).operatorId;
+    if (!opId) throw new BadRequestException('operatorId is required');
+    return this.pointsService.deleteBoardingPoint(id, opId);
+  }
+
+  @Post('dropping-points')
+  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @ApiOperation({ summary: 'Create dropping point (operator-scoped)' })
+  async createDroppingPoint(
+    @Body() dto: CreateDroppingPointDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const opId = this.tenantScope.resolveListScope(user, operatorId).operatorId;
+    if (!opId) throw new BadRequestException('operatorId is required');
+    return this.pointsService.createDroppingPoint(dto, opId);
+  }
+
+  @Patch('dropping-points/:id')
+  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @ApiOperation({ summary: 'Update dropping point (operator-scoped)' })
+  async updateDroppingPoint(
+    @Param('id') id: string,
+    @Body() dto: UpdateDroppingPointDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const opId = this.tenantScope.resolveListScope(user, operatorId).operatorId;
+    if (!opId) throw new BadRequestException('operatorId is required');
+    return this.pointsService.updateDroppingPoint(id, dto, opId);
+  }
+
+  @Delete('dropping-points/:id')
+  @RequirePermissions(Permission.MANAGE_ROUTES)
+  @ApiOperation({ summary: 'Delete dropping point (operator-scoped)' })
+  async deleteDroppingPoint(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('operatorId') operatorId?: string,
+  ) {
+    const opId = this.tenantScope.resolveListScope(user, operatorId).operatorId;
+    if (!opId) throw new BadRequestException('operatorId is required');
+    return this.pointsService.deleteDroppingPoint(id, opId);
   }
 
   @Get('trips/search')
