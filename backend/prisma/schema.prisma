@@ -89,26 +89,26 @@ enum RefundStatus {
 //////////////////////////////////////////////////////
 
 model Operator {
-  id          String          @id @default(cuid())
-  companyName String          @unique
-  slug        String          @unique
+  id          String         @id @default(cuid())
+  companyName String         @unique
+  slug        String         @unique
   logo        String?
   email       String?
   phone       String?
   address     String?
   description String?
-  status      OperatorStatus  @default(ACTIVE)
+  status      OperatorStatus @default(ACTIVE)
 
-  users       User[]
-  buses       Bus[]
-  routes      Route[]
-  trips       Trip[]
-  bookings    Booking[]
-  payments    Payment[]
-  refunds     Refund[]
+  users    User[]
+  buses    Bus[]
+  routes   Route[]
+  trips    Trip[]
+  bookings Booking[]
+  payments Payment[]
+  refunds  Refund[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([slug])
@@ -119,44 +119,44 @@ model Operator {
 //////////////////////////////////////////////////////
 
 model User {
-  id                String   @id @default(cuid())
-  fullName          String
-  email             String   @unique
-  passwordHash      String
-  phoneNumber       String?
-  gender            Gender?
-  address           String?
-  dateOfBirth       DateTime?
-  nationalId        String?
-  passportNumber    String?
-  visaInfo          String?
-  role              UserRole @default(USER)
-  operatorId        String?
-  refreshTokenHash  String?
+  id                   String    @id @default(cuid())
+  fullName             String
+  email                String    @unique
+  passwordHash         String
+  phoneNumber          String?
+  gender               Gender?
+  address              String?
+  dateOfBirth          DateTime?
+  nationalId           String?
+  passportNumber       String?
+  visaInfo             String?
+  role                 UserRole  @default(USER)
+  operatorId           String?
+  refreshTokenHash     String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
 
-  operator          Operator? @relation(fields: [operatorId], references: [id], onDelete: Cascade)
-  bookings          Booking[]
-  payments          Payment[]
-  refunds           Refund[]
+  operator Operator? @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  payments Payment[]
+  refunds  Refund[]
 
-  busesCreated      Bus[]     @relation("BusCreatedBy")
-  busesUpdated      Bus[]     @relation("BusUpdatedBy")
-  routesCreated     Route[]   @relation("RouteCreatedBy")
-  routesUpdated     Route[]   @relation("RouteUpdatedBy")
-  tripsCreated      Trip[]    @relation("TripCreatedBy")
-  tripsUpdated      Trip[]    @relation("TripUpdatedBy")
-  bookingsCreated   Booking[] @relation("BookingCreatedBy")
-  bookingsUpdated   Booking[] @relation("BookingUpdatedBy")
-  paymentsCreated   Payment[] @relation("PaymentCreatedBy")
-  paymentsUpdated   Payment[] @relation("PaymentUpdatedBy")
-  refundsCreated    Refund[]  @relation("RefundCreatedBy")
-  refundsUpdated    Refund[]  @relation("RefundUpdatedBy")
+  busesCreated       Bus[]         @relation("BusCreatedBy")
+  busesUpdated       Bus[]         @relation("BusUpdatedBy")
+  routesCreated      Route[]       @relation("RouteCreatedBy")
+  routesUpdated      Route[]       @relation("RouteUpdatedBy")
+  tripsCreated       Trip[]        @relation("TripCreatedBy")
+  tripsUpdated       Trip[]        @relation("TripUpdatedBy")
+  bookingsCreated    Booking[]     @relation("BookingCreatedBy")
+  bookingsUpdated    Booking[]     @relation("BookingUpdatedBy")
+  paymentsCreated    Payment[]     @relation("PaymentCreatedBy")
+  paymentsUpdated    Payment[]     @relation("PaymentUpdatedBy")
+  refundsCreated     Refund[]      @relation("RefundCreatedBy")
+  refundsUpdated     Refund[]      @relation("RefundUpdatedBy")
   bookingSeatsLocked BookingSeat[] @relation("BookingSeatLockedBy")
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([operatorId])
   @@index([role])
@@ -167,26 +167,26 @@ model User {
 //////////////////////////////////////////////////////
 
 model Bus {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   name               String
   operatorId         String
-  registrationNumber String   @unique
+  registrationNumber String    @unique
   seatCapacity       Int
   busType            BusType
-  busClass           BusClass @default(ECONOMY)
+  busClass           BusClass  @default(ECONOMY)
   status             BusStatus @default(ACTIVE)
 
-  operator           Operator @relation(fields: [operatorId], references: [id])
-  seats              Seat[]
-  trips              Trip[]
+  operator Operator @relation(fields: [operatorId], references: [id])
+  seats    Seat[]
+  trips    Trip[]
 
-  createdById        String?
-  updatedById        String?
-  createdBy          User?    @relation("BusCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy          User?    @relation("BusUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("BusCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("BusUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([operatorId])
   @@index([operatorId, status])
@@ -199,21 +199,21 @@ model Bus {
 //////////////////////////////////////////////////////
 
 model Route {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   operatorId  String
   origin      String
   destination String
 
-  operator    Operator @relation(fields: [operatorId], references: [id])
-  trips       Trip[]
+  operator Operator @relation(fields: [operatorId], references: [id])
+  trips    Trip[]
 
   createdById String?
   updatedById String?
-  createdBy   User?    @relation("RouteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?    @relation("RouteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdBy   User?   @relation("RouteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("RouteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([operatorId, origin, destination])
   @@index([operatorId])
@@ -227,43 +227,43 @@ model Route {
 //////////////////////////////////////////////////////
 
 model Trip {
-  id             String      @id @default(cuid())
-  busId          String
-  routeId        String
-  operatorId     String
-  boardingPoint  String
-  droppingPoint  String
+  id            String @id @default(cuid())
+  busId         String
+  routeId       String
+  operatorId    String
+  boardingPoint String
+  droppingPoint String
 
-  departureTime  DateTime
-  arrivalTime    DateTime
-  price          Decimal     @db.Decimal(10, 2)
+  departureTime DateTime
+  arrivalTime   DateTime
+  price         Decimal  @db.Decimal(10, 2)
 
-  status         TripStatus  @default(SCHEDULED)
-  cancelledAt    DateTime?
-  cancelReason   String?
-  cancelledBy    String?
+  status       TripStatus @default(SCHEDULED)
+  cancelledAt  DateTime?
+  cancelReason String?
+  cancelledBy  String?
 
-  bus            Bus         @relation(fields: [busId], references: [id], onDelete: Restrict)
-  route          Route       @relation(fields: [routeId], references: [id], onDelete: Restrict)
-  operator       Operator    @relation(fields: [operatorId], references: [id])
+  bus      Bus      @relation(fields: [busId], references: [id], onDelete: Restrict)
+  route    Route    @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  operator Operator @relation(fields: [operatorId], references: [id])
 
-  bookings       Booking[]
-  bookingSeats   BookingSeat[]
+  bookings     Booking[]
+  bookingSeats BookingSeat[]
 
-  createdById    String?
-  updatedById    String?
-  createdBy      User?    @relation("TripCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy      User?    @relation("TripUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("TripCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("TripUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([routeId, busId, departureTime])
   @@index([busId])
   @@index([routeId])
   @@index([operatorId])
   @@index([departureTime])
   @@index([status, departureTime])
-  @@unique([routeId, busId, departureTime])
   @@index([createdById])
   @@index([updatedById])
 }
@@ -273,18 +273,18 @@ model Trip {
 //////////////////////////////////////////////////////
 
 model Seat {
-  id           String   @id @default(cuid())
-  busId        String
-  seatNumber   String
+  id         String @id @default(cuid())
+  busId      String
+  seatNumber String
 
   rowNumber    Int?
   columnNumber Int?
 
-  bus          Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+  bus          Bus           @relation(fields: [busId], references: [id], onDelete: Cascade)
   bookingSeats BookingSeat[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([busId, seatNumber])
 }
@@ -294,46 +294,46 @@ model Seat {
 //////////////////////////////////////////////////////
 
 model Booking {
-  id               String         @id @default(cuid())
-  bookingReference String         @unique
+  id               String @id @default(cuid())
+  bookingReference String @unique
 
-  userId           String
-  tripId           String
-  operatorId       String
+  userId     String
+  tripId     String
+  operatorId String
 
-  passengerName    String
-  passengerPhone   String
+  passengerName  String
+  passengerPhone String
 
-  totalAmount      Decimal        @db.Decimal(10, 2)
+  totalAmount Decimal @db.Decimal(10, 2)
 
   paymentExpiresAt DateTime?
 
-  status           BookingStatus  @default(PENDING)
-  bookingSource    String         @default("USER_BOOKING")
-  discountType     String?
-  discountValue    Decimal?       @db.Decimal(10, 2)
-  discountAmount   Decimal?       @db.Decimal(10, 2)
-  finalAmount      Decimal?       @db.Decimal(10, 2)
-  refundAmount     Decimal?       @db.Decimal(10, 2)
-  cancelledAt      DateTime?
-  cancelReason     String?
-  cancelledBy      String?
+  status         BookingStatus @default(PENDING)
+  bookingSource  String        @default("USER_BOOKING")
+  discountType   String?
+  discountValue  Decimal?      @db.Decimal(10, 2)
+  discountAmount Decimal?      @db.Decimal(10, 2)
+  finalAmount    Decimal?      @db.Decimal(10, 2)
+  refundAmount   Decimal?      @db.Decimal(10, 2)
+  cancelledAt    DateTime?
+  cancelReason   String?
+  cancelledBy    String?
 
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip             Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  operator         Operator       @relation(fields: [operatorId], references: [id])
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip     Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  operator Operator @relation(fields: [operatorId], references: [id])
 
-  bookingSeats     BookingSeat[]
-  payments         Payment[]
-  refunds          Refund[]
+  bookingSeats BookingSeat[]
+  payments     Payment[]
+  refunds      Refund[]
 
-  createdById      String?
-  updatedById      String?
-  createdBy        User?    @relation("BookingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy        User?    @relation("BookingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("BookingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("BookingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([operatorId])
@@ -348,23 +348,23 @@ model Booking {
 //////////////////////////////////////////////////////
 
 model BookingSeat {
-  id            String            @id @default(cuid())
+  id String @id @default(cuid())
 
-  bookingId     String?
-  tripId        String
-  seatId        String
+  bookingId String?
+  tripId    String
+  seatId    String
 
-  price         Decimal           @db.Decimal(10, 2)
-  status        BookingSeatStatus @default(LOCKED)
-  lockExpiresAt DateTime?
+  price          Decimal           @db.Decimal(10, 2)
+  status         BookingSeatStatus @default(LOCKED)
+  lockExpiresAt  DateTime?
   lockedByUserId String?
 
-  booking       Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  trip          Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  seat          Seat              @relation(fields: [seatId], references: [id], onDelete: Restrict)
-  lockedByUser  User?             @relation("BookingSeatLockedBy", fields: [lockedByUserId], references: [id], onDelete: SetNull)
+  booking      Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  seat         Seat     @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  lockedByUser User?    @relation("BookingSeatLockedBy", fields: [lockedByUserId], references: [id], onDelete: SetNull)
 
-  createdAt     DateTime          @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([tripId, seatId])
   @@index([tripId, lockedByUserId])
@@ -375,35 +375,35 @@ model BookingSeat {
 //////////////////////////////////////////////////////
 
 model Payment {
-  id            String        @id @default(cuid())
+  id String @id @default(cuid())
 
-  bookingId     String
-  userId        String
-  operatorId    String
+  bookingId  String
+  userId     String
+  operatorId String
 
-  amount        Decimal       @db.Decimal(10, 2)
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  refundAmount  Decimal?      @db.Decimal(10, 2)
-  refundStatus  String?
+  amount       Decimal       @db.Decimal(10, 2)
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  refundAmount Decimal?      @db.Decimal(10, 2)
+  refundStatus String?
 
-  transactionId String?       @unique
+  transactionId String? @unique
   valId         String?
   bankTranId    String?
 
-  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  operator      Operator      @relation(fields: [operatorId], references: [id])
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operator Operator @relation(fields: [operatorId], references: [id])
 
-  refunds       Refund[]
+  refunds Refund[]
 
-  createdById   String?
-  updatedById   String?
-  createdBy     User?    @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy     User?    @relation("PaymentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("PaymentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([bookingId])
   @@index([operatorId])
@@ -417,12 +417,12 @@ model Payment {
 //////////////////////////////////////////////////////
 
 model Refund {
-  id          String       @id @default(cuid())
+  id String @id @default(cuid())
 
-  bookingId   String
-  paymentId   String?
-  userId      String
-  operatorId  String
+  bookingId  String
+  paymentId  String?
+  userId     String
+  operatorId String
 
   reason      String
   amount      Decimal      @db.Decimal(10, 2)
@@ -431,24 +431,24 @@ model Refund {
   processedBy String?
   adminNote   String?
 
-  bankTranId        String?
-  sslRefundRefId    String?
-  refundTransId     String?  @unique
-  sslGatewayStatus  String?
-  sslRawResponse    Json?
+  bankTranId       String?
+  sslRefundRefId   String?
+  refundTransId    String? @unique
+  sslGatewayStatus String?
+  sslRawResponse   Json?
 
-  booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  payment     Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  operator    Operator     @relation(fields: [operatorId], references: [id])
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  payment  Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operator Operator @relation(fields: [operatorId], references: [id])
 
   createdById String?
   updatedById String?
-  createdBy   User?    @relation("RefundCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?    @relation("RefundUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdBy   User?   @relation("RefundCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("RefundUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([bookingId])
   @@index([operatorId])
