@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createDashboardBooking, getDashboardRoutePoints } from '../../services/dashboardApi';
 import { showError } from '../../../../utils/toastHelper';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
-import { useDashboardSummarySeatLifecycle } from '../../hooks/useDashboardSummarySeatLifecycle';
-
+import { useDashboardScope } from '../../hooks/useDashboardScope';
 
 function AdminBookingSummary() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { booking: bookingPath, bookingConfirm, bookingSeats } = useOperatorHubPaths();
+  const { operatorId } = useDashboardScope();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -24,12 +24,6 @@ function AdminBookingSummary() {
 
   const tripId = state?.tripId;
   const selectedSeats = state?.selectedSeats ?? [];
-
-  const { markBookingCompleted, releaseHeldSeats } = useDashboardSummarySeatLifecycle({
-    tripId,
-    seatIds: selectedSeats,
-    enabled: Boolean(tripId && selectedSeats.length),
-  });
 
   void showError;
   void bookingSeats;
@@ -52,15 +46,20 @@ function AdminBookingSummary() {
 
   useEffect(() => {
     if (!routeId) return;
-    getDashboardRoutePoints(routeId)
+    getDashboardRoutePoints(routeId, { operatorId })
       .then((res) => {
-        setPoints({
-          boardingPoints: Array.isArray(res?.boardingPoints) ? res.boardingPoints : [],
-          droppingPoints: Array.isArray(res?.droppingPoints) ? res.droppingPoints : [],
-        });
+        const boardingPoints = Array.isArray(res?.boardingPoints) ? res.boardingPoints : [];
+        const droppingPoints = Array.isArray(res?.droppingPoints) ? res.droppingPoints : [];
+        setPoints({ boardingPoints, droppingPoints });
+        if (boardingPoints.length === 1) {
+          setBoardingPointId(boardingPoints[0].id);
+        }
+        if (droppingPoints.length === 1) {
+          setDroppingPointId(droppingPoints[0].id);
+        }
       })
       .catch(() => setPoints({ boardingPoints: [], droppingPoints: [] }));
-  }, [routeId]);
+  }, [routeId, operatorId]);
 
   const seatTotal = selectedSeats.length * seatPrice;
 
@@ -136,8 +135,6 @@ function AdminBookingSummary() {
 
       const result = await createDashboardBooking(payload);
 
-      markBookingCompleted();
-
       navigate(bookingConfirm, {
         state: { booking: result },
       });
@@ -148,8 +145,7 @@ function AdminBookingSummary() {
     }
   };
 
-  const handleBack = async () => {
-    await releaseHeldSeats();
+  const handleBack = () => {
     navigate(bookingSeats(tripId), { replace: true });
   };
 
@@ -167,11 +163,6 @@ function AdminBookingSummary() {
         >
           Back to Seats
         </button>
-      </div>
-
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-        <span className="font-semibold">Seats are held for you</span>
-        <span className="text-emerald-700"> — finish or cancel the booking when you’re done.</span>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -366,7 +357,7 @@ function AdminBookingSummary() {
             </button>
 
             <p className="text-[10px] text-center text-slate-400">
-              Seats stay held while you are on this page. Leaving releases them for other staff.
+              Staff and operator bookings use ticket fare only (no platform or insurance fees).
             </p>
           </div>
         </div>

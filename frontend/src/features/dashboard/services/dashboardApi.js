@@ -19,8 +19,52 @@ export function getDashboardBookingRoutes(operatorId) {
   );
 }
 
-export function getDashboardRoutePoints(routeId) {
-  return apiFetch(endpoints.dashboard.routePoints(routeId));
+export function getDashboardRoutePoints(routeId, { operatorId, includeInactive } = {}) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set('includeInactive', 'true');
+  const base = withOperatorQuery(endpoints.dashboard.routePoints(routeId), operatorId);
+  const qs = params.toString();
+  return apiFetch(qs ? `${base}${base.includes('?') ? '&' : '?'}${qs}` : base);
+}
+
+export function createDashboardBoardingPoint(payload, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.boardingPoints, operatorId), {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDashboardBoardingPoint(id, payload, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.boardingPoint(id), operatorId), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteDashboardBoardingPoint(id, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.boardingPoint(id), operatorId), {
+    method: 'DELETE',
+  });
+}
+
+export function createDashboardDroppingPoint(payload, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.droppingPoints, operatorId), {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDashboardDroppingPoint(id, payload, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.droppingPoint(id), operatorId), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteDashboardDroppingPoint(id, operatorId) {
+  return apiFetch(withOperatorQuery(endpoints.dashboard.droppingPoint(id), operatorId), {
+    method: 'DELETE',
+  });
 }
 
 export function getDashboardStats() {

@@ -244,35 +244,69 @@ async function main() {
     });
   }
 
-  // Default boarding/dropping points per route (required at booking confirm).
+  // Boarding/dropping points per route (required at booking confirm).
+  const dhakaRangpurBoarding = [
+    'Gabtoli Bus Terminal',
+    'Technical',
+    'Kallyanpur',
+    'Shyamoli',
+    'Mohakhali',
+    'Airport',
+    'Abdullahpur',
+  ];
+  const dhakaRangpurDropping = [
+    'Gobindaganj',
+    'Palashbari',
+    'Gaibandha',
+    'Mithapukur',
+    'Modern Mor',
+    'Jahaj Company Mor',
+    'Rangpur Bus Terminal',
+  ];
+
+  const normalizeCityName = (value: string) => value.trim().toLowerCase();
+
   const routesForPoints = await prisma.route.findMany({
     select: { id: true, operatorId: true, origin: true, destination: true },
   });
   for (const route of routesForPoints) {
-    const boardingName = `${route.origin} Central`;
-    const droppingName = `${route.destination} Central`;
-    await prisma.boardingPoint.upsert({
-      where: { routeId_name: { routeId: route.id, name: boardingName } },
-      update: { isActive: true },
-      create: {
-        operatorId: route.operatorId,
-        routeId: route.id,
-        name: boardingName,
-        address: `${route.origin} bus terminal`,
-        isActive: true,
-      },
-    });
-    await prisma.droppingPoint.upsert({
-      where: { routeId_name: { routeId: route.id, name: droppingName } },
-      update: { isActive: true },
-      create: {
-        operatorId: route.operatorId,
-        routeId: route.id,
-        name: droppingName,
-        address: `${route.destination} bus terminal`,
-        isActive: true,
-      },
-    });
+    const isDhakaRangpur =
+      normalizeCityName(route.origin) === 'dhaka' &&
+      normalizeCityName(route.destination) === 'rangpur';
+
+    const boardingNames = isDhakaRangpur
+      ? dhakaRangpurBoarding
+      : [`${route.origin} Central`];
+    const droppingNames = isDhakaRangpur
+      ? dhakaRangpurDropping
+      : [`${route.destination} Central`];
+
+    for (const name of boardingNames) {
+      await prisma.boardingPoint.upsert({
+        where: { routeId_name: { routeId: route.id, name } },
+        update: { isActive: true },
+        create: {
+          operatorId: route.operatorId,
+          routeId: route.id,
+          name,
+          address: `${name}, ${route.origin}`,
+          isActive: true,
+        },
+      });
+    }
+    for (const name of droppingNames) {
+      await prisma.droppingPoint.upsert({
+        where: { routeId_name: { routeId: route.id, name } },
+        update: { isActive: true },
+        create: {
+          operatorId: route.operatorId,
+          routeId: route.id,
+          name,
+          address: `${name}, ${route.destination}`,
+          isActive: true,
+        },
+      });
+    }
   }
 
   // ===== Buses (3-5) per operator + seats =====

@@ -86,6 +86,14 @@ export class PointsService {
     if (!existing || existing.operatorId !== operatorId) {
       throw new NotFoundException('Boarding point not found');
     }
+    const bookingCount = await this.prismaService.booking.count({
+      where: { boardingPointId: id },
+    });
+    if (bookingCount > 0) {
+      throw new ConflictException(
+        'Cannot delete boarding point that is used by existing bookings',
+      );
+    }
     return this.prismaService.boardingPoint.delete({ where: { id } });
   }
 
@@ -139,6 +147,14 @@ export class PointsService {
     const existing = await this.prismaService.droppingPoint.findUnique({ where: { id } });
     if (!existing || existing.operatorId !== operatorId) {
       throw new NotFoundException('Dropping point not found');
+    }
+    const bookingCount = await this.prismaService.booking.count({
+      where: { droppingPointId: id },
+    });
+    if (bookingCount > 0) {
+      throw new ConflictException(
+        'Cannot delete dropping point that is used by existing bookings',
+      );
     }
     return this.prismaService.droppingPoint.delete({ where: { id } });
   }

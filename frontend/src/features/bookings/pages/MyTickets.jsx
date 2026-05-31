@@ -283,6 +283,11 @@ const MyTickets = () => {
                       >
                         {ticket.trip?.route?.origin}
                       </p>
+                      {ticket.boardingPoint?.name ? (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Board: {ticket.boardingPoint.name}
+                        </p>
+                      ) : null}
                     </div>
                     <FaArrowRight className="text-slate-300 mt-5" />
                     <div>
@@ -294,6 +299,11 @@ const MyTickets = () => {
                       >
                         {ticket.trip?.route?.destination}
                       </p>
+                      {ticket.droppingPoint?.name ? (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Drop: {ticket.droppingPoint.name}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>

@@ -408,34 +408,13 @@ export class DashboardBookingsService {
               seatId: { in: requestedSeatIds },
               status: BookingSeatStatus.LOCKED,
               lockExpiresAt: { gt: now },
-              OR: [
-                { lockedByUserId: null },
-                { lockedByUserId: { not: user.sub } },
-              ],
             },
             select: { seatId: true },
           });
 
           if (foreignLockedSeat) {
             throw new ConflictException(
-              `Seat is currently locked by another user: ${foreignLockedSeat.seatId}`,
-            );
-          }
-
-          const ownLockCount = await tx.bookingSeat.count({
-            where: {
-              tripId: dto.tripId,
-              seatId: { in: requestedSeatIds },
-              status: BookingSeatStatus.LOCKED,
-              OR: [{ lockExpiresAt: { gt: now } }, { lockExpiresAt: null }],
-              lockedByUserId: user.sub,
-              bookingId: null,
-            },
-          });
-
-          if (ownLockCount !== requestedSeatIds.length) {
-            throw new ConflictException(
-              'Seat hold missing or expired. Lock seats again.',
+              `Seat is temporarily held by another booking session: ${foreignLockedSeat.seatId}`,
             );
           }
 
@@ -528,10 +507,12 @@ export class DashboardBookingsService {
           return tx.booking.findUnique({
             where: { id: booking.id },
             include: {
+              boardingPoint: true,
+              droppingPoint: true,
               trip: {
                 include: {
                   route: true,
-                  bus: true,
+                  bus: { include: { operator: true } },
                 },
               },
               bookingSeats: {

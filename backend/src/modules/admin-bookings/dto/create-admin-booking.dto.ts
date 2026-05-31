@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsIn,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -16,10 +17,12 @@ export class CreateAdminBookingDto {
 
   @ApiProperty({ example: 'boarding-point-id' })
   @IsString()
+  @IsNotEmpty()
   boardingPointId: string;
 
   @ApiProperty({ example: 'dropping-point-id' })
   @IsString()
+  @IsNotEmpty()
   droppingPointId: string;
 
   @ApiProperty({ example: ['seat-id-1', 'seat-id-2'] })

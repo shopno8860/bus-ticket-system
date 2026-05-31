@@ -205,10 +205,12 @@ export class AdminBookingsService {
           return tx.booking.findUnique({
             where: { id: booking.id },
             include: {
+              boardingPoint: true,
+              droppingPoint: true,
               trip: {
                 include: {
                   route: true,
-                  bus: true,
+                  bus: { include: { operator: true } },
                 },
               },
               bookingSeats: {

@@ -174,6 +174,20 @@ const PaymentSuccess = () => {
           </div>
 
           <div className="flex justify-between">
+            <span className="text-gray-500">Boarding</span>
+            <span className="font-semibold text-right max-w-[60%]">
+              {booking.boardingPoint?.name ?? trip.boardingPoint ?? trip.route.origin}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-500">Dropping</span>
+            <span className="font-semibold text-right max-w-[60%]">
+              {booking.droppingPoint?.name ?? trip.droppingPoint ?? trip.route.destination}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
             <span className="text-gray-500">Date</span>
             <span>{journeyDate}</span>
           </div>

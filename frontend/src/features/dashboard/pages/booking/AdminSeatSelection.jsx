@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../../../../services/api';
 import { endpoints } from '../../../../services/endpoints';
-import { showError, showLoading, showSuccess } from '../../../../utils/toastHelper';
+import { showError } from '../../../../utils/toastHelper';
 import SeatGrid from '../../../../components/seats/SeatGrid';
-import { lockDashboardSeats } from '../../services/dashboardApi';
 import { useOperatorHubPaths } from '../../hooks/useOperatorHubPaths';
 import { useAuth } from '../../../auth/context/AuthContext';
 import { useTripSeatSync } from '../../../seats/hooks/useTripSeatSync';
@@ -13,10 +12,6 @@ import {
   mergeBookingSeatsSnapshots,
   normalizeBookingSeatsList,
 } from '../../../seats/utils/seatState';
-import {
-  markDashboardHoldActive,
-  persistLockExpiry,
-} from '../../utils/dashboardSeatHold';
 
 const MAX_SELECTABLE = 999;
 
@@ -28,7 +23,7 @@ function AdminSeatSelection() {
 
   const [tripData, setTripData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [locking, setLocking] = useState(false);
+  const [continuing, setContinuing] = useState(false);
   const [error, setError] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
   const realtimeBookingSeatsRef = useRef(null);
@@ -138,18 +133,8 @@ function AdminSeatSelection() {
   const handleContinue = async () => {
     if (selectedSeats.length === 0) return;
 
-    const loadingToastId = showLoading('Locking seats...');
-    setLocking(true);
+    setContinuing(true);
     try {
-      const lockResponse = await lockDashboardSeats({
-        tripId,
-        seatIds: selectedSeats,
-      });
-      persistLockExpiry(tripId, lockResponse.lockExpiresAt);
-      markDashboardHoldActive(tripId, selectedSeats);
-      showSuccess('Seats held for manual booking', {
-        id: loadingToastId,
-      });
       navigate(bookingSummary, {
         state: {
           trip: tripData,
@@ -159,13 +144,10 @@ function AdminSeatSelection() {
           seatPrice: PRICE_PER_SEAT,
           busType,
           busClass,
-          lockExpiresAt: lockResponse.lockExpiresAt,
         },
       });
-    } catch (err) {
-      showError(err.message || 'Could not lock seats', { id: loadingToastId });
     } finally {
-      setLocking(false);
+      setContinuing(false);
     }
   };
 
@@ -312,10 +294,10 @@ function AdminSeatSelection() {
           <button
             type="button"
             onClick={handleContinue}
-            disabled={selectedSeats.length === 0 || locking}
+            disabled={selectedSeats.length === 0 || continuing}
             className="w-full rounded-lg bg-[#0f172a] py-3 text-sm font-bold text-white uppercase tracking-wider transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-40 shadow-sm"
           >
-            {locking ? 'Locking...' : 'Continue to Booking'}
+            {continuing ? 'Continuing...' : 'Continue to Booking'}
           </button>
         </div>
       </div>

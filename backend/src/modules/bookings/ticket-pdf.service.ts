@@ -61,6 +61,12 @@ export class TicketPdfService {
     const routeTo = booking.trip.route.destination ?? 'N/A';
     const boardingPointName = booking.boardingPoint?.name ?? routeFrom;
     const droppingPointName = booking.droppingPoint?.name ?? routeTo;
+    const boardingPointDisplay = booking.boardingPoint?.address
+      ? `${boardingPointName}\n${booking.boardingPoint.address}`
+      : boardingPointName;
+    const droppingPointDisplay = booking.droppingPoint?.address
+      ? `${droppingPointName}\n${booking.droppingPoint.address}`
+      : droppingPointName;
     const passengerName = booking.passengerName ?? 'N/A';
     const contact = booking.passengerPhone ?? 'Contact Support';
     const txn = booking.payments[0]?.transactionId ?? 'N/A';
@@ -149,8 +155,8 @@ export class TicketPdfService {
         .stroke();
       drawKeyValue(doc, 'FROM', routeFrom, 165, 65, 210);
       drawKeyValue(doc, 'TO', routeTo, 205, 65, 210);
-      drawKeyValue(doc, 'BOARDING POINT', boardingPointName, 245, 65, 210);
-      drawKeyValue(doc, 'DROPPING POINT', droppingPointName, 285, 65, 210);
+      drawKeyValue(doc, 'BOARDING POINT', boardingPointDisplay, 245, 65, 210);
+      drawKeyValue(doc, 'DROPPING POINT', droppingPointDisplay, 285, 65, 210);
       drawKeyValue(
         doc,
         'DEPARTURE TIME',

@@ -8,6 +8,7 @@ import {
 } from '../services/dashboardApi';
 import { useDashboardScope } from '../hooks/useDashboardScope';
 import ReadOnlyBanner from '../components/ReadOnlyBanner';
+import RoutePointsPanel from '../components/RoutePointsPanel';
 
 const defaultForm = {
   origin: '',
@@ -37,6 +38,7 @@ function RoutePage() {
 
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
+  const [pointsRoute, setPointsRoute] = useState(null);
 
   const routes = Array.isArray(data) ? data : [];
 
@@ -219,9 +221,7 @@ function RoutePage() {
                   <th className="px-3 py-2 font-medium">Destination</th>
                   <th className="px-3 py-2 font-medium">Route Name</th>
                   <th className="px-3 py-2 font-medium">Created Date</th>
-                  {!isPlatformReadOnly ? (
-                    <th className="px-3 py-2 font-medium">Actions</th>
-                  ) : null}
+                  <th className="px-3 py-2 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -233,28 +233,38 @@ function RoutePage() {
                       {route.origin} {'->'} {route.destination}
                     </td>
                     <td className="px-3 py-2 text-slate-600">{formatDate(route.createdAt)}</td>
-                    {!isPlatformReadOnly ? (
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEditDrawer(route)}
-                            title="Edit Route"
-                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
-                          >
-                            <IconEdit />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openDeleteDialog(route)}
-                            title="Delete Route"
-                            className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
-                          >
-                            <IconDelete />
-                          </button>
-                        </div>
-                      </td>
-                    ) : null}
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setPointsRoute(route)}
+                          title="Boarding & Dropping Points"
+                          className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Points
+                        </button>
+                        {!isPlatformReadOnly ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openEditDrawer(route)}
+                              title="Edit Route"
+                              className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100"
+                            >
+                              <IconEdit />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openDeleteDialog(route)}
+                              title="Delete Route"
+                              className="rounded-md border border-slate-200 p-1.5 text-rose-600 transition hover:bg-rose-50"
+                            >
+                              <IconDelete />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -346,6 +356,15 @@ function RoutePage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {pointsRoute ? (
+        <RoutePointsPanel
+          route={pointsRoute}
+          readOnly={isPlatformReadOnly}
+          operatorId={operatorId}
+          onClose={() => setPointsRoute(null)}
+        />
       ) : null}
 
       {toast ? (

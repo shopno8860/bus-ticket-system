@@ -348,6 +348,14 @@ function BookingPage() {
                 label="Trip"
                 value={`${selectedBooking.trip?.bus?.name ?? '-'} | ${selectedBooking.trip?.route?.origin ?? '-'} -> ${selectedBooking.trip?.route?.destination ?? '-'} | ${formatDateTime(selectedBooking.trip?.departureTime)}`}
               />
+              <DetailRow
+                label="Boarding Point"
+                value={selectedBooking.boardingPoint?.name ?? '-'}
+              />
+              <DetailRow
+                label="Dropping Point"
+                value={selectedBooking.droppingPoint?.name ?? '-'}
+              />
               <DetailRow label="Seats" value={formatSeats(selectedBooking.bookingSeats)} />
               <DetailRow label="Booking Source" value={formatBookingSource(selectedBooking.bookingSource)} />
               {selectedBooking.discountAmount > 0 && (

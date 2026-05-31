@@ -749,6 +749,8 @@ export class BookingsService {
     return this.prismaService.booking.findMany({
       where,
       include: {
+        boardingPoint: true,
+        droppingPoint: true,
         user: {
           select: {
             id: true,

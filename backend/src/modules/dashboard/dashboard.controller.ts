@@ -268,18 +268,24 @@ export class DashboardController {
   }
 
   @Get('routes/:routeId/points')
-  @RequirePermissions(Permission.BOOK_TICKET)
+  @RequireAnyPermissions(
+    Permission.VIEW_ROUTES,
+    Permission.MANAGE_ROUTES,
+    Permission.BOOK_TICKET,
+  )
   @ApiOperation({
     summary:
-      'Boarding/dropping points for a route (operator-scoped for OPERATOR/STAFF)',
+      'Boarding/dropping points for a route (active only by default; ?includeInactive=true for management)',
   })
   async getRoutePoints(
     @Param('routeId') routeId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     const route = await this.routesService.findOneById(routeId);
     this.tenantScope.assertResourceOwnership(user, route.operatorId);
-    return this.pointsService.listForRoute(routeId, true);
+    const onlyActive = includeInactive !== 'true';
+    return this.pointsService.listForRoute(routeId, onlyActive);
   }
 
   @Post('boarding-points')

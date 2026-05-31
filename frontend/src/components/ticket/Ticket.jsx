@@ -25,6 +25,8 @@ const Ticket = ({ booking, ticketRef }) => {
     booking?.boardingPoint?.name ?? booking?.trip?.boardingPoint ?? routeFrom;
   const droppingPoint =
     booking?.droppingPoint?.name ?? booking?.trip?.droppingPoint ?? routeTo;
+  const boardingAddress = booking?.boardingPoint?.address ?? '';
+  const droppingAddress = booking?.droppingPoint?.address ?? '';
 
   const passengerName = booking?.passengerName ?? 'N/A';
   const contact = booking?.passengerPhone ?? 'Contact Support';
@@ -167,12 +169,18 @@ const Ticket = ({ booking, ticketRef }) => {
 
             <div>
               <p className="text-[11px] text-gray-400 uppercase">BOARDING POINT</p>
-              <p>{boardingPoint}</p>
+              <p className="font-semibold">{boardingPoint}</p>
+              {boardingAddress ? (
+                <p className="text-[11px] text-gray-500">{boardingAddress}</p>
+              ) : null}
             </div>
 
             <div>
               <p className="text-[11px] text-gray-400 uppercase">DROPPING POINT</p>
-              <p>{droppingPoint}</p>
+              <p className="font-semibold">{droppingPoint}</p>
+              {droppingAddress ? (
+                <p className="text-[11px] text-gray-500">{droppingAddress}</p>
+              ) : null}
             </div>
 
             <div>
