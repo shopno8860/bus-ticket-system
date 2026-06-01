@@ -261,24 +261,46 @@ export class OperatorsService {
     });
     if (!operator) throw new NotFoundException('Operator not found');
 
-    const revenue = await this.prisma.payment.aggregate({
-      where: {
-        operatorId: id,
-        status: 'SUCCESS',
-      },
-      _sum: { amount: true },
-    });
+    const [paidTicketRevenue, deskTicketRevenue] = await Promise.all([
+      this.prisma.$queryRaw<[{ total: Prisma.Decimal | null }]>`
+        SELECT COALESCE(SUM(bs.price), 0)::numeric AS total
+        FROM "BookingSeat" bs
+        INNER JOIN "Booking" b ON b.id = bs."bookingId"
+        WHERE b."operatorId" = ${id}
+          AND EXISTS (
+            SELECT 1
+            FROM "Payment" p
+            WHERE p."bookingId" = b.id
+              AND p.status = 'SUCCESS'
+          )`,
+      this.prisma.$queryRaw<[{ total: Prisma.Decimal | null }]>`
+        SELECT COALESCE(SUM(COALESCE(b."finalAmount", b."totalAmount", 0)), 0)::numeric AS total
+        FROM "Booking" b
+        WHERE b."operatorId" = ${id}
+          AND b.status = 'CONFIRMED'
+          AND b."bookingSource" IN ('ADMIN_BOOKING', 'STAFF_BOOKING', 'MANUAL')
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "Payment" p
+            WHERE p."bookingId" = b.id
+              AND p.status = 'SUCCESS'
+          )`,
+    ]);
 
     const refunds = await this.prisma.refund.count({
       where: { operatorId: id, status: 'PENDING' },
     });
+
+    const totalRevenue =
+      Number(paidTicketRevenue[0]?.total ?? 0) +
+      Number(deskTicketRevenue[0]?.total ?? 0);
 
     return {
       totalBuses: operator._count.buses,
       totalTrips: operator._count.trips,
       totalBookings: operator._count.bookings,
       totalStaff: operator._count.users,
-      totalRevenue: Number(revenue._sum.amount ?? 0),
+      totalRevenue,
       pendingRefunds: refunds,
     };
   }

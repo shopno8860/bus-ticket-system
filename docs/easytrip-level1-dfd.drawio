@@ -1,0 +1,284 @@
+<mxfile host="app.diagrams.net" agent="EasyTrip" version="22.0.0">
+  <diagram id="level1-dfd" name="EasyTrip Level 1 DFD">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="EasyTrip Bus Ticket System — Level 1 DFD" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="500" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- External entities -->
+        <mxCell id="e-passenger" value="Passenger&#xa;(USER)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e-admin" value="Platform Admin&#xa;(ADMIN)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e-operator" value="Bus Operator / Staff&#xa;(OPERATOR, STAFF)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="130" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ssl" value="SSLCommerz&#xa;(Payment Gateway)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="680" width="130" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Processes -->
+        <mxCell id="p1" value="1.0 Authenticate Users&#xa;login, register, JWT" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="380" y="80" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="2.0 Search Trips&#xa;origin, destination, date" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="380" y="180" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" value="3.0 Manage Bookings&#xa;lock, confirm, view, cancel" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="380" y="290" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" value="4.0 Process Payments&#xa;initiate, callback, expiry" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="380" y="400" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p5" value="5.0 Manage Fleet &amp; Schedule&#xa;buses, routes, trips" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="380" y="510" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p6" value="6.0 Administer Platform&#xa;operators, users" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="380" y="620" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Data stores -->
+        <mxCell id="d1" value="D1 Users &amp; roles" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="90" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" value="D2 Operators" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="170" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="d3" value="D3 Fleet&#xa;(buses, routes, seats)" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="250" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="d4" value="D4 Trips &amp; availability" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="340" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="d5" value="D5 Bookings, payments, refunds" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="430" width="160" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Entity to process flows -->
+        <mxCell id="f1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-passenger" target="p1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1l" value="login / register" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f1">
+          <mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p1" target="e-passenger">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2l" value="JWT" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f2">
+          <mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint y="10" as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-passenger" target="p2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3l" value="search criteria" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f3">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p2" target="e-passenger">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4l" value="trip list" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f4">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-passenger" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5l" value="seat lock, booking details" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f5">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p3" target="e-passenger">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6l" value="booking confirmation" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f6">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-passenger" target="p4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="220" y="360" /><mxPoint x="220" y="435" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f7l" value="payment request" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f7">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p4" target="e-passenger">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="300" y="435" /><mxPoint x="300" y="360" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f8l" value="receipt / status" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f8">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-admin" target="p1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f9l" value="admin login" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f9">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-admin" target="p6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f10l" value="operator &amp; user mgmt" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f10">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-operator" target="p1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f11l" value="operator login" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f11">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-operator" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f12l" value="staff booking" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f12">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-operator" target="p5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f13l" value="bus / route / trip data" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f13">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;dashed=1;" edge="1" parent="1" source="e-operator" target="p4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="220" y="500" /><mxPoint x="220" y="435" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f14l" value="view payments (read)" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f14">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p4" target="e-ssl">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f15l" value="payment initiation" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f15">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="e-ssl" target="p4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f16l" value="payment callback" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f16">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <!-- Process to process -->
+        <mxCell id="f17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p3" target="p4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f17l" value="confirmed booking" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f17">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" edge="1" parent="1" source="p4" target="p3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="560" y="370" /><mxPoint x="560" y="325" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f18l" value="payment status" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f18">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <!-- Process to data stores -->
+        <mxCell id="f19" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p1" target="d1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f19l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f19">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f20" style="endArrow=block;endFill=1;html=1;rounded=0;" edge="1" parent="1" source="p2" target="d4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f20l" value="R" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f20">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f21" style="endArrow=block;endFill=1;html=1;rounded=0;" edge="1" parent="1" source="p2" target="d2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="650" y="215" /><mxPoint x="650" y="190" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f21l" value="R" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f21">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f22" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p3" target="d4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f22l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f22">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f23" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p3" target="d5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="650" y="325" /><mxPoint x="650" y="455" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f23l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f23">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f24" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p4" target="d5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f24l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f24">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f25" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p5" target="d3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f25l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f25">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f26" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p5" target="d4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="680" y="545" /><mxPoint x="680" y="360" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f26l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f26">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f27" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p6" target="d1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="690" y="655" /><mxPoint x="690" y="110" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f27l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f27">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="f28" style="endArrow=none;dashed=1;html=1;rounded=0;startArrow=block;startFill=1;endFill=0;" edge="1" parent="1" source="p6" target="d2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="700" y="655" /><mxPoint x="700" y="190" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f28l" value="R/W" style="edgeLabel;html=1;align=center;verticalAlign=middle;" connectable="0" vertex="1" parent="f28">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

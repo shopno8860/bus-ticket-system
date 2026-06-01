@@ -1,0 +1,170 @@
+@startuml EasyTrip_ER_Diagram
+' Paste at https://www.plantuml.com/plantuml or use PlantUML extension
+' Simplified ER — audit fields (createdBy, updatedBy) omitted for clarity
+
+skinparam linetype ortho
+title EasyTrip Bus Ticket System — ER Diagram (Core)
+
+entity Operator {
+  * id : PK
+  --
+  companyName : UK
+  slug : UK
+  status
+  email
+  phone
+}
+
+entity User {
+  * id : PK
+  --
+  fullName
+  email : UK
+  passwordHash
+  role
+  operatorId : FK
+}
+
+entity Bus {
+  * id : PK
+  --
+  operatorId : FK
+  registrationNumber : UK
+  seatCapacity
+  busType
+  busClass
+  status
+}
+
+entity Seat {
+  * id : PK
+  --
+  busId : FK
+  seatNumber
+  rowNumber
+  columnNumber
+}
+
+entity Route {
+  * id : PK
+  --
+  operatorId : FK
+  origin
+  destination
+}
+
+entity BoardingPoint {
+  * id : PK
+  --
+  operatorId : FK
+  routeId : FK
+  name
+  address
+}
+
+entity DroppingPoint {
+  * id : PK
+  --
+  operatorId : FK
+  routeId : FK
+  name
+  address
+}
+
+entity Trip {
+  * id : PK
+  --
+  busId : FK
+  routeId : FK
+  operatorId : FK
+  departureTime
+  arrivalTime
+  price
+  status
+}
+
+entity Booking {
+  * id : PK
+  --
+  bookingReference : UK
+  userId : FK
+  tripId : FK
+  operatorId : FK
+  passengerName
+  passengerPhone
+  totalAmount
+  status
+  paymentExpiresAt
+}
+
+entity BookingSeat {
+  * id : PK
+  --
+  bookingId : FK
+  tripId : FK
+  seatId : FK
+  price
+  status
+  lockExpiresAt
+}
+
+entity Payment {
+  * id : PK
+  --
+  bookingId : FK
+  userId : FK
+  operatorId : FK
+  amount
+  method
+  status
+  transactionId : UK
+}
+
+entity Refund {
+  * id : PK
+  --
+  bookingId : FK
+  paymentId : FK
+  userId : FK
+  operatorId : FK
+  amount
+  reason
+  status
+}
+
+Operator ||--o{ User : employs
+Operator ||--o{ Bus : owns
+Operator ||--o{ Route : owns
+Operator ||--o{ Trip : runs
+Operator ||--o{ Booking : receives
+Operator ||--o{ Payment : receives
+Operator ||--o{ Refund : processes
+Operator ||--o{ BoardingPoint : has
+Operator ||--o{ DroppingPoint : has
+
+Bus ||--o{ Seat : contains
+Bus ||--o{ Trip : assigned
+
+Route ||--o{ Trip : used_by
+Route ||--o{ BoardingPoint : has
+Route ||--o{ DroppingPoint : has
+
+Trip ||--o{ Booking : has
+Trip ||--o{ BookingSeat : reserves
+
+Seat ||--o{ BookingSeat : booked_via
+
+User ||--o{ Booking : makes
+User ||--o{ Payment : pays
+User ||--o{ Refund : requests
+
+Booking ||--o{ BookingSeat : includes
+Booking ||--o{ Payment : has
+Booking ||--o{ Refund : may_have
+
+Booking }o--o| BoardingPoint : boards_at
+Booking }o--o| DroppingPoint : drops_at
+
+Payment ||--o{ Refund : refunded_by
+
+@enduml
