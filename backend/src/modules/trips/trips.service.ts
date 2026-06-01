@@ -237,6 +237,8 @@ export class TripsService {
       where.operatorId = scopedOperatorId;
     }
 
+    where.status = TripStatus.SCHEDULED;
+
     if (searchTripsDto.origin) {
       routeFilters.origin = {
         contains: searchTripsDto.origin,
@@ -552,7 +554,7 @@ export class TripsService {
       },
     });
 
-    if (!trip) {
+    if (!trip || trip.status !== TripStatus.SCHEDULED) {
       throw new NotFoundException(`Trip not found for id: ${id}`);
     }
 

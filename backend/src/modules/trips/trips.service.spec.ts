@@ -29,6 +29,22 @@ describe('TripsService', () => {
     service = new TripsService(prisma as never);
   });
 
+  describe('findAll', () => {
+    beforeEach(() => {
+      prisma.trip.findMany.mockResolvedValue([]);
+    });
+
+    it('only returns scheduled trips', async () => {
+      await service.findAll({ origin: 'Dhaka', destination: 'Chattogram' });
+
+      expect(prisma.trip.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: TripStatus.SCHEDULED }),
+        }),
+      );
+    });
+  });
+
   describe('findAllAdmin', () => {
     beforeEach(() => {
       prisma.$transaction.mockImplementation(async (ops) => {
